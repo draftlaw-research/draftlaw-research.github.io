@@ -5,14 +5,17 @@
    ========================================================================== */
 
 :root {
-  /* ==================================================================
-     EDIT HERE: FONTS
-     Georgia is installed on Windows, Mac and iPhone. Gelasio is a free font that looks
-     almost the same, used on devices without Georgia (Android, Linux).
-     To use another font, replace the names below (see CUSTOMIZING.md).
-     ================================================================== */
-  --font-body: Georgia, 'Gelasio Variable', 'Times New Roman', serif; /* all text */
-  --font-ui: Georgia, 'Gelasio Variable', 'Times New Roman', serif; /* menu, small labels, buttons */
+  --paper: #fbfaf7;
+  --surface: #ffffff;
+  --ink: #1b1a18;
+  --muted: #625e57;
+  --rule: #e4dfd5;
+  --accent: #7a1f2b;
+  --accent-ink: #ffffff;
+  --accent-soft: #f4e9ea;
+
+ --serif: 'Source Serif 4 Variable', 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
+  --sans: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 
   /* ==================================================================
      EDIT HERE: TEXT SIZE AND LINE SPACING

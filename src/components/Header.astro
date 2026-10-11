@@ -10,11 +10,9 @@ const isActive = (match: string[]) => match.some((m) => path.startsWith(m));
 <header class="site-header">
   <div class="wrap masthead">
     <a class="brand" href="/" aria-label={`${SITE.name}, home`}>
-      <Image src={emblem} alt="" width={80} height={112} loading="eager" />
-      <span>
-        <span class="brand-name"><span class="gold">DraftLaw</span> Research</span>
-        <span class="brand-sub">{SITE.motto}</span>
-      </span>
+ <img class="brand-logo" src="/logo.svg" alt="" height="40" />
+      <span class="brand-name">DraftLaw</span>
+      <span class="brand-sub">Research</span>
     </a>
     <div class="head-tools">
       <nav class="nav" aria-label="Main">
