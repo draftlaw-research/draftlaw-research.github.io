@@ -23,7 +23,7 @@ const line = [d.role, d.affiliation, d.country].filter(Boolean).join(', ');
 <Base title={d.name} description={`${d.name}${line ? ', ' + line : ''}. Articles on DraftLaw Research.`}>
   <div class="wrap">
     <div class="author-head">
-      <Avatar author={author} big />
+      <Avatar name={d.name} photo={d.photo} big />
       <div>
         <p class="eyebrow"><a href="/authors/">Authors</a></p>
         <h1>{d.name}</h1>

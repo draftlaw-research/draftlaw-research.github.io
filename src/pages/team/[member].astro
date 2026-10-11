@@ -1,0 +1,37 @@
+---
+import { render } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+import Avatar from '../../components/Avatar.astro';
+import { getTeam } from '../../lib/content';
+
+export async function getStaticPaths() {
+  const team = await getTeam();
+  return team.map((member) => ({ params: { member: member.id }, props: { member } }));
+}
+
+const { member } = Astro.props;
+const { Content } = await render(member);
+const d = member.data;
+const line = [d.occupation, d.affiliation].filter(Boolean).join(', ');
+---
+
+<Base title={d.name} description={`${d.name}, ${d.position} at DraftLaw Research.`}>
+  <div class="wrap">
+    <div class="author-head">
+      <Avatar name={d.name} photo={d.photo} big />
+      <div>
+        <p class="eyebrow"><a href="/about/#team">Our team</a></p>
+        <h1>{d.name}</h1>
+        <p class="role"><strong>{d.position}</strong>, DraftLaw Research</p>
+        {line && <p class="role">{line}</p>}
+        <ul class="links">
+          {d.linkedin && <li><a href={d.linkedin} rel="noopener">LinkedIn</a></li>}
+          {d.website && <li><a href={d.website} rel="noopener">Website</a></li>}
+        </ul>
+      </div>
+    </div>
+    <div class="page-text">
+      <Content />
+    </div>
+  </div>
+</Base>

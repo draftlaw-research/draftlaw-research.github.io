@@ -1,0 +1,36 @@
+---
+import { render } from 'astro:content';
+import Base from '../layouts/Base.astro';
+import { getPage } from '../lib/content';
+import { SITE } from '../config';
+
+const page = await getPage('submit');
+const { Content, headings } = await render(page);
+const sections = headings.filter((h) => h.depth === 2);
+---
+
+<Base title={page.data.title} description={page.data.description}>
+  <div class="wrap">
+    <div class="page-title">
+      <p class="eyebrow">Write with us</p>
+      <h1>{page.data.title}</h1>
+      <p>{page.data.description}</p>
+    </div>
+
+    <div class="section layout-aside">
+      <div class="page-text" style="padding:0;max-width:var(--measure)">
+        <Content />
+      </div>
+      <aside class="sticky" aria-label="On this page">
+        <ul class="on-page">
+          {sections.map((h) => <li><a href={`#${h.slug}`}>{h.text}</a></li>)}
+        </ul>
+        <div class="aside-box" style="margin-top:0">
+          <h3>Ready to submit?</h3>
+          <p>Send your Word file, author bio and photo to:</p>
+          <a class="btn block" href={`mailto:${SITE.submissionEmail}`}>{SITE.submissionEmail}</a>
+        </div>
+      </aside>
+    </div>
+  </div>
+</Base>

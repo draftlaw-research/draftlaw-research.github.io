@@ -1,6 +1,10 @@
 ---
 import Base from '../layouts/Base.astro';
+import Avatar from '../components/Avatar.astro';
+import { getTeam, teamUrl } from '../lib/content';
 import { SITE } from '../config';
+
+const team = await getTeam();
 ---
 
 <Base title="About" description={SITE.description}>
@@ -32,12 +36,14 @@ import { SITE } from '../config';
         idea and work with 2 to 3 undergraduate co-authors over one semester. Together they take a project from
         conception to journal-ready submission, learning how to identify a research question, build an argument, write
         for publication, and navigate the academic process. Students learn by doing. Mentors publish. Everyone grows.
+        <a href="/programs/">See our programs.</a>
       </p>
       <p>
         <strong>The DraftLaw blog.</strong> Our open platform publishes case summaries, legal opinions, commentary, and
         analytical articles from law students, practitioners, and scholars worldwide. We welcome contributors from any
         discipline, so long as their work contributes to the understanding of law. Every submission goes through blind
         peer review before publication, so each piece is judged on its merit alone.
+        <a href="/submit/">Read the submission guidelines.</a>
       </p>
 
       <h2>Who we work with</h2>
@@ -51,11 +57,33 @@ import { SITE } from '../config';
         We were founded by legal researchers who believe that access to serious academic mentorship and publication
         should not depend on where you study or who you know.
       </p>
+    </div>
 
-      <h2 id="write">Get involved</h2>
+    {team.length > 0 && (
+      <section class="section" id="team" style="padding-top:0" aria-labelledby="team-h">
+        <div class="section-head"><h2 id="team-h">Our team</h2></div>
+        <div class="team-grid">
+          {team.map((m) => (
+            <a class="team-card" href={teamUrl(m)}>
+              <Avatar name={m.data.name} photo={m.data.photo} />
+              <div>
+                <h3>{m.data.name}</h3>
+                <p class="position">{m.data.position}</p>
+                {m.data.occupation && <p class="sub">{m.data.occupation}</p>}
+                {m.data.affiliation && <p class="sub">{m.data.affiliation}</p>}
+              </div>
+            </a>
+          ))}
+        </div>
+      </section>
+    )}
+
+    <div class="page-text" style="padding-top:0">
+      <h2 id="contact">Get involved</h2>
       <p>
-        Want to join as a mentor, co-author, or blog contributor? Reach out at
-        <a href={`mailto:${SITE.email}`}> {SITE.email}</a>.
+        Want to join as a mentor, co-author, or blog contributor? See our <a href="/programs/">programs</a> and{' '}
+        <a href="/submit/">submission guidelines</a>, or reach out at{' '}
+        <a href={`mailto:${SITE.email}`}>{SITE.email}</a> or through our social media accounts.
       </p>
     </div>
   </div>

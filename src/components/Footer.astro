@@ -1,12 +1,18 @@
 ---
-import { SITE, NAV } from '../config';
+import { Image } from 'astro:assets';
+import logo from '../assets/logo/logo-full.png';
+import { SITE, EXPLORE, SOCIALS } from '../config';
+
 const year = new Date().getFullYear();
+const socials = SOCIALS.filter((s) => s.url);
 ---
 
 <footer class="site-footer">
   <div class="wrap footer-grid">
     <div>
-      <h2>{SITE.name}</h2>
+      <a class="footer-logo" href="/" aria-label={`${SITE.name}, home`} style="display:block">
+        <Image src={logo} alt={SITE.name} width={300} />
+      </a>
       <p>
         A nonprofit initiative building the next generation of legal scholars and giving legal voices a place to be
         heard. {SITE.location}.
@@ -15,14 +21,21 @@ const year = new Date().getFullYear();
     <div>
       <h2>Explore</h2>
       <ul>
-        {NAV.map((item) => <li><a href={item.href}>{item.label}</a></li>)}
+        {EXPLORE.map((item) => <li><a href={item.href}>{item.label}</a></li>)}
+      </ul>
+    </div>
+    <div>
+      <h2>Follow us</h2>
+      <ul>
+        {socials.map((s) => <li><a href={s.url} target="_blank" rel="noopener">{s.label}</a></li>)}
       </ul>
     </div>
     <div>
       <h2>Contact</h2>
       <ul>
         <li><a href={`mailto:${SITE.email}`}>{SITE.email}</a></li>
-        <li><a href="/about/#write">Write for us</a></li>
+        <li>Submissions: <a href={`mailto:${SITE.submissionEmail}`}>{SITE.submissionEmail}</a></li>
+        <li><a href="/submit/">How to submit</a></li>
       </ul>
     </div>
   </div>

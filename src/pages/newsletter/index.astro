@@ -1,0 +1,76 @@
+---
+import Base from '../../layouts/Base.astro';
+import NewsItem from '../../components/NewsItem.astro';
+import { getNewsletter } from '../../lib/content';
+
+const { open, closed } = await getNewsletter();
+const categories = [...new Set([...open, ...closed].map((i) => i.data.category))];
+---
+
+<Base
+  title="Newsletter"
+  description="Calls for papers, seminars, moot court competitions and other opportunities in law, collected by DraftLaw Research."
+>
+  <div class="wrap">
+    <div class="page-title">
+      <p class="eyebrow">Newsletter</p>
+      <h1>Calls and opportunities</h1>
+      <p>
+        Calls for papers, seminars and conferences, moot court competitions and other opportunities from around the
+        world. Each entry has a short description and a link to the original call. Updated regularly.
+      </p>
+    </div>
+
+    {(open.length + closed.length) > 0 && (
+      <div class="chips" role="group" aria-label="Filter by type">
+        <button class="chip" type="button" data-cat="" aria-pressed="true">All</button>
+        {categories.map((c) => <button class="chip" type="button" data-cat={c} aria-pressed="false">{c}</button>)}
+      </div>
+    )}
+
+    <div class="section" style="padding-top:1rem">
+      <div class="section-head"><h2>Open now</h2></div>
+      {open.length > 0 ? (
+        <ul class="news" id="open-list">
+          {open.map((item) => <NewsItem item={item} />)}
+        </ul>
+      ) : (
+        <p class="empty">There are no open calls right now. Please check back soon.</p>
+      )}
+      <p class="empty" id="none" hidden>Nothing in this category at the moment.</p>
+
+      {closed.length > 0 && (
+        <details class="past">
+          <summary>Closed ({closed.length})</summary>
+          <ul class="news" id="closed-list">
+            {closed.map((item) => <NewsItem item={item} />)}
+          </ul>
+        </details>
+      )}
+
+      <div class="aside-box" style="max-width:40rem;margin-top:2.5rem">
+        <h3>Know a call that fits our readers?</h3>
+        <p>
+          Send the title, organiser, type, deadline, location and a link to
+          <a href="mailto:draftlawresearch@gmail.com">draftlawresearch@gmail.com</a>. Listing is free.
+        </p>
+      </div>
+    </div>
+  </div>
+</Base>
+
+<script>
+  const chips = Array.from(document.querySelectorAll<HTMLButtonElement>('.chip'));
+  const items = Array.from(document.querySelectorAll<HTMLElement>('.news > li'));
+  const none = document.getElementById('none');
+  const openItems = Array.from(document.querySelectorAll<HTMLElement>('#open-list > li'));
+
+  chips.forEach((chip) =>
+    chip.addEventListener('click', () => {
+      const cat = chip.dataset.cat ?? '';
+      chips.forEach((c) => c.setAttribute('aria-pressed', String(c === chip)));
+      items.forEach((li) => (li.hidden = cat !== '' && li.dataset.category !== cat));
+      if (none) none.hidden = openItems.length === 0 || openItems.some((li) => !li.hidden);
+    }),
+  );
+</script>

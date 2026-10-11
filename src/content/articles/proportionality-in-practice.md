@@ -17,7 +17,7 @@ Proportionality review is often described as a single test, but in practice it i
 
 ## The usual structure
 
-Most formulations ask four things in order: whether the measure pursues a legitimate aim, whether it is suitable to achieve that aim, whether a less restrictive measure would do equally well, and whether the benefits outweigh the harm to the right.[^1]
+Most formulations ask four things in order: whether the measure pursues a legitimate aim, whether it is suitable to achieve that aim, whether a less restrictive measure would do equally well, and whether the benefits outweigh the harm to the right ([example source](https://example.org/source)).
 
 The first three steps look like fact-finding. The fourth is where values enter openly, and it is where reasoned disagreement between judges is most visible.
 
@@ -26,5 +26,3 @@ The first three steps look like fact-finding. The fourth is where values enter o
 ## Why the last step matters
 
 Courts differ on how much weight to give the legislature's judgment at the final stage. A reader who only looks at outcomes will miss that the disagreement is usually about *deference*, not about the existence of the right.
-
-[^1]: This is a simplified description for illustration. A real article would cite the relevant cases and secondary sources here in OSCOLA style.

@@ -1,0 +1,43 @@
+---
+import { render } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+import { getAnnouncements, getPrograms, formatDate, isoDate, today } from '../../lib/content';
+
+const announcements = await getAnnouncements();
+const programs = await getPrograms();
+const programName = (id?: string) => programs.find((p) => p.id === id)?.data.title;
+const rendered = await Promise.all(announcements.map(async (a) => ({ a, Content: (await render(a)).Content })));
+const now = +today();
+---
+
+<Base title="Announcements" description="Open calls and news from DraftLaw Research programs.">
+  <div class="wrap">
+    <div class="page-title">
+      <p class="eyebrow"><a href="/programs/">Programs</a></p>
+      <h1>Announcements</h1>
+      <p>Open calls for students and mentors, deadlines and news about our programs.</p>
+    </div>
+    <div class="section" style="max-width:var(--measure)">
+      {rendered.length > 0 ? (
+        rendered.map(({ a, Content }) => {
+          const isOpen = a.data.type === 'Open call' && (!a.data.deadline || +a.data.deadline >= now);
+          return (
+            <article class="announce" id={a.id}>
+              <p class="eyebrow">
+                {a.data.type}{isOpen ? ' · open now' : ''}{programName(a.data.program) ? ` · ${programName(a.data.program)}` : ''}
+              </p>
+              <h3>{a.data.title}</h3>
+              <time datetime={isoDate(a.data.date)}>
+                {formatDate(a.data.date)}{a.data.deadline ? ` · Apply by ${formatDate(a.data.deadline)}` : ''}
+              </time>
+              <div class="body"><Content /></div>
+              {a.data.link && <p><a class="more" href={a.data.link} rel="noopener">Apply or read more →</a></p>}
+            </article>
+          );
+        })
+      ) : (
+        <p class="empty">No announcements yet.</p>
+      )}
+    </div>
+  </div>
+</Base>

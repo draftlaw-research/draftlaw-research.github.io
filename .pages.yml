@@ -1,13 +1,23 @@
-# Config for Pages CMS (https://pagescms.org), a free form-style editor that edits this repository.
-# DRAFT: written from memory of the Pages CMS format and NOT tested yet.
-# Check it against https://pagescms.org/docs and fix small things if the editor complains.
-# When a new author is added, add one line to the "authors" list below (use the file name without .md).
+# Config for Pages CMS (https://pagescms.org), the form-style editor for this site.
+# Written against the Pages CMS documentation (pagescms.org/docs). If the editor shows an error,
+# open "Configuration" in Pages CMS: it points to the exact line.
+#
+# You never need to add authors or topics here: they are picked from the Authors and Topics lists.
 
+# Where uploaded pictures are saved, and the path written into the article.
 media:
-  input: src/assets/covers
-  output: /src/assets/covers
+  input: src/assets
+  output: /src/assets
+  rename: safe
+  extensions: [jpg, jpeg, png, webp]
+
+# Keep any extra lines in files that this editor does not know about.
+settings:
+  content:
+    merge: true
 
 content:
+  # ---------------------------------------------------------------- Articles
   - name: articles
     label: Articles
     type: collection
@@ -16,49 +26,57 @@ content:
     view:
       fields: [title, date, kind, featured]
       primary: title
-      sort: [date]
+      sort: [date, title]
       default:
         sort: date
         order: desc
     fields:
       - { name: title, label: Title, type: string, required: true }
-      - { name: summary, label: Summary (shown on cards, max 400 characters), type: text, required: true }
+      - name: summary
+        label: Summary (shown on cards, 1 or 2 sentences)
+        type: text
+        required: true
+        options: { maxlength: 400 }
       - name: authors
         label: Authors
-        type: select
-        list: true
+        type: reference
         required: true
         options:
-          values:
-            - { value: mira-lindqvist, label: Mira Lindqvist }
-            - { value: daniel-okafor, label: Daniel Okafor }
-            - { value: priya-raman, label: Priya Raman }
+          collection: authors
+          multiple: true
+          search: name
+          label: '{primary}'
       - name: topic
         label: Topic
-        type: select
+        type: reference
         required: true
         options:
-          values:
-            - { value: constitutional-law, label: Constitutional Law }
-            - { value: human-rights, label: Human Rights }
-            - { value: international-law, label: International Law }
-            - { value: technology-and-law, label: Technology and Law }
-            - { value: legal-education, label: Legal Education }
+          collection: topics
+          search: name
+          label: '{primary}'
       - name: kind
         label: Type
         type: select
         default: Article
         options:
-          values: [Article, Case summary, Commentary, Opinion]
+          values: [Article, Case summary, Commentary, Opinion, Book review]
       - { name: date, label: Publication date, type: date, required: true }
-      - { name: cover, label: Cover image (1200 x 630, under 200 KB), type: image }
+      - name: cover
+        label: Cover image (1200 x 630, under 200 KB)
+        type: image
+        options: { path: src/assets/covers }
       - { name: coverAlt, label: Image description for screen readers, type: string }
       - { name: coverCredit, label: Image credit (optional), type: string }
       - { name: featured, label: Pin to Featured on the front page, type: boolean, default: false }
       - { name: keywords, label: Keywords, type: string, list: true }
       - { name: peerReviewed, label: Blind peer reviewed, type: boolean, default: true }
-      - { name: body, label: Article text, type: rich-text }
+      - name: body
+        label: Article text (use the link button for sources, no footnotes)
+        type: rich-text
+        options:
+          path: src/assets/images
 
+  # ----------------------------------------------------------------- Authors
   - name: authors
     label: Authors
     type: collection
@@ -67,12 +85,179 @@ content:
     view:
       fields: [name, role, affiliation]
       primary: name
+      sort: [name]
     fields:
       - { name: name, label: Full name, type: string, required: true }
-      - { name: role, label: Role, type: string }
+      - { name: role, label: Role or occupation, type: string }
       - { name: affiliation, label: University or organisation, type: string }
       - { name: country, label: Country, type: string }
+      - name: photo
+        label: Photo (square image works best)
+        type: image
+        options: { path: src/assets/authors }
       - { name: orcid, label: ORCID (optional), type: string }
       - { name: linkedin, label: LinkedIn link (optional), type: string }
       - { name: website, label: Website link (optional), type: string }
-      - { name: body, label: Short bio, type: rich-text }
+      - { name: body, label: Short bio, type: rich-text, options: { media: false } }
+
+  # ------------------------------------------------------------------ Topics
+  - name: topics
+    label: Topics
+    type: collection
+    path: src/content/topics
+    filename: '{primary}.md'
+    view:
+      fields: [name, order]
+      primary: name
+    fields:
+      - { name: name, label: Topic name, type: string, required: true }
+      - { name: description, label: One-line description, type: string, required: true }
+      - { name: order, label: Order (smaller numbers come first), type: number }
+
+  # -------------------------------------------------------------------- Team
+  - name: team
+    label: Team members
+    type: collection
+    path: src/content/team
+    filename: '{primary}.md'
+    view:
+      fields: [name, position, occupation]
+      primary: name
+      sort: [order, name]
+    fields:
+      - { name: name, label: Full name, type: string, required: true }
+      - { name: position, label: Position in DraftLaw Research, type: string, required: true }
+      - { name: occupation, label: Professional capacity (occupation), type: string }
+      - { name: affiliation, label: Affiliation (university or organisation), type: string }
+      - name: photo
+        label: Photo (square image works best)
+        type: image
+        options: { path: src/assets/team }
+      - { name: order, label: Order on the About page (smaller numbers come first), type: number }
+      - { name: linkedin, label: LinkedIn link (optional), type: string }
+      - { name: website, label: Website link (optional), type: string }
+      - { name: body, label: Short bio, type: rich-text, options: { media: false } }
+
+  # -------------------------------------------------------------- Newsletter
+  - name: newsletter
+    label: Newsletter items
+    type: collection
+    path: src/content/newsletter
+    filename: '{primary}.md'
+    view:
+      fields: [title, category, deadline]
+      primary: title
+      sort: [posted, deadline]
+      default:
+        sort: posted
+        order: desc
+    fields:
+      - { name: title, label: Title, type: string, required: true }
+      - name: category
+        label: Type
+        type: select
+        default: Call for papers
+        options:
+          values: [Call for papers, Seminar or conference, Moot court, Fellowship or internship, Other]
+      - { name: organiser, label: Organiser, type: string }
+      - { name: deadline, label: Deadline (last day to apply or submit), type: date, default: '' }
+      - { name: eventDate, label: 'Event date (seminars, conferences, competitions)', type: date, default: '' }
+      - { name: location, label: Location (or Online), type: string }
+      - { name: link, label: Link to the original call, type: string, required: true }
+      - name: summary
+        label: Short description (2 or 3 sentences)
+        type: text
+        required: true
+        options: { maxlength: 500 }
+      - { name: posted, label: Date posted, type: date, required: true }
+
+  # ---------------------------------------------------------------- Programs
+  - name: programs
+    label: Programs
+    type: collection
+    path: src/content/programs
+    filename: '{primary}.md'
+    view:
+      fields: [title, status]
+      primary: title
+    fields:
+      - { name: title, label: Program name, type: string, required: true }
+      - name: summary
+        label: Summary (shown on the Programs page)
+        type: text
+        required: true
+        options: { maxlength: 400 }
+      - name: status
+        label: Status
+        type: select
+        default: Ongoing
+        options:
+          values: [Open for applications, Upcoming, Ongoing, Closed]
+      - { name: order, label: Order (smaller numbers come first), type: number }
+      - name: body
+        label: "Full description (use headings such as About, For mentors, For students)"
+        type: rich-text
+        options:
+          media: false
+
+  - name: announcements
+    label: Program announcements
+    type: collection
+    path: src/content/announcements
+    filename: '{primary}.md'
+    view:
+      fields: [title, type, date, deadline]
+      primary: title
+      sort: [date]
+      default:
+        sort: date
+        order: desc
+    fields:
+      - { name: title, label: Title, type: string, required: true }
+      - { name: date, label: Date, type: date, required: true }
+      - name: type
+        label: Type
+        type: select
+        default: Update
+        options:
+          values: [Open call, Update, Result]
+      - name: program
+        label: Program (optional)
+        type: reference
+        options:
+          collection: programs
+          search: title
+          label: '{primary}'
+      - { name: deadline, label: Deadline (for open calls), type: date, default: '' }
+      - { name: link, label: Link to apply or read more (optional), type: string }
+      - name: body
+        label: Announcement text (2 or 3 sentences)
+        type: rich-text
+        options:
+          media: false
+
+  # ------------------------------------------------------------------- Pages
+  - name: submit
+    label: Write with us (submission rules)
+    type: file
+    path: src/content/pages/submit.md
+    fields:
+      - { name: title, label: Page title, type: string, required: true }
+      - { name: description, label: Short introduction under the title, type: text, required: true }
+      - name: body
+        label: Rules and guidelines (use "Heading 2" for each section)
+        type: rich-text
+        options:
+          media: false
+
+  # ------------------------------------------------------------ Most read list
+  - name: most-read
+    label: Most read list (front page)
+    type: file
+    path: src/data/most-read.json
+    format: json
+    fields:
+      - name: slugs
+        label: Article file names (without .md), most read first
+        type: string
+        list: true

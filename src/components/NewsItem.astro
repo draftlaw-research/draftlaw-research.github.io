@@ -1,0 +1,30 @@
+---
+import type { NewsState } from '../lib/content';
+import { formatDate, today } from '../lib/content';
+
+interface Props {
+  item: NewsState;
+}
+const { item } = Astro.props;
+const d = item.data;
+const days = d.deadline ? Math.round((+d.deadline - +today()) / 86_400_000) : undefined;
+const soon = !item.closed && days !== undefined && days <= 14;
+---
+
+<li class:list={[item.closed && 'is-closed']} data-category={d.category}>
+  <div class="news-when">
+    <span class="big">{d.deadline ? formatDate(d.deadline, 'short') : d.eventDate ? formatDate(d.eventDate, 'short') : 'Open'}</span>
+    {d.deadline ? (item.closed ? 'Closed' : 'Deadline') : d.eventDate ? 'Event date' : 'No deadline'}
+    {soon && <span class="soon"><br />{days === 0 ? 'Today' : `${days} day${days === 1 ? '' : 's'} left`}</span>}
+  </div>
+  <div>
+    <p class="eyebrow">{d.category}{d.organiser ? ` · ${d.organiser}` : ''}</p>
+    <h3><a href={d.link} rel="noopener">{d.title}</a></h3>
+    <p>{d.summary}</p>
+    <p class="facts">
+      {d.location && <span>{d.location} · </span>}
+      {d.deadline && d.eventDate && <span>Event: {formatDate(d.eventDate)} · </span>}
+      <a class="go" href={d.link} rel="noopener">More details →</a>
+    </p>
+  </div>
+</li>

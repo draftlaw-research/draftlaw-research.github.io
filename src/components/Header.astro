@@ -1,19 +1,34 @@
 ---
+import { Image } from 'astro:assets';
+import emblem from '../assets/logo/emblem.png';
 import { SITE, NAV } from '../config';
+
 const path = Astro.url.pathname;
-const isActive = (href: string) => path.startsWith(href);
+const isActive = (match: string[]) => match.some((m) => path.startsWith(m));
 ---
 
 <header class="site-header">
   <div class="wrap masthead">
     <a class="brand" href="/" aria-label={`${SITE.name}, home`}>
-      <span class="brand-name">DraftLaw</span>
-      <span class="brand-sub">Research</span>
+      <Image src={emblem} alt="" width={80} height={112} loading="eager" />
+      <span>
+        <span class="brand-name"><span class="gold">DraftLaw</span> Research</span>
+        <span class="brand-sub">{SITE.motto}</span>
+      </span>
     </a>
-    <nav class="nav" aria-label="Main">
-      {NAV.map((item) => (
-        <a href={item.href} aria-current={isActive(item.href) ? 'page' : undefined}>{item.label}</a>
-      ))}
-    </nav>
+    <div class="head-tools">
+      <nav class="nav" aria-label="Main">
+        {NAV.map((item) => (
+          <a href={item.href} aria-current={isActive(item.match) ? 'page' : undefined}>{item.label}</a>
+        ))}
+      </nav>
+      <form class="search-form" action="/search/" method="get" role="search">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <circle cx="8.5" cy="8.5" r="5.5"></circle>
+          <path d="M13 13l4.5 4.5" stroke-linecap="round"></path>
+        </svg>
+        <input type="search" name="q" placeholder="Search" aria-label="Search the site" autocomplete="off" />
+      </form>
+    </div>
   </div>
 </header>
