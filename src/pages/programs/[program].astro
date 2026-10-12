@@ -1,0 +1,62 @@
+---
+import { render } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+import { getPrograms, getAnnouncements, formatDate } from '../../lib/content';
+import { SITE } from '../../config';
+
+export async function getStaticPaths() {
+  const programs = await getPrograms();
+  const announcements = await getAnnouncements();
+  return programs.map((program) => ({
+    params: { program: program.id },
+    props: { program, news: announcements.filter((a) => a.data.program === program.id).slice(0, 3) },
+  }));
+}
+
+const { program, news } = Astro.props;
+const { Content, headings } = await render(program);
+const sections = headings.filter((h) => h.depth === 2);
+const d = program.data;
+---
+
+<Base title={d.title} description={d.summary}>
+  <div class="wrap">
+    <div class="page-title">
+      <p class="eyebrow"><a href="/programs/">Programs</a></p>
+      <h1>{d.title}</h1>
+      <p>{d.summary}</p>
+      <p style="margin-top:1rem">
+        <span class:list={['status', d.status === 'Open for applications' && 'open']}>{d.status}</span>
+      </p>
+    </div>
+
+    <div class="section layout-aside">
+      <div class="page-text" style="padding:0;max-width:var(--measure)">
+        <Content />
+      </div>
+      <aside class="sticky" aria-label="On this page">
+        {sections.length > 1 && (
+          <ul class="on-page">
+            {sections.map((h) => <li><a href={`#${h.slug}`}>{h.text}</a></li>)}
+          </ul>
+        )}
+        <div class="aside-box" style="margin-top:0">
+          <h3>Questions?</h3>
+          <p>Write to us and we will reply as soon as we can.</p>
+          <a class="btn" href={`mailto:${SITE.email}?subject=${encodeURIComponent(d.title)}`}>Email us</a>
+        </div>
+        {news.length > 0 && (
+          <div class="aside-box">
+            <h3>Latest announcements</h3>
+            {news.map((a) => (
+              <p style="margin:0 0 .7rem">
+                <a href="/programs/announcements/">{a.data.title}</a><br />
+                <small>{formatDate(a.data.date, 'short')}</small>
+              </p>
+            ))}
+          </div>
+        )}
+      </aside>
+    </div>
+  </div>
+</Base>

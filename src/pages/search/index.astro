@@ -1,0 +1,37 @@
+---
+import Base from '../../layouts/Base.astro';
+---
+
+<Base title="Search" description="Search all articles, authors, programs and calls on DraftLaw Research." indexed={false}>
+  <Fragment slot="head">
+    <meta name="robots" content="noindex" />
+    <link href="/pagefind/pagefind-ui.css" rel="stylesheet" />
+  </Fragment>
+  <div class="wrap">
+    <div class="page-title">
+      <p class="eyebrow">Search</p>
+      <h1>Search the site</h1>
+      <p>Find articles, authors, programs, announcements and calls.</p>
+    </div>
+    <div id="search"></div>
+    <p class="empty" id="search-missing" hidden>
+      Search is created when the site is built. Run <code>npm run build</code>, then <code>npm run preview</code> to try
+      it on your computer. It works on the live site automatically.
+    </p>
+  </div>
+  <script is:inline src="/pagefind/pagefind-ui.js" onerror="document.getElementById('search-missing').hidden=false"></script>
+  <script is:inline>
+    window.addEventListener('DOMContentLoaded', function () {
+      if (!window.PagefindUI) { document.getElementById('search-missing').hidden = false; return; }
+      var ui = new PagefindUI({
+        element: '#search',
+        showImages: false,
+        showSubResults: false,
+        resetStyles: false,
+        translations: { placeholder: 'Search articles, authors, programs...' }
+      });
+      var q = new URLSearchParams(location.search).get('q');
+      if (q) ui.triggerSearch(q);
+    });
+  </script>
+</Base>

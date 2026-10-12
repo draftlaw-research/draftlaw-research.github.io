@@ -1,17 +1,17 @@
 ---
 import { Image } from 'astro:assets';
-import type { Author } from '../lib/content';
 import { initials } from '../lib/content';
 import { getPhoto } from '../lib/images';
 
 interface Props {
-  author: Author;
+  name: string;
+  photo?: string; // path such as /src/assets/authors/name.jpg
   big?: boolean;
 }
-const { author, big = false } = Astro.props;
-const photo = getPhoto(author.data.photo);
+const { name, photo, big = false } = Astro.props;
+const picture = getPhoto(photo);
 ---
 
 <span class:list={['avatar', big && 'big']} aria-hidden="true">
-  {photo ? <Image src={photo} alt="" width={big ? 192 : 112} height={big ? 192 : 112} /> : initials(author.data.name)}
+  {picture ? <Image src={picture} alt="" width={big ? 192 : 144} height={big ? 192 : 144} /> : initials(name)}
 </span>

@@ -19,7 +19,7 @@ const countFor = (id: string) => articles.filter((a) => a.authors.some((x) => x.
       <div class="topic-grid" style="grid-template-columns:repeat(auto-fill,minmax(300px,1fr))">
         {authors.map((a) => (
           <a class="author-tile" href={authorUrl(a)}>
-            <Avatar author={a} />
+            <Avatar name={a.data.name} photo={a.data.photo} />
             <div>
               <strong>{a.data.name}</strong>
               <span>{[a.data.role, a.data.affiliation].filter(Boolean).join(', ') || 'Contributor'}</span>

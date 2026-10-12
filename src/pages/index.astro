@@ -1,11 +1,24 @@
 ---
+import { Image } from 'astro:assets';
 import Base from '../layouts/Base.astro';
 import ArticleCard from '../components/ArticleCard.astro';
-import { getArticles, getTopics, getMostRead, topicUrl, formatDate } from '../lib/content';
+import logo from '../assets/logo/logo-full.png';
+import {
+  getArticles,
+  getTopics,
+  getMostRead,
+  getNewsletter,
+  getAnnouncements,
+  getOpenCall,
+  topicUrl,
+  formatDate,
+} from '../lib/content';
 import { SITE } from '../config';
 
 const articles = await getArticles();
 const topics = await getTopics();
+const { open: openNews } = await getNewsletter();
+const openCall = getOpenCall(await getAnnouncements());
 
 // Featured = articles marked "featured: true". If none are marked, show the newest three.
 const pinned = articles.filter((a) => a.data.featured);
@@ -18,17 +31,32 @@ const countFor = (topicId: string) => articles.filter((a) => a.topic.id === topi
 ---
 
 <Base>
+  {openCall && (
+    <div class="banner">
+      <div class="wrap">
+        <strong>Open call</strong>
+        <span>{openCall.data.title}{openCall.data.deadline ? `, apply by ${formatDate(openCall.data.deadline)}` : ''}</span>
+        <a href="/programs/announcements/">Details →</a>
+      </div>
+    </div>
+  )}
+
   <section class="hero">
     <div class="wrap">
-      <p class="eyebrow">Open access · Blind peer reviewed</p>
-      <h1>{SITE.tagline}.</h1>
-      <p class="lead">
-        Case summaries, commentary and analysis from law students, practitioners and scholars worldwide. Serious
-        legal scholarship should be open to anyone with the curiosity and drive to pursue it.
-      </p>
-      <div class="actions">
-        <a class="btn" href="/articles/">Read the latest</a>
-        <a class="btn ghost" href="/about/#write">Write for us</a>
+      <div>
+        <p class="eyebrow">Open access · Blind peer reviewed</p>
+        <h1>{SITE.tagline}.</h1>
+        <p class="lead">
+          Case summaries, commentary and analysis from law students, practitioners and scholars worldwide. Serious
+          legal scholarship should be open to anyone with the curiosity and drive to pursue it.
+        </p>
+        <div class="actions">
+          <a class="btn" href="/articles/">Read the latest</a>
+          <a class="btn ghost" href="/submit/">Write with us</a>
+        </div>
+      </div>
+      <div class="hero-logo">
+        <Image src={logo} alt="" width={600} loading="eager" />
       </div>
     </div>
   </section>
@@ -67,7 +95,7 @@ const countFor = (topicId: string) => articles.filter((a) => a.topic.id === topi
         )}
       </div>
 
-      <aside aria-label="Most read and contribute">
+      <aside aria-label="Most read and newsletter">
         {mostRead.length > 0 && (
           <>
             <div class="section-head">
@@ -88,11 +116,37 @@ const countFor = (topicId: string) => articles.filter((a) => a.topic.id === topi
         <div class="aside-box">
           <h3>Have something to say?</h3>
           <p>We publish contributors from any discipline, as long as the work helps readers understand the law.</p>
-          <a class="btn ghost" href="/about/#write">Contribute</a>
+          <a class="btn ghost" href="/submit/">Read the guidelines</a>
         </div>
       </aside>
     </div>
   </section>
+
+  {openNews.length > 0 && (
+    <section class="section" style="padding-top:0" aria-labelledby="news-h">
+      <div class="wrap">
+        <div class="section-head">
+          <h2 id="news-h">Newsletter: open calls</h2>
+          <a class="more" href="/newsletter/">All calls and events →</a>
+        </div>
+        <ul class="news">
+          {openNews.slice(0, 4).map((n) => (
+            <li>
+              <div class="news-when">
+                <span class="big">{n.data.deadline ? formatDate(n.data.deadline, 'short') : 'Open'}</span>
+                {n.data.deadline ? 'Deadline' : n.data.category}
+              </div>
+              <div>
+                <p class="eyebrow">{n.data.category}</p>
+                <h3><a href={n.data.link} rel="noopener">{n.data.title}</a></h3>
+                <p>{n.data.summary}</p>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
+  )}
 
   <section class="section" style="padding-top:0" aria-labelledby="topics-h">
     <div class="wrap">
@@ -123,6 +177,7 @@ const countFor = (topicId: string) => articles.filter((a) => a.topic.id === topi
             Experienced legal researchers bring an original idea and work with two or three undergraduate co-authors
             for one semester, taking a project from conception to journal-ready submission.
           </p>
+          <p style="margin-top:1rem"><a class="more" href="/programs/">Our programs →</a></p>
         </div>
         <div>
           <h3>The DraftLaw blog</h3>
@@ -130,6 +185,7 @@ const countFor = (topicId: string) => articles.filter((a) => a.topic.id === topi
             An open platform for case summaries, legal opinions, commentary and analysis. Every submission goes through
             blind peer review, so each piece is judged on its merit alone.
           </p>
+          <p style="margin-top:1rem"><a class="more" href="/submit/">Write with us →</a></p>
         </div>
       </div>
       <p style="margin:2rem 0 0"><a class="btn ghost" href="/about/">More about us</a></p>

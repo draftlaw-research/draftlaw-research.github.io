@@ -124,7 +124,7 @@ const jsonLd = {
         <h2 id="authors-h">{authors.length > 1 ? 'About the authors' : 'About the author'}</h2>
         {authors.map((a) => (
           <div class="a">
-            <Avatar author={a} />
+            <Avatar name={a.data.name} photo={a.data.photo} />
             <div>
               <a href={authorUrl(a)}>{a.data.name}</a>
               {(a.data.role || a.data.affiliation) && (

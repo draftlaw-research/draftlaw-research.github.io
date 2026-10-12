@@ -1,0 +1,58 @@
+---
+import Base from '../../layouts/Base.astro';
+import { getPrograms, getAnnouncements, programUrl, formatDate } from '../../lib/content';
+import { render } from 'astro:content';
+
+const programs = await getPrograms();
+const announcements = (await getAnnouncements()).slice(0, 3);
+const rendered = await Promise.all(announcements.map(async (a) => ({ a, Content: (await render(a)).Content })));
+---
+
+<Base title="Programs" description="The programs DraftLaw Research offers to law students and emerging legal researchers.">
+  <div class="wrap">
+    <div class="page-title">
+      <p class="eyebrow">Programs</p>
+      <h1>What we offer</h1>
+      <p>
+        DraftLaw Research runs programs that help law students and emerging researchers learn by doing, from first
+        research question to published work.
+      </p>
+    </div>
+
+    <div class="section">
+      <div class="section-head"><h2>Our programs</h2></div>
+      <div style="display:grid;gap:1.2rem">
+        {programs.map((p) => (
+          <a class="program-card" href={programUrl(p)}>
+            <span class:list={['status', p.data.status === 'Open for applications' && 'open']}>{p.data.status}</span>
+            <h3>{p.data.title}</h3>
+            <p>{p.data.summary}</p>
+            <span class="more">Details, requirements and how to apply →</span>
+          </a>
+        ))}
+      </div>
+    </div>
+
+    <div class="section" style="padding-top:0">
+      <div class="section-head">
+        <h2>Announcements</h2>
+        <a class="more" href="/programs/announcements/">All announcements →</a>
+      </div>
+      {rendered.length > 0 ? (
+        rendered.map(({ a, Content }) => (
+          <article class="announce">
+            <p class="eyebrow">{a.data.type}</p>
+            <h3>{a.data.title}</h3>
+            <time datetime={a.data.date.toISOString().slice(0, 10)}>
+              {formatDate(a.data.date)}{a.data.deadline ? ` · Apply by ${formatDate(a.data.deadline)}` : ''}
+            </time>
+            <div class="body"><Content /></div>
+            {a.data.link && <p><a class="more" href={a.data.link} rel="noopener">Apply or read more →</a></p>}
+          </article>
+        ))
+      ) : (
+        <p class="empty">No announcements yet.</p>
+      )}
+    </div>
+  </div>
+</Base>
