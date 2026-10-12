@@ -8,7 +8,7 @@ authors:
 topic: constitutional-law
 kind: Article
 date: 2026-09-18
-cover: /src/assets/covers/columns.jpg
+cover: ../../assets/covers/columns.jpg
 coverAlt: Abstract stone columns in deep red tones
 coverCredit: Placeholder illustration, replace with a licensed image
 featured: true
@@ -30,7 +30,7 @@ The first three steps look like fact-finding. The fourth is where values enter o
 
 > A balancing exercise can be transparent without being predictable.
 
-![](/src/assets/covers/balance.jpg)
+![](../../assets/covers/balance.jpg)
 
 ## Why the last step matters
 
