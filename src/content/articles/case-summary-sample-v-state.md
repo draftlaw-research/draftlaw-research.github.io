@@ -7,7 +7,7 @@ authors:
 topic: human-rights
 kind: Case summary
 date: 2026-08-20
-cover: /src/assets/covers/balance.jpg
+cover: ../../assets/covers/balance.jpg
 coverAlt: Abstract concentric circles in green and gold
 featured: false
 keywords:
@@ -23,7 +23,7 @@ The applicant was held for a period without a hearing and challenged the lawfuln
 
 ## Issue
 
-![](/src/assets/covers/e836d74b5563e956f8bf563599218de4.jpg)
+![](../../assets/covers/default.jpg)
 
 Whether the delay before a hearing was compatible with the guarantee of a prompt review.
 

@@ -5,7 +5,7 @@ authors: [priya-raman, mira-lindqvist]
 topic: legal-education
 kind: Opinion
 date: 2026-07-05
-cover: /src/assets/covers/arches.jpg
+cover: ../../assets/covers/arches.jpg
 coverAlt: Abstract warm-toned arches
 featured: true
 keywords: [legal education, publishing, peer review]

@@ -5,7 +5,7 @@ authors: [daniel-okafor]
 topic: technology-and-law
 kind: Article
 date: 2026-06-12
-cover: /src/assets/covers/layers.jpg
+cover: ../../assets/covers/layers.jpg
 coverAlt: Abstract overlapping slate rectangles
 keywords: [data protection, privacy by design, compliance]
 ---

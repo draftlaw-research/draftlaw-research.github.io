@@ -7,7 +7,7 @@ authors:
 topic: international-law
 kind: Commentary
 date: 2026-07-30
-cover: /src/assets/covers/meridians.jpg
+cover: ../../assets/covers/meridians.jpg
 coverAlt: Abstract curved lines resembling the meridians of a globe
 featured: false
 keywords:

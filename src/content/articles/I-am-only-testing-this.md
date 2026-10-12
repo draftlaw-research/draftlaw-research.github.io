@@ -6,7 +6,7 @@ authors:
 topic: technology-and-law
 kind: Article
 date: 2026-09-02
-cover: /src/assets/covers/circuit.jpg
+cover: ../../assets/covers/circuit.jpg
 coverAlt: Abstract network of lines and nodes on a dark blue background
 featured: true
 keywords:

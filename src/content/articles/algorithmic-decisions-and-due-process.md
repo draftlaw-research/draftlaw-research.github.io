@@ -7,7 +7,7 @@ authors:
 topic: technology-and-law
 kind: Article
 date: 2026-09-02
-cover: /src/assets/covers/circuit.jpg
+cover: ../../assets/covers/circuit.jpg
 coverAlt: Abstract network of lines and nodes on a dark blue background
 featured: true
 keywords:
@@ -24,7 +24,7 @@ Public bodies increasingly use automated tools to sort, score or flag individual
 
 First, reasons: a person should be told, in plain language, what drove the outcome. Second, access: the material relied on should be available to the person or to a reviewing body. Third, human review: someone with authority must be able to depart from the output ([example source](https://example.org/source)).
 
-![](../assets/covers/arches.jpg)
+![](../../assets/covers/arches.jpg)
 
 ## Where the gaps appear
 
