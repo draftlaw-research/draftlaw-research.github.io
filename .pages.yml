@@ -37,16 +37,16 @@ content:
         type: text
         required: true
         options: { maxlength: 400 }
-      - name: authors
+      - - name: authors
         label: Authors
         type: reference
         required: true
         options:
-          values:
-            - { value: mira-lindqvist, label: Mira Lindqvist }
-            - { value: daniel-okafor, label: Daniel Okafor }
-            - { value: priya-raman, label: Priya Raman }
-            - { value: first-test, label: First Test }
+          collection: authors
+          multiple: true
+          search: name
+          value: "{path}"
+          label: "{primary}"
       - name: topic
         label: Topic
         type: reference
