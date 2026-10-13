@@ -1,8 +1,9 @@
 {
   "_note": "Put article file names (without .md) here, most read first. Update once a month from the visitor numbers.",
   "slugs": [
-    "algorithmic-decisions-and-due-process",
+    "I-am-only-testing-this",
     "proportionality-in-practice",
+    "algorithmic-decisions-and-due-process",
     "why-law-students-should-publish",
     "data-protection-by-design"
   ]
