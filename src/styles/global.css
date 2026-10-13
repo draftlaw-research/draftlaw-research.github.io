@@ -1577,3 +1577,6 @@ details.past summary {
   color: var(--accent);
   text-decoration: underline;
 }
+.submission-email {
+  font-size: 12px !important;
+}
