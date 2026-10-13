@@ -37,7 +37,7 @@ content:
         type: text
         required: true
         options: { maxlength: 400 }
-      - - name: authors
+      - name: authors
         label: Authors
         type: reference
         required: true
