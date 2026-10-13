@@ -2,7 +2,7 @@
 title: When law xxx xxx xxxx xx
 summary: Human rights has xxxx xxxx xxxx xxx xxxxx xxx x xxxxx xxx xxx xxx.
 authors:
-  - first-test
+  - nafiz-absar-mahmood
 topic: technology-and-law
 kind: Article
 date: 2026-09-02
