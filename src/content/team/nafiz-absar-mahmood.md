@@ -1,6 +1,6 @@
 ---
 name: Nafiz Absar Mahmood
-position: Founder
+position: Founder, Mentor
 occupation: LL.M. Graduate, International Human Rights Law
 affiliation: Lund University
 photo: /src/assets/team/nafiz-mahmood.jpg
