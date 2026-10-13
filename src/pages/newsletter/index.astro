@@ -60,19 +60,48 @@ const categories = [...new Set([...open, ...closed].map((i) => i.data.category))
 </Base>
 
 <script>
-  const chips = Array.from(document.querySelectorAll<HTMLButtonElement>('.chip'));
-  const items = Array.from(document.querySelectorAll<HTMLElement>('.news > li'));
+  const chips = Array.from(document.querySelectorAll('.chip'));
+  const items = Array.from(document.querySelectorAll('.news > li'));
+  const openItems = Array.from(document.querySelectorAll('#open-list > li'));
   const none = document.getElementById('none');
-  const openItems = Array.from(document.querySelectorAll<HTMLElement>('#open-list > li'));
 
-  chips.forEach((chip) =>
+  function filterNewsletter(category) {
+    chips.forEach((chip) => {
+      chip.setAttribute(
+        'aria-pressed',
+        String(chip.dataset.cat === category)
+      );
+    });
+
+    items.forEach((item) => {
+      const matches =
+        category === '' || item.dataset.category === category;
+
+      if (matches) {
+        item.style.removeProperty('display');
+      } else {
+        item.style.setProperty('display', 'none', 'important');
+      }
+    });
+
+    const hasVisibleOpenItem = openItems.some((item) => {
+      return category === '' || item.dataset.category === category;
+    });
+
+    if (none) {
+      none.style.setProperty(
+        'display',
+        hasVisibleOpenItem ? 'none' : 'block',
+        'important'
+      );
+    }
+  }
+
+  chips.forEach((chip) => {
     chip.addEventListener('click', () => {
-      const cat = chip.dataset.cat ?? '';
-      chips.forEach((c) => c.setAttribute('aria-pressed', String(c === chip)));
-      items.forEach((li) => (li.hidden = cat !== '' && li.dataset.category !== cat));
-      if (none) none.hidden = openItems.length === 0 || openItems.some((li) => !li.hidden);
-    }),
-  );
+      filterNewsletter(chip.dataset.cat ?? '');
+    });
+  });
 </script>
 <style>
   .news > li[hidden] {
