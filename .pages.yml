@@ -44,17 +44,18 @@ content:
         options:
           collection: authors
           multiple: true
-          search: name
+          search: "name"
           value: "{path}"
-          label: "{primary}"
+          label: "{fields.name}"
       - name: topic
         label: Topic
         type: reference
         required: true
         options:
           collection: topics
-          search: name
-          label: '{primary}'
+          search: "name"
+          value: "{path}"
+          label: "{fields.name}"
       - name: kind
         label: Type
         type: select
