@@ -35,10 +35,10 @@ We welcome mentors from law and multidisciplinary backgrounds, including sociolo
 - Final papers are submitted for publication in an international journal of the mentor's choosing.
 - Mentors may be based anywhere in the world, this is a fully remote collaboration.
 
-**Why Join Us?**
+### **Why Join Us?**
 
 This is a chance to shape the next generation of legal thinkers, develop your own research ideas with dedicated student support, and contribute meaningfully to a growing academic community, all while building real mentorship experience.
 
-**Apply now:** [https://forms.gle/YeWyUde3L1sRnuoBA](https://forms.gle/YeWyUde3L1sRnuoBA)
+### **[Apply now.**](https://forms.gle/YeWyUde3L1sRnuoBA) 
 
 **Questions?** Reach out to us at [draftlawresearch@gmail.com](mailto:draftlawresearch@gmail.com)
