@@ -74,3 +74,8 @@ const categories = [...new Set([...open, ...closed].map((i) => i.data.category))
     }),
   );
 </script>
+<style>
+  .news > li[hidden] {
+    display: none !important;
+  }
+</style>
