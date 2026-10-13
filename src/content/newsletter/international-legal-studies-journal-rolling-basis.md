@@ -1,5 +1,5 @@
 ---
-title: "International Legal Studies Journal - Rolling Basis. "
+title: International Legal Studies Journal - Rolling Basis Submission
 category: Call for papers
 organiser: "University of Philippines Law Center "
 link: https://new-pages.upd.edu.ph/ilsj/2026/06/11/general-call-for-papers-2026/
