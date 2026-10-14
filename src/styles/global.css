@@ -14,8 +14,8 @@
   --accent-ink: #ffffff;
   --accent-soft: #f4e9ea;
 
- --serif: 'Source Serif 4 Variable', 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
-  --sans: 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+ --font-body: Georgia, "Times New Roman", serif;
+--font-ui: Georgia, "Times New Roman", serif;
 
   /* ==================================================================
      EDIT HERE: TEXT SIZE AND LINE SPACING
