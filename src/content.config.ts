@@ -32,6 +32,8 @@ const authors = defineCollection({
     photo: optText, // /src/assets/authors/name.jpg
     orcid: optText,
     linkedin: optUrl,
+    facebook: optUrl,
+    instagram: optUrl,
     website: optUrl,
   }),
 });
@@ -65,7 +67,9 @@ const team = defineCollection({
     affiliation: optText, // university or organisation
     photo: optText, // /src/assets/team/name.jpg
     order: optNumber, // smaller numbers come first
-    linkedin: optUrl,
+   linkedin: optUrl,
+    facebook: optUrl,
+    instagram: optUrl,
     website: optUrl,
   }),
 });
