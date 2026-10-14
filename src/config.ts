@@ -40,7 +40,7 @@ export const EXPLORE = [
 export const SOCIALS = [
   { label: 'LinkedIn', url: 'https://www.linkedin.com/company/draftlaw-research/' },
   { label: 'Facebook', url: 'https://www.facebook.com/profile.php?id=61590870812390' },
-  { label: 'Instagram', url: '' },
+  { label: 'Instagram', url: 'https://www.instagram.com/draftlaw_research/' },
   { label: 'X (Twitter)', url: '' },
   { label: 'YouTube', url: '' },
 ];
