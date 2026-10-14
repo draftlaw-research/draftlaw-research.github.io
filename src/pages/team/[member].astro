@@ -25,8 +25,10 @@ const line = [d.occupation, d.affiliation].filter(Boolean).join(', ');
         <p class="role"><strong>{d.position}</strong>, DraftLaw Research</p>
         {line && <p class="role">{line}</p>}
         <ul class="links">
-          {d.linkedin && <li><a href={d.linkedin} rel="noopener">LinkedIn</a></li>}
-          {d.website && <li><a href={d.website} rel="noopener">Website</a></li>}
+          {d.linkedin && <li><a href={d.linkedin} target="_blank" rel="noopener noreferrer">LinkedIn</a></li>}
+          {d.facebook && <li><a href={d.facebook} target="_blank" rel="noopener noreferrer">Facebook</a></li>}
+          {d.instagram && <li><a href={d.instagram} target="_blank" rel="noopener noreferrer">Instagram</a></li>}
+          {d.website && <li><a href={d.website} target="_blank" rel="noopener noreferrer">Website</a></li>}
         </ul>
       </div>
     </div>
