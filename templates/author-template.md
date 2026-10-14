@@ -7,6 +7,8 @@ country: Your country
 # photo: /src/assets/authors/firstname-lastname.jpg   (optional, square image, upload it into src/assets/authors first)
 # orcid: 0000-0000-0000-0000                            (optional)
 # linkedin: https://www.linkedin.com/in/your-name       (optional)
+# facebook: https://www.facebook.com/your-profile       (optional)
+# instagram: https://www.instagram.com/your-username    (optional)
 # website: https://your-site.example                    (optional)
 ---
 
