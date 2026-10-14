@@ -31,6 +31,8 @@ const line = [d.role, d.affiliation, d.country].filter(Boolean).join(', ');
         <ul class="links">
           {d.orcid && <li><a href={`https://orcid.org/${d.orcid}`} rel="noopener">ORCID {d.orcid}</a></li>}
           {d.linkedin && <li><a href={d.linkedin} rel="noopener">LinkedIn</a></li>}
+          {d.facebook && <li><a href={d.facebook} target="_blank" rel="noopener noreferrer">Facebook</a></li>}
+          {d.instagram && <li><a href={d.instagram} target="_blank" rel="noopener noreferrer">Instagram</a></li>}
           {d.website && <li><a href={d.website} rel="noopener">Website</a></li>}
         </ul>
       </div>
