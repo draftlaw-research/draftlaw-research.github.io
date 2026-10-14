@@ -99,6 +99,8 @@ content:
         options: { path: src/assets/authors }
       - { name: orcid, label: ORCID (optional), type: string }
       - { name: linkedin, label: LinkedIn link (optional), type: string }
+      - { name: facebook, label: Facebook link (optional), type: string }
+      - { name: instagram, label: Instagram link (optional), type: string }
       - { name: website, label: Website link (optional), type: string }
       - { name: body, label: Short bio, type: rich-text, options: { media: false } }
 
