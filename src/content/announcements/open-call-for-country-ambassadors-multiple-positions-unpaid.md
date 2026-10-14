@@ -1,11 +1,12 @@
 ---
-title: Open Call for Country Ambassadors - Multiple Positions, Unpaid
+title: Open Call for Country Ambassadors - Multiple Positions, Voluntary, Unpaid
+  Position
 date: 2026-10-14
 type: Open call
 deadline: 2026-11-30
 link: https://forms.gle/NnfCkEucYVZPyTFw5
 ---
-## **📢 We’re hiring Country Ambassadors | Draft Law Research**
+## **📢 We’re hiring Country Ambassadors | Draft Law Research | Multiple Positions | Voluntary, Unpaid Position**
 
 Are you an undergraduate law student who wants to build your academic profile while helping grow a global community of legal scholars?
 
@@ -36,7 +37,7 @@ Draft Law Research is looking for 2-3 Country Ambassadors per country to represe
 - 🕒 Term: 6 months, with the option to renew
 - 🤝 This is a voluntary, unpaid position
 - 💻 Fully remote; about 3-5 hours per week
-- 🌍 Open to applicants from any country 
+- 🌍 Open to applicants from any country
 
 ### **Eligibility**
 
