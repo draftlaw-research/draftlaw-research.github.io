@@ -16,7 +16,6 @@ keywords:
   - planned relocation
   - IACHR Resolution No. 2/2024
   - climate change
-  - human rights
   - vulnerable communities
   - state obligations
   - interstate cooperation
