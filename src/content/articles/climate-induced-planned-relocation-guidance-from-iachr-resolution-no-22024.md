@@ -10,7 +10,7 @@ topic: src/content/topics/refugee-and-migration-law.md
 kind: Article
 date: 2026-10-15
 cover: /src/assets/covers/shutterstock2489556105-bangladesh-island-climate-change-web.jpeg
-featured: false
+featured: true
 keywords:
   - climate mobility
   - planned relocation
