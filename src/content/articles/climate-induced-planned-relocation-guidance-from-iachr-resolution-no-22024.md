@@ -9,7 +9,7 @@ authors:
 topic: src/content/topics/refugee-and-migration-law.md
 kind: Article
 date: 2026-10-15
-cover: /src/assets/covers/shutterstock2489556105-bangladesh-island-climate-change-web.jpeg
+cover: /src/assets/covers/the-century-of-climate-migration-why-we-need-to-plan-for-the-great-upheaval-migration-the-guardian.jpg
 featured: true
 keywords:
   - climate mobility
