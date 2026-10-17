@@ -9,7 +9,7 @@ summary: This case commentary examines the UK SC’s landmark decision in Fearn 
   boundaries between nuisance & privacy law.
 authors:
   - src/content/authors/ankita-farzin.md
-topic: src/content/topics/human-rights.md
+topic: src/content/topics/tort-law.md
 kind: Commentary
 date: 2026-10-17
 cover: /src/assets/covers/tate-viewing-platform.webp
