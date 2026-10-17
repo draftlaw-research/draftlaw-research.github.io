@@ -1,6 +1,6 @@
 ---
 name: "Ankita Farzin "
-role: Undergraduate Student in Law
+role: "Undergraduate Student in Law, "
 affiliation: University of London
 country: Bangladesh
 linkedin: https://www.linkedin.com/in/ankita-farzin-aa60b7415/
