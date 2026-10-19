@@ -7,6 +7,7 @@ import mostRead from '../data/most-read.json';
 export type Topic = CollectionEntry<'topics'>;
 export type Author = CollectionEntry<'authors'>;
 export type TeamMember = CollectionEntry<'team'>;
+export type StudentCollaborator = CollectionEntry<'studentCollaborators'>;
 export type Program = CollectionEntry<'programs'>;
 export type Announcement = CollectionEntry<'announcements'>;
 export type NewsItem = CollectionEntry<'newsletter'>;
@@ -94,7 +95,14 @@ export async function getTeam(): Promise<TeamMember[]> {
   const team = await getCollection('team');
   return team.sort((a, b) => (a.data.order ?? 99) - (b.data.order ?? 99) || a.data.name.localeCompare(b.data.name));
 }
-
+export async function getStudentCollaborators(): Promise<StudentCollaborator[]> {
+  const students = await getCollection('studentCollaborators');
+  return students.sort(
+    (a, b) =>
+      (a.data.order ?? 99) - (b.data.order ?? 99) ||
+      a.data.name.localeCompare(b.data.name),
+  );
+}
 export async function getPrograms(): Promise<Program[]> {
   const programs = await getCollection('programs');
   return programs.sort((a, b) => (a.data.order ?? 99) - (b.data.order ?? 99) || a.data.title.localeCompare(b.data.title));
