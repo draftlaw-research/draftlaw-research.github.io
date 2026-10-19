@@ -91,18 +91,18 @@ const students = await getStudentCollaborators();
       <h2 id="student-collaborators-h">Our Student Collaborators</h2>
     </div>
     <div class="team-grid">
-      {students.map((m) => (
-        <div class="team-card">
-          <Avatar name={m.data.name} photo={m.data.photo} />
-          <div>
-            <h3>{m.data.name}</h3>
-            <p class="position">{m.data.position}</p>
-            {m.data.occupation && <p class="sub">{m.data.occupation}</p>}
-            {m.data.affiliation && <p class="sub">{m.data.affiliation}</p>}
-          </div>
-        </div>
-      ))}
-    </div>
+  {students.map((m) => (
+    <a class="team-card" href={`/student-collaborators/${m.id}/`}>
+      <Avatar name={m.data.name} photo={m.data.photo} />
+      <div>
+        <h3>{m.data.name}</h3>
+        <p class="position">{m.data.position}</p>
+        {m.data.occupation && <p class="sub">{m.data.occupation}</p>}
+        {m.data.affiliation && <p class="sub">{m.data.affiliation}</p>}
+      </div>
+    </a>
+  ))}
+</div>
   </section>
 )}
 
