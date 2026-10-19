@@ -1,0 +1,50 @@
+
+---
+import { render } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+import Avatar from '../../components/Avatar.astro';
+import { getStudentCollaborators } from '../../lib/content';
+
+export async function getStaticPaths() {
+  const students = await getStudentCollaborators();
+  return students.map((student) => ({
+    params: { member: student.id },
+    props: { member: student },
+  }));
+}
+
+const { member } = Astro.props;
+const { Content } = await render(member);
+const d = member.data;
+const line = [d.occupation, d.affiliation].filter(Boolean).join(', ');
+---
+
+<Base
+  title={d.name}
+  description={`${d.name}, Student Collaborator at DraftLaw Research.`}
+>
+  <div class="wrap">
+    <div class="author-head">
+      <Avatar name={d.name} photo={d.photo} big />
+      <div>
+        <p class="eyebrow">
+          <a href="/about/#student-collaborators">Student Collaborators</a>
+        </p>
+        <h1>{d.name}</h1>
+        <p class="role">
+          <strong>{d.position}</strong>, DraftLaw Research
+        </p>
+        {line && <p class="role">{line}</p>}
+        <ul class="links">
+          {d.linkedin && <li><a href={d.linkedin} target="_blank" rel="noopener noreferrer">LinkedIn</a></li>}
+          {d.facebook && <li><a href={d.facebook} target="_blank" rel="noopener noreferrer">Facebook</a></li>}
+          {d.instagram && <li><a href={d.instagram} target="_blank" rel="noopener noreferrer">Instagram</a></li>}
+          {d.website && <li><a href={d.website} target="_blank" rel="noopener noreferrer">Website</a></li>}
+        </ul>
+      </div>
+    </div>
+    <div class="page-text">
+      <Content />
+    </div>
+  </div>
+</Base>
