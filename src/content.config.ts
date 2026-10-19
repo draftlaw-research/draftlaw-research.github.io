@@ -74,6 +74,23 @@ const team = defineCollection({
   }),
 });
 
+// Student collaborators, displayed separately from the main team.
+const studentCollaborators = defineCollection({
+  loader: glob({ pattern: '*.md', base: './src/content/student-collaborators' }),
+  schema: z.object({
+    name: z.string(),
+    position: z.string(),
+    occupation: optText,
+    affiliation: optText,
+    photo: optText,
+    order: optNumber,
+    linkedin: optUrl,
+    facebook: optUrl,
+    instagram: optUrl,
+    website: optUrl,
+  }),
+});
+
 // A programme DraftLaw Research runs. The text below the top lines is the full description.
 const programs = defineCollection({
   loader: glob({ pattern: '*.md', base: './src/content/programs' }),
@@ -125,4 +142,4 @@ const pages = defineCollection({
   }),
 });
 
-export const collections = { topics, authors, articles, team, programs, announcements, newsletter, pages };
+export const collections = { topics, authors, articles, team, studentCollaborators, programs, announcements, newsletter, pages };
