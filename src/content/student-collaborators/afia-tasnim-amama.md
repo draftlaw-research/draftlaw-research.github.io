@@ -2,7 +2,7 @@
 name: "Afia Tasnim Amama "
 position: Student Co-Author
 occupation: Graduate Student in Law
-affiliation: Asia Pacific University
+affiliation: University of Asia Pacific
 photo: /src/assets/student-collaborators/afia2.png
 facebook: https://www.facebook.com/afiaislam.ornita.3
 ---
