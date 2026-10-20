@@ -3,7 +3,7 @@ name: "Shah Nawaz Sharif "
 position: Student Co-Author
 occupation: Graduate Student in Law; Associate Lawyer
 affiliation: State University of Bangladesh; BDLP
-photo: /src/assets/student-collaborators/nawaz-2.jpeg
+photo: /src/assets/student-collaborators/nawaz-2-1.jpeg
 linkedin: https://www.linkedin.com/in/shah-nawaz-sharif-tonoy002/
 facebook: https://www.facebook.com/tttonoy
 instagram: https://www.instagram.com/tttonoy/
