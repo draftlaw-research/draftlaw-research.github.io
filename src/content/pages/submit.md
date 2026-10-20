@@ -34,7 +34,6 @@ Any area of law that will cater to an international audience.
 - All submissions should abide by the rules mentioned on this page.
 - All submissions must be made in .doc or .docx format.
 - Name the file in the following format: `Title_Content-Type_AuthorName.doc`
-- Send your submission to [submission.draftlaw@gmail.com](mailto:submission.draftlaw@gmail.com).
 - All submissions are accepted on a rolling basis.
 - All submissions must be accompanied by a short author bio and a photo.
 
@@ -77,3 +76,6 @@ As a token of recognition, DraftLaw Research provides a Certificate of Acknowled
 ## **Legal disclaimer**
 
 By submitting, you confirm that the content is your original work, and you grant DraftLaw Research the non-exclusive right to edit, publish, and distribute the content. Any copyright violation or plagiarism is the sole responsibility of the author.
+
+## **[Make Your Submission Here](https://forms.gle/PpAJXrB5f7r9tyen8)**
+
