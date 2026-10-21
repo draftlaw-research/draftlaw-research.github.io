@@ -13,7 +13,7 @@ topic: src/content/topics/tort-law.md
 kind: Commentary
 date: 2026-10-17
 cover: /src/assets/covers/tate-viewing-platform.webp
-featured: true
+featured: false
 keywords:
   - private nuisance
   - visual intrusion
