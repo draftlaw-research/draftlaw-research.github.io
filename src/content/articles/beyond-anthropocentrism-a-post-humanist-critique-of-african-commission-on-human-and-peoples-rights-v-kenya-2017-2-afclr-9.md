@@ -14,7 +14,7 @@ kind: Commentary
 date: 2026-10-17
 cover: /src/assets/covers/3432.jpg
 coverCredit: "Photograph: Thomas Mukoya/Reuters"
-featured: true
+featured: false
 keywords:
   - ogiek indigenous rights
   - posthuman legal theory
