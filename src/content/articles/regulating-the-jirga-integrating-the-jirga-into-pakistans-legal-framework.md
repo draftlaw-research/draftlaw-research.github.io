@@ -9,7 +9,7 @@ topic: src/content/topics/human-rights.md
 kind: Article
 date: 2026-10-21
 cover: /src/assets/covers/385442-jirga-1338230287.jpg
-featured: true
+featured: false
 keywords:
   - jirga
   - customary justice
