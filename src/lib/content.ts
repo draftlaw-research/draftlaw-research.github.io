@@ -16,7 +16,7 @@ export type Guide = {
   id: string;
   entry: CollectionEntry<'guides'>;
   data: CollectionEntry<'guides'>['data'];
-  topic: Topic; | undefined;
+  topic: Topic | undefined;
   authors: Author[];
   minutes: number;
   url: string;
