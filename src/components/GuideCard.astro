@@ -1,0 +1,40 @@
+
+---
+import { Image } from 'astro:assets';
+import type { Guide } from '../lib/content';
+import { formatDate, nameList, topicUrl } from '../lib/content';
+
+interface Props {
+  guide: Guide;
+}
+
+const { guide } = Astro.props;
+const { data, topic, authors } = guide;
+---
+
+<article class="card">
+  <a class="card-media" href={guide.url} tabindex="-1" aria-hidden="true">
+    <Image
+      src={guide.cover}
+      alt=""
+      widths={[320, 480, 640, 800, 1000]}
+      sizes="(min-width: 1100px) 350px, (min-width: 640px) 45vw, 100vw"
+      loading="lazy"
+    />
+  </a>
+
+  <div class="card-body">
+    <p class="eyebrow">
+      <a href={topicUrl(topic)}>{topic.data.name}</a>
+      <span class="kind"> · {data.kind}</span>
+    </p>
+
+    <h3><a href={guide.url}>{data.title}</a></h3>
+    <p class="summary">{data.summary}</p>
+
+    <p class="byline">
+      <strong>{nameList(authors.map((a) => a.data.name))}</strong>
+      · {formatDate(data.date, 'short')}
+    </p>
+  </div>
+</article>
