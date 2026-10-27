@@ -1,0 +1,67 @@
+
+---
+import Base from '../../../layouts/Base.astro';
+import GuideCard from '../../../components/GuideCard.astro';
+import { getGuides } from '../../../lib/content';
+
+export async function getStaticPaths() {
+  const guides = await getGuides();
+
+  const topics = new Map(
+    guides
+      .filter((guide) => guide.topic)
+      .map((guide) => [guide.topic!.id, guide.topic!.data.name]),
+  );
+
+  const paths = [...topics.keys()].map((topic) => ({
+    params: { topic },
+  }));
+
+  if (guides.some((guide) => !guide.topic)) {
+    paths.push({ params: { topic: 'other' } });
+  }
+
+  return paths;
+}
+
+const { topic } = Astro.params;
+const allGuides = await getGuides();
+
+const categoryGuides = allGuides.filter((guide) =>
+  topic === 'other'
+    ? !guide.topic
+    : guide.topic?.id === topic,
+);
+
+const title =
+  topic === 'other'
+    ? 'Other Guidance'
+    : categoryGuides[0]?.topic?.data.name ?? 'Guidance';
+
+if (categoryGuides.length === 0) {
+  return Astro.redirect('/guidance/');
+}
+---
+
+<Base
+  title={title}
+  description={`Explore DraftLaw Research guides on ${title}.`}
+>
+  <div class="wrap">
+    <header class="page-title">
+      <p class="eyebrow">
+        <a href="/guidance/">Guidelines and Guidance</a>
+      </p>
+      <h1>{title}</h1>
+      <p>Explore our practical resources and guidance in this category.</p>
+    </header>
+
+    <section class="section">
+      <div class="grid">
+        {categoryGuides.map((guide) => (
+          <GuideCard guide={guide} />
+        ))}
+      </div>
+    </section>
+  </div>
+</Base>
