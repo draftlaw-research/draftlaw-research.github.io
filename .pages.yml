@@ -111,9 +111,9 @@ content:
       - name: kind
         label: Guidance type
         type: select
-        default: Research guide
+        default: Other
         options:
-          values: [Research Guide, Academic Writing Guide, Moot Court Guide, Academic Skills, Other]
+          values: [Research Guide, Writing Guide, Moot Court Guide, Academic Skills, Other]
       - { name: date, label: Publication date, type: date, required: true }
       - name: cover
         label: Cover image (1200 x 630, under 200 KB)
