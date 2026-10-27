@@ -1,0 +1,179 @@
+
+---
+import { render } from 'astro:content';
+import { Image, getImage } from 'astro:assets';
+import Base from '../../layouts/Base.astro';
+import GuideCard from '../../components/GuideCard.astro';
+import Avatar from '../../components/Avatar.astro';
+import { SITE } from '../../config';
+import {
+  getGuides,
+  formatDate,
+  isoDate,
+  topicUrl,
+  authorUrl,
+} from '../../lib/content';
+
+export async function getStaticPaths() {
+  const guides = await getGuides();
+
+  return guides.map((guide) => ({
+    params: { slug: guide.id },
+    props: {
+      guide,
+      related: guides
+        .filter((g) => g.topic.id === guide.topic.id && g.id !== guide.id)
+        .slice(0, 3),
+    },
+  }));
+}
+
+const { guide, related } = Astro.props;
+const { data, topic, authors } = guide;
+const { Content } = await render(guide.entry);
+
+const origin = new URL(Astro.site!).origin;
+const og = await getImage({
+  src: guide.cover,
+  width: 1200,
+  height: 630,
+  format: 'jpg',
+});
+const ogUrl = new URL(og.src, origin).href;
+const pageUrl = origin + guide.url;
+const dateSlash = isoDate(data.date).replaceAll('-', '/');
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Article',
+  headline: data.title,
+  description: data.summary,
+  datePublished: isoDate(data.date),
+  inLanguage: 'en',
+  url: pageUrl,
+  image: ogUrl,
+  keywords: data.keywords.join(', '),
+  articleSection: topic.data.name,
+  author: authors.map((a) => ({
+    '@type': 'Person',
+    name: a.data.name,
+    url: origin + authorUrl(a),
+  })),
+  publisher: { '@type': 'Organization', name: SITE.name, url: origin },
+  isAccessibleForFree: true,
+};
+---
+
+<Base title={data.title} description={data.summary} image={ogUrl} type="article">
+  <Fragment slot="head">
+    <meta name="citation_title" content={data.title} />
+    {authors.map((a) => (
+      <meta name="citation_author" content={a.data.name} />
+    ))}
+    <meta name="citation_publication_date" content={dateSlash} />
+    <meta name="citation_online_date" content={dateSlash} />
+    <meta name="citation_journal_title" content={`${SITE.name} — Guidelines and Guidance`} />
+    <meta name="citation_abstract_html_url" content={pageUrl} />
+    <meta name="citation_language" content="en" />
+    {data.keywords.length > 0 && (
+      <meta name="citation_keywords" content={data.keywords.join('; ')} />
+    )}
+    <meta property="article:published_time" content={isoDate(data.date)} />
+    <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+  </Fragment>
+
+  <article>
+    <header class="article-head">
+      <div class="col">
+        <p class="eyebrow">
+          <a href={topicUrl(topic)}>{topic.data.name}</a>
+          <span class="kind"> · {data.kind}</span>
+        </p>
+
+        <h1>{data.title}</h1>
+        <p class="standfirst">{data.summary}</p>
+
+        <div class="meta">
+          <span>
+            By{' '}
+            {authors.map((a, i) => (
+              <>
+                {i > 0 && (i === authors.length - 1 ? ' and ' : ', ')}
+                <a href={authorUrl(a)}>{a.data.name}</a>
+              </>
+            ))}
+          </span>
+          <time datetime={isoDate(data.date)}>{formatDate(data.date)}</time>
+          <span>{guide.minutes} min read</span>
+
+          {data.peerReviewed && (
+            <span class="badge">
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M4 10.5l4 4 8-9" stroke-linecap="round" stroke-linejoin="round"></path>
+              </svg>
+              Blind peer reviewed
+            </span>
+          )}
+        </div>
+      </div>
+    </header>
+
+    <figure class="cover">
+      <Image
+        src={guide.cover}
+        alt={data.coverAlt}
+        widths={[640, 960, 1280, 1600]}
+        sizes="(min-width: 1000px) 936px, 100vw"
+        loading="eager"
+      />
+      {data.coverCredit && <figcaption>{data.coverCredit}</figcaption>}
+    </figure>
+
+    <div class="article-body">
+      <div class="prose">
+        <Content />
+      </div>
+
+      {data.keywords.length > 0 && (
+        <ul class="keywords" aria-label="Keywords">
+          {data.keywords.map((keyword) => <li>{keyword}</li>)}
+        </ul>
+      )}
+
+      <p class="rights">{SITE.rights}</p>
+
+      <section class="about-authors" aria-labelledby="authors-h">
+        <h2 id="authors-h">
+          {authors.length > 1 ? 'About the authors' : 'About the author'}
+        </h2>
+        {authors.map((a) => (
+          <div class="a">
+            <Avatar name={a.data.name} photo={a.data.photo} />
+            <div>
+              <a href={authorUrl(a)}>{a.data.name}</a>
+              {(a.data.role || a.data.affiliation) && (
+                <p style="margin:0;font-family:var(--sans);font-size:.8rem">
+                  {[a.data.role, a.data.affiliation].filter(Boolean).join(', ')}
+                </p>
+              )}
+            </div>
+          </div>
+        ))}
+      </section>
+    </div>
+  </article>
+
+  {related.length > 0 && (
+    <section class="section no-print">
+      <div class="wrap">
+        <div class="section-head">
+          <h2>More guidance in {topic.data.name}</h2>
+          <a class="more" href="/guidance/">All guidance →</a>
+        </div>
+        <div class="grid">
+          {related.map((g) => <GuideCard guide={g} />)}
+        </div>
+      </div>
+    </section>
+  )}
+</Base>
