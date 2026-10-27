@@ -1,5 +1,5 @@
 ---
-title: "Draftlaw Research Basic Mooting Guideline: Part 13 (Teamwork, Time,
+title: "DraftLaw Research Basic Mooting Guideline: Part 13 (Teamwork, Time,
   Common Mistakes and the One-Page Cheat Sheet)"
 summary: This entry constitutes the 13th instalment in our 14-part Mooting
   Guidelines series, designed to provide a comprehensive, step-by-step
