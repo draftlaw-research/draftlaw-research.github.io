@@ -57,6 +57,32 @@ const articles = defineCollection({
   }),
 });
 
+
+ // One file per guidance publication, with authors, topics and article-style metadata.
+const guides = defineCollection({
+  loader: glob({ pattern: '*.md', base: './src/content/guides' }),
+  schema: z.object({
+    title: z.string(),
+    summary: z.string().max(400),
+    authors: many.pipe(z.array(z.string()).min(1)),
+    topic: z.string(),
+    kind: z.enum([
+      'Research guide',
+      'Writing guide',
+      'Moot court guide',
+      'Academic skills',
+      'Other',
+    ]).default('Research guide'),
+    date: z.coerce.date(),
+    cover: optText,
+    coverAlt: z.preprocess(blank, z.string().default('')),
+    coverCredit: optText,
+    featured: z.boolean().default(false),
+    keywords: many,
+    peerReviewed: z.boolean().default(true),
+  }),
+});
+
 // Team members, shown on the About page. Same idea as authors.
 const team = defineCollection({
   loader: glob({ pattern: '*.md', base: './src/content/team' }),
@@ -142,4 +168,4 @@ const pages = defineCollection({
   }),
 });
 
-export const collections = { topics, authors, articles, team, studentCollaborators, programs, announcements, newsletter, pages };
+export const collections = { topics, authors, articles, guides, team, studentCollaborators, programs, announcements, newsletter, pages };
