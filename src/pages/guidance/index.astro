@@ -1,0 +1,40 @@
+
+---
+import Base from '../../layouts/Base.astro';
+import GuideCard from '../../components/GuideCard.astro';
+import { getGuides } from '../../lib/content';
+
+const guides = await getGuides();
+---
+
+<Base
+  title="Guidelines and Guidance"
+  description="Practical legal research, writing, moot court, and academic guidance from DraftLaw Research."
+>
+  <div class="wrap">
+    <header class="page-title">
+      <p class="eyebrow">Learn and develop</p>
+      <h1>Guidelines and Guidance</h1>
+      <p>
+        Practical resources to help law students and early-career researchers
+        strengthen their legal research, writing, advocacy, and academic skills.
+      </p>
+    </header>
+
+    <section class="section">
+      {guides.length > 0 ? (
+        <div class="grid">
+          {guides.map((guide) => <GuideCard guide={guide} />)}
+        </div>
+      ) : (
+        <div class="empty-state">
+          <h2>Guidance publications coming soon</h2>
+          <p>
+            We are preparing practical resources for law students and
+            emerging legal researchers. Please check back soon.
+          </p>
+        </div>
+      )}
+    </section>
+  </div>
+</Base>
