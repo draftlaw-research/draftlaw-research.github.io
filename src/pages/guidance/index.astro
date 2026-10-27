@@ -5,6 +5,25 @@ import GuideCard from '../../components/GuideCard.astro';
 import { getGuides } from '../../lib/content';
 
 const guides = await getGuides();
+
+const groupedGuides = Object.values(
+  guides.reduce<Record<string, { title: string; guides: typeof guides }>>(
+    (groups, guide) => {
+      const title = guide.topic?.data.name ?? 'Other Guidance';
+
+      if (!groups[title]) {
+        groups[title] = {
+          title,
+          guides: [],
+        };
+      }
+
+      groups[title].guides.push(guide);
+      return groups;
+    },
+    {},
+  ),
+).sort((a, b) => a.title.localeCompare(b.title));
 ---
 
 <Base
@@ -21,12 +40,19 @@ const guides = await getGuides();
       </p>
     </header>
 
-    <section class="section">
-      {guides.length > 0 ? (
-        <div class="grid">
-          {guides.map((guide) => <GuideCard guide={guide} />)}
-        </div>
-      ) : (
+    {groupedGuides.length > 0 ? (
+      groupedGuides.map((group) => (
+        <section class="section">
+          <h2>{group.title}</h2>
+          <div class="grid">
+            {group.guides.map((guide) => (
+              <GuideCard guide={guide} />
+            ))}
+          </div>
+        </section>
+      ))
+    ) : (
+      <section class="section">
         <div class="empty-state">
           <h2>Guidance publications coming soon</h2>
           <p>
@@ -34,7 +60,7 @@ const guides = await getGuides();
             emerging legal researchers. Please check back soon.
           </p>
         </div>
-      )}
-    </section>
+      </section>
+    )}
   </div>
 </Base>
