@@ -8,7 +8,7 @@ summary: This article explores the psychological, legal, and economic
   support and trust in the rule of law.
 authors:
   - src/content/authors/ahmed-a-elsawy.md
-topic: src/content/topics/international-law.md
+topic: src/content/topics/criminal-law.md
 kind: Article
 date: 2026-10-27
 cover: /src/assets/covers/1.jpg
@@ -23,8 +23,8 @@ peerReviewed: true
 ---
 Several criminology research addressed the criminal act, the mindset of the perpetrator and the criminal act motive through philosophical, psychological or social lens, which derived the theories that explain why the crime occurs, and why a criminal commits such act. Yet, there are other perspectives of the theory to be addressed, through different lens. A question that deserves research to be figured is why a person seeks to retaliate on his own, although there are state’s law enforcement bodies that exist for this function, *e.g.* police, prosecution, judicial bodies, *etc*. In fact, this question has two main aspects: 
 
-1. the behavioral motive of the person that drives him for committing a retaliatory crime, and 
-2. the role of the state’s bodies that possess the authority for investigating, prosecuting and punishing. 
+1. the behavioral motive of the person that drives him for committing a retaliatory crime, and
+2. the role of the state’s bodies that possess the authority for investigating, prosecuting and punishing.
 
 This question aims for exploring the behavioral drivers for the criminal that pushes him to commit a retaliation against another offender, despite knowing that they will be subject to punishment as a response to their act. Moreover, on the other side of the issue, there are functioning state’s authorities, responsible for enforcing law, and further judicial authorities, responsible for investigating, prosecuting crimes and imposing punishments. With this mission been emphasized, it sounds to be not trusted for the person under the phenomenon on which we are shedding the light.  
 
