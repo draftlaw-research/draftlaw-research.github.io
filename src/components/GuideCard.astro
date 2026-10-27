@@ -24,10 +24,11 @@ const { data, topic, authors } = guide;
   </a>
 
   <div class="card-body">
-    <p class="eyebrow">
-      <a href={topicUrl(topic)}>{topic.data.name}</a>
-      <span class="kind"> · {data.kind}</span>
-    </p>
+   <p class="eyebrow">
+  {topic && <a href={topicUrl(topic)}>{topic.data.name}</a>}
+  {topic && <span class="kind"> · {data.kind}</span>}
+  {!topic && <span class="kind">{data.kind}</span>}
+</p>
 
     <h3><a href={guide.url}>{data.title}</a></h3>
     <p class="summary">{data.summary}</p>
