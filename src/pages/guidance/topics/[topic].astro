@@ -4,45 +4,45 @@ import Base from '../../../layouts/Base.astro';
 import GuideCard from '../../../components/GuideCard.astro';
 import { getGuides } from '../../../lib/content';
 
-const categories = [
-  {
-    slug: 'moot-court',
-    kind: 'Moot Court Guide',
-    title: 'Moot Court Guidelines',
-    description:
-      'Practical guidance on mooting, memorial drafting, oral advocacy, and preparing for moot court competitions.',
-  },
-  {
-    slug: 'research',
-    kind: 'Research Guide',
-    title: 'Research Guides',
-    description:
-      'Guidance on legal research, research methods, and developing research projects.',
-  },
-  {
-    slug: 'writing',
-    kind: 'Writing Guide',
-    title: 'Writing Guides',
-    description:
-      'Resources for improving legal writing and academic communication.',
-  },
-  {
-    slug: 'academic-skills',
-    kind: 'Academic Skills',
-    title: 'Academic Skills',
-    description:
-      'Practical resources for developing essential academic skills.',
-  },
-  {
-    slug: 'other',
-    kind: 'Other',
-    title: 'Other Guidance',
-    description:
-      'Additional resources for law students and emerging legal researchers.',
-  },
-];
-
 export function getStaticPaths() {
+  const categories = [
+    {
+      slug: 'moot-court',
+      kind: 'Moot Court Guide',
+      title: 'Moot Court Guidelines',
+      description:
+        'Practical guidance on mooting, memorial drafting, oral advocacy, and preparing for moot court competitions.',
+    },
+    {
+      slug: 'research',
+      kind: 'Research Guide',
+      title: 'Research Guides',
+      description:
+        'Guidance on legal research, research methods, and developing research projects.',
+    },
+    {
+      slug: 'writing',
+      kind: 'Writing Guide',
+      title: 'Writing Guides',
+      description:
+        'Resources for improving legal writing and academic communication.',
+    },
+    {
+      slug: 'academic-skills',
+      kind: 'Academic Skills',
+      title: 'Academic Skills',
+      description:
+        'Practical resources for developing essential academic skills.',
+    },
+    {
+      slug: 'other',
+      kind: 'Other',
+      title: 'Other Guidance',
+      description:
+        'Additional resources for law students and emerging legal researchers.',
+    },
+  ];
+
   return categories.map((category) => ({
     params: { topic: category.slug },
     props: {
