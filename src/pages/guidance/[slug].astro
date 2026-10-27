@@ -21,9 +21,13 @@ export async function getStaticPaths() {
     params: { slug: guide.id },
     props: {
       guide,
-      related: guides
-        .filter((g) => g.topic.id === guide.topic.id && g.id !== guide.id)
-        .slice(0, 3),
+      related: guide.topic
+        ? guides
+            .filter(
+              (g) => g.topic?.id === guide.topic?.id && g.id !== guide.id,
+            )
+            .slice(0, 3)
+        : guides.filter((g) => g.id !== guide.id).slice(0, 3),
     },
   }));
 }
@@ -53,7 +57,7 @@ const jsonLd = {
   url: pageUrl,
   image: ogUrl,
   keywords: data.keywords.join(', '),
-  articleSection: topic.data.name,
+  ...(topic ? { articleSection: topic.data.name } : {}),
   author: authors.map((a) => ({
     '@type': 'Person',
     name: a.data.name,
@@ -72,7 +76,10 @@ const jsonLd = {
     ))}
     <meta name="citation_publication_date" content={dateSlash} />
     <meta name="citation_online_date" content={dateSlash} />
-    <meta name="citation_journal_title" content={`${SITE.name} — Guidelines and Guidance`} />
+    <meta
+      name="citation_journal_title"
+      content={`${SITE.name} — Guidelines and Guidance`}
+    />
     <meta name="citation_abstract_html_url" content={pageUrl} />
     <meta name="citation_language" content="en" />
     {data.keywords.length > 0 && (
@@ -86,8 +93,9 @@ const jsonLd = {
     <header class="article-head">
       <div class="col">
         <p class="eyebrow">
-          <a href={topicUrl(topic)}>{topic.data.name}</a>
-          <span class="kind"> · {data.kind}</span>
+          {topic && <a href={topicUrl(topic)}>{topic.data.name}</a>}
+          {topic && <span class="kind"> · {data.kind}</span>}
+          {!topic && <span class="kind">{data.kind}</span>}
         </p>
 
         <h1>{data.title}</h1>
@@ -108,8 +116,18 @@ const jsonLd = {
 
           {data.peerReviewed && (
             <span class="badge">
-              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                <path d="M4 10.5l4 4 8-9" stroke-linecap="round" stroke-linejoin="round"></path>
+              <svg
+                viewBox="0 0 20 20"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                aria-hidden="true"
+              >
+                <path
+                  d="M4 10.5l4 4 8-9"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                ></path>
               </svg>
               Blind peer reviewed
             </span>
@@ -167,7 +185,9 @@ const jsonLd = {
     <section class="section no-print">
       <div class="wrap">
         <div class="section-head">
-          <h2>More guidance in {topic.data.name}</h2>
+          <h2>
+            {topic ? `More guidance in ${topic.data.name}` : 'More guidance'}
+          </h2>
           <a class="more" href="/guidance/">All guidance →</a>
         </div>
         <div class="grid">
