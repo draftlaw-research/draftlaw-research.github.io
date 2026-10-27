@@ -16,7 +16,7 @@ export const SITE = {
 export const NAV = [
   { href: '/articles/', label: 'Articles', match: ['/articles/', '/authors/'] },
   { href: '/topics/', label: 'Topics', match: ['/topics/'] },
-  { href: '/guidance/', label: 'Guidelines and Guidance', match: ['/guidance/'],},
+  { href: '/guidance/', label: 'Guidelines', match: ['/guidance/'],},
   { href: '/newsletter/', label: 'Newsletter', match: ['/newsletter/'] },
   { href: '/programs/', label: 'Programs', match: ['/programs/'] },
   { href: '/submit/', label: 'Write with us', match: ['/submit/'] },
