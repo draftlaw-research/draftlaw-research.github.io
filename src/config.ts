@@ -14,9 +14,9 @@ export const SITE = {
 
 // Main menu. "match" lists the address prefixes that should highlight the item.
 export const NAV = [
-  { href: '/guidance/', label: 'Guidelines and Guidance', match: ['/guidance/'],},
   { href: '/articles/', label: 'Articles', match: ['/articles/', '/authors/'] },
   { href: '/topics/', label: 'Topics', match: ['/topics/'] },
+  { href: '/guidance/', label: 'Guidelines and Guidance', match: ['/guidance/'],},
   { href: '/newsletter/', label: 'Newsletter', match: ['/newsletter/'] },
   { href: '/programs/', label: 'Programs', match: ['/programs/'] },
   { href: '/submit/', label: 'Write with us', match: ['/submit/'] },
