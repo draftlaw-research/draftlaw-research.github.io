@@ -11,8 +11,8 @@ authors:
 topic: src/content/topics/criminal-law.md
 kind: Article
 date: 2026-10-27
-cover: /src/assets/covers/1.jpg
-featured: false
+cover: /src/assets/covers/1.jpeg
+featured: true
 keywords:
   - private retaliation
   - revenge and justice
