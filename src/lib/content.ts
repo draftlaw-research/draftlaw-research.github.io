@@ -139,7 +139,14 @@ export async function getGuides(): Promise<Guide[]> {
     };
   });
 
-  return guides.sort((a, b) => +b.data.date - +a.data.date);
+    return guides.sort((a, b) => {
+    const getPartNumber = (guide: Guide): number => {
+      const match = guide.data.title.match(/\bPart\s+(\d+)\b/i);
+      return match ? Number(match[1]) : Infinity;
+    };
+
+    return getPartNumber(a) - getPartNumber(b);
+  });
 }
 
 export async function getTopics(): Promise<Topic[]> {
