@@ -108,15 +108,6 @@ content:
           search: name
           value: '{path}'
           label: '{fields.name}'
-      - name: topic
-        label: Topic
-        type: reference
-        required: true
-        options:
-          collection: topics
-          search: name
-          value: '{path}'
-          label: '{fields.name}'
       - name: kind
         label: Guidance type
         type: select
