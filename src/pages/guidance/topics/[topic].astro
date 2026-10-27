@@ -16,25 +16,29 @@ const categories = [
     slug: 'research',
     kind: 'Research Guide',
     title: 'Research Guides',
-    description: 'Guidance on legal research, research methods, and developing research projects.',
+    description:
+      'Guidance on legal research, research methods, and developing research projects.',
   },
   {
     slug: 'writing',
     kind: 'Writing Guide',
     title: 'Writing Guides',
-    description: 'Resources for improving legal writing and academic communication.',
+    description:
+      'Resources for improving legal writing and academic communication.',
   },
   {
     slug: 'academic-skills',
     kind: 'Academic Skills',
     title: 'Academic Skills',
-    description: 'Practical resources for developing essential academic skills.',
+    description:
+      'Practical resources for developing essential academic skills.',
   },
   {
     slug: 'other',
     kind: 'Other',
     title: 'Other Guidance',
-    description: 'Additional resources for law students and emerging legal researchers.',
+    description:
+      'Additional resources for law students and emerging legal researchers.',
   },
 ];
 
@@ -50,10 +54,10 @@ export function getStaticPaths() {
 }
 
 const { kind, title, description } = Astro.props;
-const guides = await getGuides();
+const allGuides = await getGuides();
 
-const categoryGuides = guides.filter(
-  (guide) => guide.data.kind === kind,
+const categoryGuides = allGuides.filter(
+  (guide) => (guide.data.kind ?? 'Other') === kind,
 );
 ---
 
