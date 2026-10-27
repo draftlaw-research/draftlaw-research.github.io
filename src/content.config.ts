@@ -59,20 +59,21 @@ const articles = defineCollection({
 
 
  // One file per guidance publication, with authors, topics and article-style metadata.
+
 const guides = defineCollection({
   loader: glob({ pattern: '*.md', base: './src/content/guides' }),
   schema: z.object({
     title: z.string(),
     summary: z.string().max(400),
     authors: many.pipe(z.array(z.string()).min(1)),
-    topic: z.string(), topic: z.string().optional(),
+    topic: optText,
     kind: z.enum([
       'Research Guide',
       'Writing Guide',
       'Moot Court Guide',
       'Academic Skills',
       'Other',
-    ]).default('Research guide'),
+    ]).default('Other'),
     date: z.coerce.date(),
     cover: optText,
     coverAlt: z.preprocess(blank, z.string().default('')),
@@ -82,6 +83,7 @@ const guides = defineCollection({
     peerReviewed: z.boolean().default(true),
   }),
 });
+
 
 // Team members, shown on the About page. Same idea as authors.
 const team = defineCollection({
