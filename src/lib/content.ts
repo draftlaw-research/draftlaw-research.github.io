@@ -12,6 +12,17 @@ export type Program = CollectionEntry<'programs'>;
 export type Announcement = CollectionEntry<'announcements'>;
 export type NewsItem = CollectionEntry<'newsletter'>;
 
+export type Guide = {
+  id: string;
+  entry: CollectionEntry<'guides'>;
+  data: CollectionEntry<'guides'>['data'];
+  topic: Topic;
+  authors: Author[];
+  minutes: number;
+  url: string;
+  cover: ImageMetadata;
+};
+
 export type Article = {
   id: string;
   entry: CollectionEntry<'articles'>;
@@ -79,6 +90,51 @@ export async function getArticles(): Promise<Article[]> {
     };
   });
   return articles.sort((a, b) => +b.data.date - +a.data.date);
+}
+
+export async function getGuides(): Promise<Guide[]> {
+  const [entries, topics, authors] = await Promise.all([
+    getCollection('guides'),
+    getCollection('topics'),
+    getCollection('authors'),
+  ]);
+
+  const guides = entries.map((entry): Guide => {
+    const topic = lookup(topics, entry.data.topic);
+
+    if (!topic) {
+      throw new Error(
+        `Guide "${entry.id}" references missing topic "${entry.data.topic}".`,
+      );
+    }
+
+    const found = entry.data.authors.map((value) => {
+      const author = lookup(authors, value);
+
+      if (!author) {
+        throw new Error(
+          `Guide "${entry.id}" references missing author "${value}".`,
+        );
+      }
+
+      return author;
+    });
+
+    const words = (entry.body ?? '').split(/\s+/).filter(Boolean).length;
+
+    return {
+      id: entry.id,
+      entry,
+      data: entry.data,
+      topic,
+      authors: found,
+      minutes: Math.max(1, Math.round(words / 220)),
+      url: `/guidance/${entry.id}/`,
+      cover: getCover(entry.data.cover),
+    };
+  });
+
+  return guides.sort((a, b) => +b.data.date - +a.data.date);
 }
 
 export async function getTopics(): Promise<Topic[]> {
