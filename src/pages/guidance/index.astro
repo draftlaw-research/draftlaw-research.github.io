@@ -6,22 +6,42 @@ import { getGuides } from '../../lib/content';
 
 const guides = await getGuides();
 
+
 const groupedGuides = Object.values(
   guides.reduce<Record<string, {
     title: string;
     slug: string;
     guides: typeof guides;
   }>>((groups, guide) => {
-    const slug = guide.topic?.id ?? 'other';
-    const title = guide.topic?.data.name ?? 'Other Guidance';
+    const kind = guide.data.kind ?? 'Other';
+
+    const slugMap: Record<string, string> = {
+      'Moot Court Guide': 'moot-court',
+      'Research Guide': 'research',
+      'Writing Guide': 'writing',
+      'Academic Skills': 'academic-skills',
+      'Other': 'other',
+    };
+
+    const slug = slugMap[kind] ?? 'other';
 
     if (!groups[slug]) {
-      groups[slug] = { title, slug, guides: [] };
+      groups[slug] = {
+        title: kind === 'Moot Court Guide'
+          ? 'Moot Court Guidelines'
+          : kind === 'Other'
+            ? 'Other Guidance'
+            : kind,
+        slug,
+        guides: [],
+      };
     }
 
     groups[slug].guides.push(guide);
     return groups;
   }, {}),
+).sort((a, b) => a.title.localeCompare(b.title));
+
 ).sort((a, b) => a.title.localeCompare(b.title));
 ---
 
