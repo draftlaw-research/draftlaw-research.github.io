@@ -16,7 +16,7 @@ export type Guide = {
   id: string;
   entry: CollectionEntry<'guides'>;
   data: CollectionEntry<'guides'>['data'];
-  topic: Topic;
+  topic: Topic; | undefined;
   authors: Author[];
   minutes: number;
   url: string;
@@ -92,6 +92,7 @@ export async function getArticles(): Promise<Article[]> {
   return articles.sort((a, b) => +b.data.date - +a.data.date);
 }
 
+
 export async function getGuides(): Promise<Guide[]> {
   const [entries, topics, authors] = await Promise.all([
     getCollection('guides'),
@@ -100,9 +101,13 @@ export async function getGuides(): Promise<Guide[]> {
   ]);
 
   const guides = entries.map((entry): Guide => {
-    const topic = lookup(topics, entry.data.topic);
+    // A guide's topic is optional.
+    const topic = entry.data.topic
+      ? lookup(topics, entry.data.topic)
+      : undefined;
 
-    if (!topic) {
+    // Validate a topic only when one was supplied.
+    if (entry.data.topic && !topic) {
       throw new Error(
         `Guide "${entry.id}" references missing topic "${entry.data.topic}".`,
       );
