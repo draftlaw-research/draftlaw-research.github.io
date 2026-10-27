@@ -1,0 +1,42 @@
+
+---
+import { render } from 'astro:content';
+import Base from '../layouts/Base.astro';
+import { getPage } from '../lib/content';
+
+const page = await getPage('guidelines');
+const { Content, headings } = await render(page);
+const sections = headings.filter((h) => h.depth === 2);
+---
+
+<Base title={page.data.title} description={page.data.description}>
+  <div class="wrap">
+    <div class="page-title">
+      <p class="eyebrow">Resources for contributors</p>
+      <h1>{page.data.title}</h1>
+      <p>{page.data.description}</p>
+    </div>
+
+    <div class="section layout-aside">
+      <div class="page-text" style="padding:0;max-width:var(--measure)">
+        <Content />
+      </div>
+
+      <aside class="sticky" aria-label="On this page">
+        <ul class="on-page">
+          {sections.map((h) => (
+            <li><a href={`#${h.slug}`}>{h.text}</a></li>
+          ))}
+        </ul>
+
+        <div class="aside-box" style="margin-top:0">
+          <h3>Ready to contribute?</h3>
+          <p>Explore our submission requirements before sending us your work.</p>
+          <a class="btn block" href="/submit/">
+            Submission guidelines
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</Base>
