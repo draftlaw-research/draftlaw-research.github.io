@@ -78,6 +78,67 @@ content:
         options:
           path: src/assets/images
 
+  # --------------------------------------------------------- Guidance publications
+  - name: guides
+    label: Guidelines and Guidance
+    type: collection
+    path: src/content/guides
+    filename: '{primary}.md'
+    view:
+      fields: [title, date, kind, featured]
+      primary: title
+      sort: [date, title]
+      default:
+        sort: date
+        order: desc
+    fields:
+      - { name: title, label: Title, type: string, required: true }
+      - name: summary
+        label: Summary
+        type: text
+        required: true
+        options: { maxlength: 400 }
+      - name: authors
+        label: Authors
+        type: reference
+        required: true
+        options:
+          collection: authors
+          multiple: true
+          search: name
+          value: '{path}'
+          label: '{fields.name}'
+      - name: topic
+        label: Topic
+        type: reference
+        required: true
+        options:
+          collection: topics
+          search: name
+          value: '{path}'
+          label: '{fields.name}'
+      - name: kind
+        label: Guidance type
+        type: select
+        default: Research guide
+        options:
+          values: [Research guide, Writing guide, Moot court guide, Academic skills, Other]
+      - { name: date, label: Publication date, type: date, required: true }
+      - name: cover
+        label: Cover image (1200 x 630, under 200 KB)
+        type: image
+        options: { path: src/assets/covers }
+      - { name: coverAlt, label: Image description for screen readers, type: string }
+      - { name: coverCredit, label: Image credit, type: string }
+      - { name: featured, label: Feature on guidance homepage, type: boolean, default: false }
+      - { name: keywords, label: Keywords, type: string, list: true }
+      - { name: peerReviewed, label: Blind peer reviewed, type: boolean, default: true }
+      - name: body
+        label: Guidance text
+        type: rich-text
+        options:
+          path: src/assets/images
+
   # ----------------------------------------------------------------- Authors
   - name: authors
     label: Authors
