@@ -10,7 +10,7 @@ authors:
   - src/content/authors/nafiz-absar-mahmood.md
 kind: Moot Court Guide
 date: 2026-10-27
-cover: /src/assets/covers/37228deakin-health-psychology-burwood-2023simonshiff0-74-2-scaled-1.jpg
+cover: /src/assets/covers/wmremove-transformed-4.jpeg
 featured: true
 keywords:
   - moot court
