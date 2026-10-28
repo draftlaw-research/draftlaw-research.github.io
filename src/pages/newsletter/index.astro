@@ -30,28 +30,36 @@ const categories = [...new Set([...open, ...closed].map((i) => i.data.category))
 
     <div class="section" style="padding-top:1rem">
       <div class="section-head"><h2>Open now</h2></div>
+
       {open.length > 0 ? (
-        <ul class="news" id="open-list">
-          {open.map((item) => <NewsItem item={item} />)}
-        </ul>
+        <>
+          <p class="result-count" id="open-count" aria-live="polite"></p>
+          <ul class="news" id="open-list">
+            {open.map((item) => <NewsItem item={item} />)}
+          </ul>
+          <nav class="pagination" id="open-pagination" aria-label="Open opportunities pages"></nav>
+        </>
       ) : (
         <p class="empty">There are no open calls right now. Please check back soon.</p>
       )}
+
       <p class="empty" id="none" hidden>Nothing in this category at the moment.</p>
 
       {closed.length > 0 && (
         <details class="past">
           <summary>Closed ({closed.length})</summary>
+          <p class="result-count" id="closed-count" aria-live="polite"></p>
           <ul class="news" id="closed-list">
             {closed.map((item) => <NewsItem item={item} />)}
           </ul>
+          <nav class="pagination" id="closed-pagination" aria-label="Closed opportunities pages"></nav>
         </details>
       )}
 
       <div class="aside-box" style="max-width:40rem;margin-top:2.5rem">
         <h3>Know a call that fits our readers?</h3>
         <p>
-        Send the title, organiser, type, deadline, location and a link to <a href="mailto:draftlawresearch@gmail.com">draftlawresearch@gmail.com</a>. Listing is free.
+          Send the title, organiser, type, deadline, location and a link to <a href="mailto:draftlawresearch@gmail.com">draftlawresearch@gmail.com</a>. Listing is free.
         </p>
       </div>
     </div>
@@ -59,12 +67,95 @@ const categories = [...new Set([...open, ...closed].map((i) => i.data.category))
 </Base>
 
 <script>
-  const chips = Array.from(document.querySelectorAll('.chip'));
-  const items = Array.from(document.querySelectorAll('.news > li'));
-  const openItems = Array.from(document.querySelectorAll('#open-list > li'));
+  const chips = Array.from(document.querySelectorAll<HTMLButtonElement>('.chip'));
+  const perPage = 6;
+
+  const sections = [
+    {
+      list: document.getElementById('open-list'),
+      count: document.getElementById('open-count'),
+      pagination: document.getElementById('open-pagination'),
+      page: 1,
+    },
+    {
+      list: document.getElementById('closed-list'),
+      count: document.getElementById('closed-count'),
+      pagination: document.getElementById('closed-pagination'),
+      page: 1,
+    },
+  ].filter((section) => section.list && section.count && section.pagination);
+
   const none = document.getElementById('none');
 
-  function filterNewsletter(category) {
+  function renderPagination(
+    container: HTMLElement,
+    totalPages: number,
+    currentPage: number,
+    onPageChange: (page: number) => void
+  ) {
+    container.replaceChildren();
+    container.hidden = totalPages <= 1;
+
+    if (totalPages <= 1) return;
+
+    function addButton(label: string, page: number, disabled: boolean, current = false) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = label;
+      button.disabled = disabled;
+
+      if (current) {
+        button.setAttribute('aria-current', 'page');
+      }
+
+      button.addEventListener('click', () => onPageChange(page));
+      container.append(button);
+    }
+
+    addButton('← Previous', currentPage - 1, currentPage === 1);
+
+    for (let page = 1; page <= totalPages; page++) {
+      addButton(String(page), page, false, page === currentPage);
+    }
+
+    addButton('Next →', currentPage + 1, currentPage === totalPages);
+  }
+
+  function updateSection(section: typeof sections[number], category: string) {
+    const allItems = Array.from(section.list!.querySelectorAll<HTMLElement>(':scope > li'));
+
+    const matching = allItems.filter((item) => {
+      return category === '' || item.dataset.category === category;
+    });
+
+    const totalPages = Math.ceil(matching.length / perPage);
+    section.page = totalPages
+      ? Math.min(section.page, totalPages)
+      : 1;
+
+    const start = (section.page - 1) * perPage;
+    const visible = new Set(matching.slice(start, start + perPage));
+
+    allItems.forEach((item) => {
+      item.hidden = !visible.has(item);
+    });
+
+    section.count!.textContent = matching.length
+      ? `Showing ${start + 1}–${Math.min(start + perPage, matching.length)} of ${matching.length} opportunities`
+      : 'Showing 0 opportunities';
+
+    renderPagination(
+      section.pagination!,
+      totalPages,
+      section.page,
+      (page) => {
+        section.page = page;
+        updateSection(section, category);
+      }
+    );
+  }
+
+  function filterNewsletter(category: string) {
     chips.forEach((chip) => {
       chip.setAttribute(
         'aria-pressed',
@@ -72,27 +163,22 @@ const categories = [...new Set([...open, ...closed].map((i) => i.data.category))
       );
     });
 
-    items.forEach((item) => {
-      const matches =
-        category === '' || item.dataset.category === category;
-
-      if (matches) {
-        item.style.removeProperty('display');
-      } else {
-        item.style.setProperty('display', 'none', 'important');
-      }
+    sections.forEach((section) => {
+      section.page = 1;
+      updateSection(section, category);
     });
 
-    const hasVisibleOpenItem = openItems.some((item) => {
-      return category === '' || item.dataset.category === category;
-    });
+    const openSection = sections.find(
+      (section) => section.list?.id === 'open-list'
+    );
+
+    const hasVisibleOpenItem = openSection
+      ? Array.from(openSection.list!.querySelectorAll<HTMLElement>(':scope > li'))
+          .some((item) => !item.hidden)
+      : false;
 
     if (none) {
-      none.style.setProperty(
-        'display',
-        hasVisibleOpenItem ? 'none' : 'block',
-        'important'
-      );
+      none.hidden = hasVisibleOpenItem;
     }
   }
 
@@ -101,9 +187,48 @@ const categories = [...new Set([...open, ...closed].map((i) => i.data.category))
       filterNewsletter(chip.dataset.cat ?? '');
     });
   });
+
+  filterNewsletter('');
 </script>
+
 <style>
   .news > li[hidden] {
     display: none !important;
+  }
+
+  .pagination {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 1.5rem 0 2rem;
+  }
+
+  .pagination[hidden] {
+    display: none;
+  }
+
+  .pagination button {
+    min-width: 2.5rem;
+    min-height: 2.5rem;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border, #d1d5db);
+    border-radius: 0.375rem;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .pagination button[aria-current="page"] {
+    background: var(--text, #222);
+    color: var(--background, #fff);
+    border-color: var(--text, #222);
+  }
+
+  .pagination button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
   }
 </style>
