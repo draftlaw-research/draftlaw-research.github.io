@@ -137,9 +137,14 @@ const categories = [...new Set([...open, ...closed].map((i) => i.data.category))
     const visible = new Set(matching.slice(start, start + perPage));
 
     allItems.forEach((item) => {
-      item.hidden = !visible.has(item);
-    });
-
+  if (visible.has(item)) {
+    item.hidden = false;
+    item.style.removeProperty('display');
+  } else {
+    item.hidden = true;
+    item.style.setProperty('display', 'none', 'important');
+  }
+});
     section.count!.textContent = matching.length
       ? `Showing ${start + 1}–${Math.min(start + perPage, matching.length)} of ${matching.length} opportunities`
       : 'Showing 0 opportunities';
