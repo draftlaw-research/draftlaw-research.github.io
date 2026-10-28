@@ -89,37 +89,52 @@ const categories = [...new Set([...open, ...closed].map((i) => i.data.category))
 
   function renderPagination(
     container: HTMLElement,
-    totalPages: number,
-    currentPage: number,
-    onPageChange: (page: number) => void
+totalPages: number,
+currentPage: number,
+onPageChange: (page: number) => void
+) {
+  container.replaceChildren();
+  container.hidden = totalPages <= 1;
+
+  if (totalPages <= 1) return;
+
+  function addButton(
+    label: string,
+    page: number,
+    disabled: boolean,
+    current = false
   ) {
-    container.replaceChildren();
-    container.hidden = totalPages <= 1;
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = label;
+    button.disabled = disabled;
 
-    if (totalPages <= 1) return;
-
-    function addButton(label: string, page: number, disabled: boolean, current = false) {
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.textContent = label;
-      button.disabled = disabled;
-
-      if (current) {
-        button.setAttribute('aria-current', 'page');
-      }
-
-      button.addEventListener('click', () => onPageChange(page));
-      container.append(button);
+    if (current) {
+      button.setAttribute('aria-current', 'page');
     }
 
-    addButton('← Previous', currentPage - 1, currentPage === 1);
+    button.addEventListener('click', () => {
+      if (disabled) return;
 
-    for (let page = 1; page <= totalPages; page++) {
-      addButton(String(page), page, false, page === currentPage);
-    }
+      onPageChange(page);
 
-    addButton('Next →', currentPage + 1, currentPage === totalPages);
+      window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+      });
+    });
+
+    container.append(button);
   }
+
+  addButton('← Previous', currentPage - 1, currentPage === 1);
+
+  for (let page = 1; page <= totalPages; page++) {
+    addButton(String(page), page, false, page === currentPage);
+  }
+
+  addButton('Next →', currentPage + 1, currentPage === totalPages);
+}
 
   function updateSection(section: typeof sections[number], category: string) {
     const allItems = Array.from(section.list!.querySelectorAll<HTMLElement>(':scope > li'));
