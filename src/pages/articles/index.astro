@@ -272,10 +272,10 @@ const years = [...new Set(articles.map((a) => a.data.date.getUTCFullYear()))].so
   border-color: var(--border, #d1d5db) !important;
 }
 
-:global(.pagination a.disabled),
-:global(.pagination a[aria-disabled="true"]) {
-  opacity: 0.4;
-  cursor: not-allowed;
+:global(.pagination a[aria-current="page"]) {
+  background: var(--text, #222) !important;
+  color: var(--background, #fff) !important;
+  border-color: var(--text, #222) !important;
 }
 
   #list > li[hidden] {
