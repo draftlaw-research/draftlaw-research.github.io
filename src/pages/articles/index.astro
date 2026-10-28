@@ -44,7 +44,10 @@ const years = [...new Set(articles.map((a) => a.data.date.getUTCFullYear()))].so
         </select>
       </div>
     </form>
-    <p class="result-count" id="count" aria-live="polite">{articles.length} of {articles.length} articles</p>
+
+    <p class="result-count" id="count" aria-live="polite">
+      Showing articles
+    </p>
 
     <ul class="list" id="list">
       {articles.map((a) => (
@@ -60,42 +63,213 @@ const years = [...new Set(articles.map((a) => a.data.date.getUTCFullYear()))].so
         </li>
       ))}
     </ul>
-    <p class="empty" id="empty" hidden>No articles match these filters. Try removing one.</p>
+
+    <p class="empty" id="empty" hidden>
+      No articles match these filters. Try removing one.
+    </p>
+
+    <nav class="pagination" id="pagination" aria-label="Article pages"></nav>
   </div>
 </Base>
 
 <script>
-  const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+  const $ = <T extends HTMLElement>(id: string) =>
+    document.getElementById(id) as T;
+
   const q = $<HTMLInputElement>('q');
   const topic = $<HTMLSelectElement>('topic');
   const kind = $<HTMLSelectElement>('kind');
   const year = $<HTMLSelectElement>('year');
   const count = $('count');
   const empty = $('empty');
-  const items = Array.from(document.querySelectorAll<HTMLElement>('#list > li'));
+  const pagination = $('pagination');
 
-  function apply() {
-    const text = q.value.trim().toLowerCase();
-    let shown = 0;
-    for (const li of items) {
-      const ok =
-        (!topic.value || li.dataset.topic === topic.value) &&
-        (!kind.value || li.dataset.kind === kind.value) &&
-        (!year.value || li.dataset.year === year.value) &&
-        (!text || (li.dataset.text ?? '').includes(text));
-      li.hidden = !ok;
-      if (ok) shown++;
-    }
-    count.textContent = `${shown} of ${items.length} articles`;
-    empty.hidden = shown !== 0;
+  const items = Array.from(
+    document.querySelectorAll<HTMLElement>('#list > li')
+  );
+
+  const perPage = 6;
+  let currentPage = 1;
+
+  function readUrl() {
+    const params = new URLSearchParams(location.search);
+
+    q.value = params.get('q') ?? '';
+    topic.value = params.get('topic') ?? '';
+    kind.value = params.get('kind') ?? '';
+    year.value = params.get('year') ?? '';
+
+    currentPage = Math.max(
+      1,
+      Number.parseInt(params.get('page') ?? '1', 10) || 1
+    );
   }
 
-  // Allow links like /articles/?topic=human-rights
-  const params = new URLSearchParams(location.search);
-  if (params.get('topic')) topic.value = params.get('topic')!;
-  if (params.get('kind')) kind.value = params.get('kind')!;
-  if (params.get('q')) q.value = params.get('q')!;
+  function updateUrl(replace = false) {
+    const params = new URLSearchParams();
 
-  [q, topic, kind, year].forEach((el) => el.addEventListener('input', apply));
+    if (q.value.trim()) params.set('q', q.value.trim());
+    if (topic.value) params.set('topic', topic.value);
+    if (kind.value) params.set('kind', kind.value);
+    if (year.value) params.set('year', year.value);
+    if (currentPage > 1) params.set('page', String(currentPage));
+
+    const query = params.toString();
+    const url = location.pathname + (query ? `?${query}` : '') + location.hash;
+
+    if (replace) {
+      history.replaceState(null, '', url);
+    } else {
+      history.pushState(null, '', url);
+    }
+  }
+
+  function renderPagination(totalPages: number) {
+    pagination.replaceChildren();
+    pagination.hidden = totalPages <= 1;
+
+    if (totalPages <= 1) return;
+
+    function addLink(label: string, page: number, disabled = false, current = false) {
+      const link = document.createElement('a');
+      link.textContent = label;
+      link.href = `?page=${page}`;
+      link.dataset.page = String(page);
+
+      if (disabled) {
+        link.setAttribute('aria-disabled', 'true');
+        link.tabIndex = -1;
+      }
+
+      if (current) {
+        link.setAttribute('aria-current', 'page');
+      }
+
+      if (disabled) link.classList.add('disabled');
+
+      pagination.append(link);
+    }
+
+    addLink('← Previous', currentPage - 1, currentPage === 1);
+
+    for (let page = 1; page <= totalPages; page++) {
+      addLink(String(page), page, false, page === currentPage);
+    }
+
+    addLink('Next →', currentPage + 1, currentPage === totalPages);
+  }
+
+  function apply(updateHistory = false) {
+    const text = q.value.trim().toLowerCase();
+
+    const matching = items.filter((li) =>
+      (!topic.value || li.dataset.topic === topic.value) &&
+      (!kind.value || li.dataset.kind === kind.value) &&
+      (!year.value || li.dataset.year === year.value) &&
+      (!text || (li.dataset.text ?? '').includes(text))
+    );
+
+    const total = matching.length;
+    const totalPages = Math.ceil(total / perPage);
+
+    currentPage = totalPages
+      ? Math.min(currentPage, totalPages)
+      : 1;
+
+    const start = (currentPage - 1) * perPage;
+    const visible = new Set(matching.slice(start, start + perPage));
+
+    for (const li of items) {
+      li.hidden = !visible.has(li);
+    }
+
+    if (total === 0) {
+      count.textContent = 'Showing 0 of 0 articles';
+    } else {
+      count.textContent =
+        `Showing ${start + 1}–${Math.min(start + perPage, total)} of ${total} articles`;
+    }
+
+    empty.hidden = total !== 0;
+
+    renderPagination(totalPages);
+
+    if (updateHistory) updateUrl(true);
+  }
+
+  // Support shared links such as /articles/?topic=human-rights&page=2
+  readUrl();
   apply();
+
+  [q, topic, kind, year].forEach((el) => {
+    el.addEventListener('input', () => {
+      currentPage = 1;
+      apply(true);
+    });
+  });
+
+  pagination.addEventListener('click', (event) => {
+    const target = event.target as HTMLElement;
+    const link = target.closest<HTMLAnchorElement>('a[data-page]');
+
+    if (!link || link.getAttribute('aria-disabled') === 'true') {
+      event.preventDefault();
+      return;
+    }
+
+    event.preventDefault();
+
+    currentPage = Number(link.dataset.page);
+    updateUrl();
+    apply();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+
+  window.addEventListener('popstate', () => {
+    readUrl();
+    apply();
+  });
 </script>
+
+<style>
+  .pagination {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 2rem 0;
+  }
+
+  .pagination[hidden] {
+    display: none;
+  }
+
+  .pagination a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2.5rem;
+    min-height: 2.5rem;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border, #d1d5db);
+    border-radius: 0.375rem;
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .pagination a[aria-current="page"] {
+    background: var(--text, #222);
+    color: var(--background, #fff);
+    border-color: var(--text, #222);
+  }
+
+  .pagination a.disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  #list > li[hidden] {
+    display: none !important;
+  }
+</style>
