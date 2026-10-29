@@ -3,10 +3,6 @@
 # open "Configuration" in Pages CMS: it points to the exact line.
 #
 # You never need to add authors or topics here: they are picked from the Authors and Topics lists.
-#
-# EDITORIAL SAFEGUARD: every content entry below has "operations" set so that nobody can
-# delete or rename items inside Pages CMS. New items can still be created.
-# Deleting is done by the Chief Editor directly on GitHub.
 
 # Where uploaded pictures are saved, and the path written into the article.
 media:
@@ -27,9 +23,6 @@ content:
     type: collection
     path: src/content/articles
     filename: '{primary}.md'
-    operations:
-      rename: false
-      delete: false
     view:
       fields: [title, date, kind, featured]
       primary: title
@@ -91,9 +84,6 @@ content:
     type: collection
     path: src/content/guides
     filename: '{primary}.md'
-    operations:
-      rename: false
-      delete: false
     view:
       fields: [title, date, kind, featured]
       primary: title
@@ -146,9 +136,6 @@ content:
     type: collection
     path: src/content/authors
     filename: '{primary}.md'
-    operations:
-      rename: false
-      delete: false
     view:
       fields: [name, role, affiliation]
       primary: name
@@ -175,9 +162,6 @@ content:
     type: collection
     path: src/content/topics
     filename: '{primary}.md'
-    operations:
-      rename: false
-      delete: false
     view:
       fields: [name, order]
       primary: name
@@ -192,9 +176,6 @@ content:
     type: collection
     path: src/content/team
     filename: '{primary}.md'
-    operations:
-      rename: false
-      delete: false
     view:
       fields: [name, position, occupation]
       primary: name
@@ -221,9 +202,6 @@ content:
     type: collection
     path: src/content/student-collaborators
     filename: '{primary}.md'
-    operations:
-      rename: false
-      delete: false
     view:
       fields: [name, position, affiliation]
       primary: name
@@ -250,9 +228,6 @@ content:
     type: collection
     path: src/content/newsletter
     filename: '{primary}.md'
-    operations:
-      rename: false
-      delete: false
     view:
       fields: [title, category, deadline]
       primary: title
@@ -286,9 +261,6 @@ content:
     type: collection
     path: src/content/programs
     filename: '{primary}.md'
-    operations:
-      rename: false
-      delete: false
     view:
       fields: [title, status]
       primary: title
@@ -317,9 +289,6 @@ content:
     type: collection
     path: src/content/announcements
     filename: '{primary}.md'
-    operations:
-      rename: false
-      delete: false
     view:
       fields: [title, type, date, deadline]
       primary: title
@@ -356,8 +325,6 @@ content:
     label: Write with us (submission rules)
     type: file
     path: src/content/pages/submit.md
-    operations:
-      delete: false
     fields:
       - { name: title, label: Page title, type: string, required: true }
       - { name: description, label: Short introduction under the title, type: text, required: true }
@@ -373,8 +340,6 @@ content:
     type: file
     path: src/data/most-read.json
     format: json
-    operations:
-      delete: false
     fields:
       - name: slugs
         label: Article file names (without .md), most read first
