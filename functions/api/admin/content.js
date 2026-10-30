@@ -129,41 +129,130 @@ function extractTarFiles(bytes) {
   return files;
 }
 
-function readField(content, field) {
-  const frontmatter = content.match(
-    /^---\s*\r?\n([\s\S]*?)\r?\n---/
-  );
+// Convert individual YAML values into JavaScript values.
+function parseScalar(value) {
+  value = value.trim();
 
-  if (!frontmatter) return null;
+  if (value.startsWith('"') && value.endsWith('"')) {
+    try {
+      return JSON.parse(value);
+    } catch {
+      return value.slice(1, -1);
+    }
+  }
 
-  const expression = new RegExp(
-    `^${field}:\\s*(.*?)\\s*$`,
-    "m"
-  );
+  if (value.startsWith("'") && value.endsWith("'")) {
+    return value.slice(1, -1).replace(/''/g, "'");
+  }
 
-  const match = frontmatter[1].match(expression);
+  if (value === "true") return true;
+  if (value === "false") return false;
+  if (value === "null" || value === "~") return null;
 
-  if (!match) return null;
-
-  let value = match[1].trim();
-
-  if (
-    (value.startsWith('"') && value.endsWith('"')) ||
-    (value.startsWith("'") && value.endsWith("'"))
-  ) {
-    value = value.slice(1, -1);
+  if (/^-?\d+(\.\d+)?$/.test(value)) {
+    return Number(value);
   }
 
   return value;
 }
 
+// Read YAML frontmatter while preserving the Markdown body.
+function parseFrontmatter(content) {
+  const match = content.match(
+    /^---\s*\r?\n([\s\S]*?)\r?\n---/
+  );
+
+  if (!match) return {};
+
+  const lines = match[1].split(/\r?\n/);
+  const result = {};
+
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = lines[i];
+
+    const keyMatch = line.match(
+      /^([A-Za-z0-9_-]+):(?:[ \t]*(.*))?$/
+    );
+
+    if (!keyMatch) {
+      i++;
+      continue;
+    }
+
+    const key = keyMatch[1];
+    let value = keyMatch[2] || "";
+
+    i++;
+
+    // Read YAML lists, such as authors and keywords.
+    if (value === "") {
+      const items = [];
+
+      while (
+        i < lines.length &&
+        /^\s+-\s*/.test(lines[i])
+      ) {
+        const item = lines[i].replace(/^\s+-\s*/, "");
+        items.push(parseScalar(item));
+        i++;
+      }
+
+      result[key] = items.length > 0 ? items : "";
+      continue;
+    }
+
+    // Read quoted values that continue across multiple lines.
+    if (value.startsWith('"') || value.startsWith("'")) {
+      const quote = value[0];
+
+      while (
+        !value.endsWith(quote) &&
+        i < lines.length
+      ) {
+        value += " " + lines[i].trim();
+        i++;
+      }
+
+      result[key] = parseScalar(value);
+      continue;
+    }
+
+    // Read ordinary indented multiline YAML values.
+    const parts = [value];
+
+    while (
+      i < lines.length &&
+      /^\s+\S/.test(lines[i]) &&
+      !/^\s+-\s+/.test(lines[i])
+    ) {
+      parts.push(lines[i].trim());
+      i++;
+    }
+
+    result[key] = parseScalar(parts.join(" "));
+  }
+
+  return result;
+}
+
+// Read a content record.
 function parseRecord(content, path, collection) {
   const filename = path.split("/").pop();
   const slug = filename.replace(/\.md$/i, "");
 
+  const frontmatter = parseFrontmatter(content);
+
+  const bodyMatch = content.match(
+    /^---\s*\r?\n[\s\S]*?\r?\n---\s*([\s\S]*)$/
+  );
+
+  const body = bodyMatch ? bodyMatch[1].trim() : content;
+
   const title =
-    readField(content, "title") ||
-    readField(content, "name") ||
+    frontmatter.title ||
+    frontmatter.name ||
     slug.replace(/[-_]/g, " ");
 
   return {
@@ -172,13 +261,24 @@ function parseRecord(content, path, collection) {
     slug,
     path,
     title,
-    date: readField(content, "date"),
+    date: frontmatter.date ?? null,
     kind:
-      readField(content, "kind") ||
-      readField(content, "type") ||
-      readField(content, "category"),
-    status: readField(content, "status"),
-    featured: readField(content, "featured")
+      frontmatter.kind ||
+      frontmatter.type ||
+      frontmatter.category ||
+      null,
+    status: frontmatter.status ?? null,
+    featured: frontmatter.featured ?? null,
+    summary: frontmatter.summary ?? null,
+    authors: frontmatter.authors ?? [],
+    topic: frontmatter.topic ?? null,
+    cover: frontmatter.cover ?? null,
+    coverAlt: frontmatter.coverAlt ?? null,
+    coverCredit: frontmatter.coverCredit ?? null,
+    keywords: frontmatter.keywords ?? [],
+    peerReviewed: frontmatter.peerReviewed ?? null,
+    frontmatter,
+    body
   };
 }
 
@@ -236,7 +336,9 @@ export async function onRequestGet({ request, env }) {
     const archiveFiles = extractTarFiles(tarBytes);
 
     if (archiveFiles.size === 0) {
-      throw new Error("The repository archive contained no readable files.");
+      throw new Error(
+        "The repository archive contained no readable files."
+      );
     }
 
     stage = "reading content files";
@@ -264,23 +366,21 @@ export async function onRequestGet({ request, env }) {
 
     records.sort((a, b) =>
       a.collectionLabel.localeCompare(b.collectionLabel) ||
-      a.title.localeCompare(b.title)
+      String(a.title).localeCompare(String(b.title))
     );
 
     stage = "reading special website files";
 
     const specialFiles = {};
 
-    const submitPage = archiveFiles.get(
-      Object.keys(
-        Object.fromEntries(archiveFiles)
-      ).find(path => path.endsWith("/src/content/pages/submit.md"))
+    const submitEntry = [...archiveFiles.entries()].find(
+      ([path]) => path.endsWith("/src/content/pages/submit.md")
     );
 
-    if (submitPage !== undefined) {
+    if (submitEntry) {
       specialFiles["src/content/pages/submit.md"] =
         parseRecord(
-          submitPage,
+          submitEntry[1],
           "src/content/pages/submit.md",
           "pages"
         );
