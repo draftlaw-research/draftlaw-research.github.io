@@ -151,12 +151,14 @@ export async function onRequestGet({ request, env }) {
     const result = await env.EDITORIAL_DB
       .prepare(`
         SELECT
-          id,
-          username,
-          role,
-          is_active,
-          created_at
-        FROM users
+  id,
+  username,
+  role,
+  is_active,
+  display_name,
+  profile_image_url,
+  created_at
+FROM users
         WHERE role IN ('editor', 'moderator')
         ORDER BY role, username
       `)
