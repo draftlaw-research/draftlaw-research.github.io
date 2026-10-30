@@ -13,8 +13,6 @@ const CONTENT_SECTIONS = [
   "most-read"
 ];
 
-const MANAGE_PERMISSION = "manage_permissions";
-
 async function sha256(value) {
   const digest = await crypto.subtle.digest(
     "SHA-256",
@@ -54,6 +52,7 @@ async function getLoggedInUser(request, env) {
         users.username,
         users.role,
         users.is_active,
+        sessions.id AS session_id,
         sessions.expires_at
       FROM sessions
       JOIN users ON users.id = sessions.user_id
@@ -66,35 +65,13 @@ async function getLoggedInUser(request, env) {
   if (
     !session ||
     Number(session.is_active) !== 1 ||
-    new Date(session.expires_at).getTime() <= Date.now()
+    new Date(session.expires_at).getTime() <= Date.now() ||
+    !["admin", "moderator", "editor"].includes(session.role)
   ) {
     return null;
   }
 
   return session;
-}
-
-async function canManagePermissions(user, env) {
-  if (user.role === "admin") {
-    return true;
-  }
-
-  if (user.role !== "moderator") {
-    return false;
-  }
-
-  const permission = await env.EDITORIAL_DB
-    .prepare(`
-      SELECT section_key
-      FROM editor_section_permissions
-      WHERE user_id = ?
-        AND section_key = ?
-      LIMIT 1
-    `)
-    .bind(user.id, MANAGE_PERMISSION)
-    .first();
-
-  return Boolean(permission);
 }
 
 function jsonError(message, status = 400) {
@@ -105,6 +82,51 @@ function jsonError(message, status = 400) {
       headers: { "Cache-Control": "no-store" }
     }
   );
+}
+
+async function getManagedSections(user, env) {
+  if (user.role === "admin") {
+    return [...CONTENT_SECTIONS];
+  }
+
+  if (user.role !== "moderator") {
+    return [];
+  }
+
+  const result = await env.EDITORIAL_DB
+    .prepare(`
+      SELECT section_key
+      FROM editor_section_permissions
+      WHERE user_id = ?
+    `)
+    .bind(user.id)
+    .all();
+
+  const granted = new Set(
+    (result.results || []).map(row => row.section_key)
+  );
+
+  return CONTENT_SECTIONS.filter(section =>
+    granted.has(`manage:${section}`)
+  );
+}
+
+async function getPermissionRows(env) {
+  const result = await env.EDITORIAL_DB
+    .prepare(`
+      SELECT
+        editor_section_permissions.user_id,
+        editor_section_permissions.section_key,
+        editor_section_permissions.granted_by,
+        editor_section_permissions.created_at,
+        users.username AS granted_by_username
+      FROM editor_section_permissions
+      LEFT JOIN users
+        ON users.id = editor_section_permissions.granted_by
+    `)
+    .all();
+
+  return result.results || [];
 }
 
 export async function onRequestGet({ request, env }) {
@@ -119,9 +141,18 @@ export async function onRequestGet({ request, env }) {
       return jsonError("Please log in.", 401);
     }
 
-    if (!(await canManagePermissions(user, env))) {
+    if (!["admin", "moderator"].includes(user.role)) {
       return jsonError(
         "You are not authorized to manage permissions.",
+        403
+      );
+    }
+
+    const managedSections = await getManagedSections(user, env);
+
+    if (user.role === "moderator" && managedSections.length === 0) {
+      return jsonError(
+        "You have not been authorized to manage any content sections.",
         403
       );
     }
@@ -133,6 +164,7 @@ export async function onRequestGet({ request, env }) {
         .prepare(`
           SELECT id, username, role, is_active
           FROM users
+          WHERE role IN ('editor', 'moderator')
           ORDER BY role, username
         `)
         .all();
@@ -147,27 +179,27 @@ export async function onRequestGet({ request, env }) {
         .all();
     }
 
-    const permissionsQuery = await env.EDITORIAL_DB
-      .prepare(`
-        SELECT
-          editor_section_permissions.user_id,
-          editor_section_permissions.section_key,
-          editor_section_permissions.granted_by,
-          editor_section_permissions.created_at,
-          users.username AS granted_by_username
-        FROM editor_section_permissions
-        LEFT JOIN users
-          ON users.id = editor_section_permissions.granted_by
-      `)
-      .all();
+    const allPermissions = await getPermissionRows(env);
+
+    let visiblePermissions;
+
+    if (user.role === "admin") {
+      visiblePermissions = allPermissions;
+    } else {
+      const allowedKeys = new Set(managedSections);
+
+      visiblePermissions = allPermissions.filter(permission =>
+        allowedKeys.has(permission.section_key)
+      );
+    }
 
     return Response.json(
       {
         ok: true,
         sections: CONTENT_SECTIONS,
+        managedSections,
         users: usersQuery.results || [],
-        permissions: permissionsQuery.results || [],
-        canManagePermissions: true,
+        permissions: visiblePermissions,
         role: user.role
       },
       {
@@ -193,14 +225,20 @@ export async function onRequestPost({ request, env }) {
       return jsonError("Please log in.", 401);
     }
 
-    if (!(await canManagePermissions(user, env))) {
+    if (!["admin", "moderator"].includes(user.role)) {
       return jsonError(
         "You are not authorized to manage permissions.",
         403
       );
     }
 
-    const data = await request.json();
+    let data;
+
+    try {
+      data = await request.json();
+    } catch {
+      return jsonError("Invalid request data.");
+    }
 
     const userId = data.userId;
     const sectionKey = data.sectionKey;
@@ -219,16 +257,17 @@ export async function onRequestPost({ request, env }) {
       CONTENT_SECTIONS.includes(sectionKey);
 
     const isManagementPermission =
-      sectionKey === MANAGE_PERMISSION;
+      sectionKey.startsWith("manage:") &&
+      CONTENT_SECTIONS.includes(sectionKey.slice(7));
 
     if (!isContentPermission && !isManagementPermission) {
       return jsonError("Unknown permission section.");
     }
 
-    // Only administrators can grant or revoke permission-management access.
+    // Only administrators may delegate management authority.
     if (isManagementPermission && user.role !== "admin") {
       return jsonError(
-        "Only administrators can change permission-management access.",
+        "Only administrators can delegate permission-management authority.",
         403
       );
     }
@@ -244,10 +283,13 @@ export async function onRequestPost({ request, env }) {
       .first();
 
     if (!target || Number(target.is_active) !== 1) {
-      return jsonError("The selected account does not exist or is inactive.", 404);
+      return jsonError(
+        "The selected account does not exist or is inactive.",
+        404
+      );
     }
 
-    // Administrators cannot have their own permissions restricted.
+    // Administrator permissions cannot be changed here.
     if (target.role === "admin") {
       return jsonError(
         "Administrator access cannot be changed here.",
@@ -255,12 +297,32 @@ export async function onRequestPost({ request, env }) {
       );
     }
 
-    // Moderators can manage editor permissions, not moderator permissions.
+    // Only administrators can delegate management authority to moderators.
+    if (isManagementPermission && target.role !== "moderator") {
+      return jsonError(
+        "Management authority can only be granted to moderator accounts.",
+        400
+      );
+    }
+
+    // Moderators can manage editor access only, never moderator access.
     if (user.role === "moderator" && target.role !== "editor") {
       return jsonError(
         "Moderators can manage permissions for editor accounts only.",
         403
       );
+    }
+
+    // A moderator may manage only sections specifically delegated to them.
+    if (user.role === "moderator") {
+      const managedSections = await getManagedSections(user, env);
+
+      if (!managedSections.includes(sectionKey)) {
+        return jsonError(
+          "You are not authorized to manage this content section.",
+          403
+        );
+      }
     }
 
     if (enabled) {
