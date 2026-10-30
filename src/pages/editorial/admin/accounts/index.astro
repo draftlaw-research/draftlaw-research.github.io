@@ -237,119 +237,275 @@ const description = "Manage DraftLaw Research editorial accounts and permissions
     }
   }
 
-  function renderAccount(user) {
-    const card = createElement("article", "account-card");
+  
+function renderAccount(user) {
+  const card = createElement("article", "account-card");
 
-    const heading = createElement("div", "account-heading");
-    const identity = createElement("div", "account-identity");
+  // Profile heading
+  const heading = createElement("div", "account-heading");
+  const profile = createElement("div", "editor-profile");
 
-    const name = createElement("h3", "", user.username);
-    const role = createElement(
-      "span",
-      "role-label",
-      user.role === "moderator" ? "Moderator" : "Editor"
-    );
+  const avatar = document.createElement("img");
+  avatar.className = "editor-avatar";
+  avatar.alt = user.display_name || user.username;
+  avatar.src = user.profile_image_url || "/images/default-avatar.png";
 
-    identity.append(name, role);
+  avatar.onerror = () => {
+    avatar.style.display = "none";
+  };
 
-    const status = createElement(
-      "span",
-      Number(user.is_active) === 1
-        ? "account-status active"
-        : "account-status inactive",
-      Number(user.is_active) === 1 ? "Active" : "Inactive"
-    );
+  const identity = createElement("div", "account-identity");
 
-    heading.append(identity, status);
-    card.append(heading);
+  const name = createElement(
+    "h3",
+    "",
+    user.display_name || user.username
+  );
 
-    const visibleSections = currentRole === "admin"
-      ? sections
-      : managedSections;
+  const username = createElement(
+    "span",
+    "editor-username",
+    `@${user.username}`
+  );
 
-    const permissionHeading = createElement(
+  const role = createElement(
+    "span",
+    "role-label",
+    user.role === "moderator" ? "Moderator" : "Editor"
+  );
+
+  identity.append(name, username, role);
+  profile.append(avatar, identity);
+
+  const status = createElement(
+    "span",
+    Number(user.is_active) === 1
+      ? "account-status active"
+      : "account-status inactive",
+    Number(user.is_active) === 1 ? "Active" : "Inactive"
+  );
+
+  heading.append(profile, status);
+  card.append(heading);
+
+  // Administrator-only profile editor
+  if (currentRole === "admin") {
+    const editor = createElement("div", "profile-editor");
+
+    const editorHeading = createElement(
       "p",
       "permission-heading",
-      "Content access"
+      "Editor profile information"
     );
 
-    card.append(permissionHeading);
+    const nameLabel = createElement(
+      "label",
+      "profile-field",
+      "Actual name"
+    );
 
-    if (visibleSections.length === 0) {
-      card.append(
-        createElement(
-          "p",
-          "empty-state",
-          "No content sections have been delegated to you."
-        )
-      );
-    }
+    const nameInput = document.createElement("input");
+    nameInput.type = "text";
+    nameInput.maxLength = 80;
+    nameInput.value = user.display_name || "";
+    nameInput.placeholder = "Enter the editor's actual name";
 
-    const grid = createElement("div", "permission-grid");
+    nameLabel.append(nameInput);
 
-    for (const section of visibleSections) {
-      grid.append(
-        createPermissionControl(
-          user,
-          section,
-          section,
-          SECTION_LABELS[section] || section,
-          false
-        )
-      );
-    }
+    const imageLabel = createElement(
+      "label",
+      "profile-field",
+      "Profile picture"
+    );
 
-    card.append(grid);
+    const imageInput = document.createElement("input");
+    imageInput.type = "file";
+    imageInput.accept = "image/jpeg,image/png,image/webp";
 
-    if (currentRole === "admin" && user.role === "moderator") {
-      card.append(
-        createElement(
-          "p",
-          "permission-heading management-heading",
-          "Permission-management authority"
-        )
-      );
+    imageLabel.append(imageInput);
 
-      const managementGrid = createElement("div", "permission-grid");
+    const removeLabel = createElement(
+      "label",
+      "profile-remove"
+    );
 
-      for (const section of sections) {
-        managementGrid.append(
-          createPermissionControl(
-            user,
-            `manage:${section}`,
-            `manage:${section}`,
-            `Manage ${SECTION_LABELS[section] || section} access`,
-            true
-          )
+    const removeImage = document.createElement("input");
+    removeImage.type = "checkbox";
+
+    const removeText = createElement(
+      "span",
+      "",
+      "Remove current profile picture"
+    );
+
+    removeLabel.append(removeImage, removeText);
+
+    const saveButton = createElement(
+      "button",
+      "secondary-button",
+      "Save profile"
+    );
+
+    saveButton.type = "button";
+
+    saveButton.addEventListener("click", async () => {
+      saveButton.disabled = true;
+      saveButton.textContent = "Saving...";
+
+      try {
+        let profileImageUrl = user.profile_image_url || null;
+
+        const selectedFile = imageInput.files[0];
+
+        if (selectedFile) {
+          const formData = new FormData();
+          formData.append("image", selectedFile);
+
+          const upload = await requestJson(
+            "/api/admin/upload-profile-image",
+            {
+              method: "POST",
+              body: formData
+            }
+          );
+
+          profileImageUrl = upload.image;
+        } else if (removeImage.checked) {
+          profileImageUrl = null;
+        }
+
+        await requestJson("/api/admin/accounts", {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            action: "update_profile",
+            userId: user.id,
+            displayName: nameInput.value,
+            profileImageUrl
+          })
+        });
+
+        showStatus(
+          `Profile updated successfully for ${user.username}.`
         );
+
+        await refreshPermissions();
+
+      } catch (error) {
+        showStatus(error.message, true);
+      } finally {
+        saveButton.disabled = false;
+        saveButton.textContent = "Save profile";
       }
+    });
 
-      card.append(managementGrid);
-    }
+    editor.append(
+      editorHeading,
+      nameLabel,
+      imageLabel,
+      removeLabel,
+      saveButton
+    );
 
-    if (currentRole === "admin") {
-      const actions = createElement("div", "account-actions");
-      const toggle = createElement(
-        "button",
-        "secondary-button",
-        Number(user.is_active) === 1
-          ? "Deactivate account"
-          : "Activate account"
-      );
-
-      toggle.type = "button";
-      toggle.addEventListener("click", () => {
-        updateAccountStatus(user);
-      });
-
-      actions.append(toggle);
-      card.append(actions);
-    }
-
-    return card;
+    card.append(editor);
   }
 
-  function createPermissionControl(
+  // Existing content permissions
+  const visibleSections = currentRole === "admin"
+    ? sections
+    : managedSections;
+
+  const permissionHeading = createElement(
+    "p",
+    "permission-heading",
+    "Content access"
+  );
+
+  card.append(permissionHeading);
+
+  if (visibleSections.length === 0) {
+    card.append(
+      createElement(
+        "p",
+        "empty-state",
+        "No content sections have been delegated to you."
+      )
+    );
+  }
+
+  const grid = createElement("div", "permission-grid");
+
+  for (const section of visibleSections) {
+    grid.append(
+      createPermissionControl(
+        user,
+        section,
+        section,
+        SECTION_LABELS[section] || section,
+        false
+      )
+    );
+  }
+
+  card.append(grid);
+
+  // Existing moderator management permissions
+  if (currentRole === "admin" && user.role === "moderator") {
+    card.append(
+      createElement(
+        "p",
+        "permission-heading management-heading",
+        "Permission-management authority"
+      )
+    );
+
+    const managementGrid = createElement(
+      "div",
+      "permission-grid"
+    );
+
+    for (const section of sections) {
+      managementGrid.append(
+        createPermissionControl(
+          user,
+          `manage:${section}`,
+          `manage:${section}`,
+          `Manage ${SECTION_LABELS[section] || section} access`,
+          true
+        )
+      );
+    }
+
+    card.append(managementGrid);
+  }
+
+  // Existing administrator account controls
+  if (currentRole === "admin") {
+    const actions = createElement("div", "account-actions");
+
+    const toggle = createElement(
+      "button",
+      "secondary-button",
+      Number(user.is_active) === 1
+        ? "Deactivate account"
+        : "Activate account"
+    );
+
+    toggle.type = "button";
+
+    toggle.addEventListener("click", () => {
+      updateAccountStatus(user);
+    });
+
+    actions.append(toggle);
+    card.append(actions);
+  }
+
+  return card;
+}
+
     user,
     sectionKey,
     permissionKey,
@@ -644,6 +800,61 @@ const description = "Manage DraftLaw Research editorial accounts and permissions
     padding: 1.2rem;
     border: 1px solid var(--rule);
   }
+
+
+.editor-profile {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.editor-avatar {
+  width: 76px;
+  height: 76px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--accent-soft);
+  border: 1px solid var(--rule);
+}
+
+.editor-username {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.profile-editor {
+  display: grid;
+  gap: 0.85rem;
+  padding: 1rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.profile-field {
+  display: grid;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.profile-field input {
+  width: 100%;
+  padding: 0.7rem;
+  border: 1px solid var(--rule);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+}
+
+.profile-remove {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+  font-weight: 400;
+}
+
 
   .account-heading {
     display: flex;
