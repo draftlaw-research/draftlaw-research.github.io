@@ -48,17 +48,24 @@ import Editorial from '../../../layouts/Editorial.astro';
       <div class="form-section">
         <h2>2. Authors and topic</h2>
 
-        <label for="authors">Author file paths *</label>
-        <textarea id="authors" rows="2" required
-          placeholder="src/content/authors/author-name.md"></textarea>
-        <p class="hint">
-          Enter the full file path of each author. Separate multiple authors
-          with a comma. Each author must already exist on the website.
-        </p>
+        <label for="author-search">Search and select authors *</label>
+        <input
+          id="author-search"
+          type="search"
+          placeholder="Start typing an author's name..."
+          autocomplete="off"
+        />
 
-        <label for="topic">Topic file path <span id="topic-required">*</span></label>
-        <input id="topic" type="text"
-          placeholder="src/content/topics/topic-name.md" />
+        <div id="author-options" class="author-options">
+          <p class="hint">Loading available authors...</p>
+        </div>
+
+        <p id="author-count" class="hint">No authors selected.</p>
+
+        <label for="topic">Topic <span id="topic-required">*</span></label>
+        <select id="topic">
+          <option value="">Loading available topics...</option>
+        </select>
         <p class="hint">
           Articles require a topic. Guides may leave this field empty.
         </p>
@@ -97,23 +104,40 @@ import Editorial from '../../../layouts/Editorial.astro';
     </form>
 
     <div id="loading-message" class="message">
-      Checking your login...
+      Checking your login and loading available authors and topics...
     </div>
   </section>
 </Editorial>
 
 <script>
-  const form = document.querySelector<HTMLFormElement>('#submission-form');
-  const message = document.querySelector<HTMLDivElement>('#page-message');
-  const loading = document.querySelector<HTMLDivElement>('#loading-message');
+  const form = document.querySelector<HTMLFormElement>('#submission-form')!;
+  const message = document.querySelector<HTMLDivElement>('#page-message')!;
+  const loading = document.querySelector<HTMLDivElement>('#loading-message')!;
 
-  const typeSelect = document.querySelector<HTMLSelectElement>('#content-type');
-  const kindSelect = document.querySelector<HTMLSelectElement>('#kind');
-  const topicInput = document.querySelector<HTMLInputElement>('#topic');
-  const topicRequired = document.querySelector<HTMLSpanElement>('#topic-required');
+  const typeSelect = document.querySelector<HTMLSelectElement>('#content-type')!;
+  const kindSelect = document.querySelector<HTMLSelectElement>('#kind')!;
+  const topicSelect = document.querySelector<HTMLSelectElement>('#topic')!;
+  const topicRequired = document.querySelector<HTMLSpanElement>('#topic-required')!;
 
-  const saveButton = document.querySelector<HTMLButtonElement>('#save-draft');
-  const submitButton = document.querySelector<HTMLButtonElement>('#submit-review');
+  const authorSearch = document.querySelector<HTMLInputElement>('#author-search')!;
+  const authorOptions = document.querySelector<HTMLDivElement>('#author-options')!;
+  const authorCount = document.querySelector<HTMLParagraphElement>('#author-count')!;
+
+  const saveButton = document.querySelector<HTMLButtonElement>('#save-draft')!;
+  const submitButton = document.querySelector<HTMLButtonElement>('#submit-review')!;
+
+  type AuthorOption = {
+    path: string;
+    name: string;
+  };
+
+  type TopicOption = {
+    path: string;
+    name: string;
+  };
+
+  let availableAuthors: AuthorOption[] = [];
+  let availableTopics: TopicOption[] = [];
 
   const kindOptions = {
     article: [
@@ -132,6 +156,12 @@ import Editorial from '../../../layouts/Editorial.astro';
     ]
   };
 
+  function showMessage(text: string, type: 'success' | 'error') {
+    message.textContent = text;
+    message.className = `message ${type}`;
+    message.hidden = false;
+  }
+
   function updateKindOptions() {
     const type = typeSelect.value as 'article' | 'guide';
 
@@ -145,14 +175,116 @@ import Editorial from '../../../layouts/Editorial.astro';
     });
 
     const isArticle = type === 'article';
-    topicInput.required = isArticle;
+    topicSelect.required = isArticle;
     topicRequired.hidden = !isArticle;
   }
 
-  function showMessage(text: string, type: 'success' | 'error') {
-    message.textContent = text;
-    message.className = `message ${type}`;
-    message.hidden = false;
+  function getSelectedAuthors(): string[] {
+    return Array.from(
+      authorOptions.querySelectorAll<HTMLInputElement>(
+        'input[name="authors"]:checked'
+      )
+    ).map((checkbox) => checkbox.value);
+  }
+
+  function updateAuthorCount() {
+    const count = getSelectedAuthors().length;
+
+    authorCount.textContent = count === 1
+      ? '1 author selected.'
+      : `${count} authors selected.`;
+
+    authorSearch.setCustomValidity(
+      count === 0 ? 'Please select at least one author.' : ''
+    );
+  }
+
+  function renderAuthors() {
+    const selectedPaths = new Set(getSelectedAuthors());
+    const searchTerm = authorSearch.value.trim().toLowerCase();
+
+    authorOptions.replaceChildren();
+
+    const filteredAuthors = availableAuthors.filter((author) =>
+      author.name.toLowerCase().includes(searchTerm)
+    );
+
+    if (filteredAuthors.length === 0) {
+      const empty = document.createElement('p');
+      empty.className = 'hint';
+      empty.textContent = 'No matching authors found.';
+      authorOptions.append(empty);
+      return;
+    }
+
+    filteredAuthors.forEach((author) => {
+      const label = document.createElement('label');
+      label.className = 'author-option';
+
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.name = 'authors';
+      checkbox.value = author.path;
+      checkbox.checked = selectedPaths.has(author.path);
+
+      checkbox.addEventListener('change', updateAuthorCount);
+
+      const name = document.createElement('span');
+      name.textContent = author.name.trim();
+
+      label.append(checkbox, name);
+      authorOptions.append(label);
+    });
+  }
+
+  function loadTopics() {
+    topicSelect.replaceChildren();
+
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = 'Select a topic';
+    topicSelect.append(placeholder);
+
+    availableTopics.forEach((topic) => {
+      const option = document.createElement('option');
+      option.value = topic.path;
+      option.textContent = topic.name.trim();
+      topicSelect.append(option);
+    });
+  }
+
+  async function loadSubmissionOptions() {
+    const response = await fetch('/api/submissions/options', {
+      credentials: 'same-origin',
+      cache: 'no-store'
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.ok) {
+      throw new Error(
+        result.message || 'Could not load the available authors and topics.'
+      );
+    }
+
+    availableAuthors = Array.isArray(result.authors)
+      ? result.authors.filter(
+          (item: AuthorOption) => item.path && item.name
+        )
+      : [];
+
+    availableTopics = Array.isArray(result.topics)
+      ? result.topics.filter(
+          (item: TopicOption) => item.path && item.name
+        )
+      : [];
+
+    if (availableAuthors.length === 0) {
+      throw new Error('No authors are currently available.');
+    }
+
+    renderAuthors();
+    loadTopics();
   }
 
   async function checkSession() {
@@ -174,40 +306,43 @@ import Editorial from '../../../layouts/Editorial.astro';
         return;
       }
 
+      await loadSubmissionOptions();
+
       loading.hidden = true;
       form.hidden = false;
-    } catch {
-      loading.textContent =
-        'Unable to check your login. Please refresh the page.';
+      updateAuthorCount();
+    } catch (error) {
+      loading.textContent = error instanceof Error
+        ? error.message
+        : 'Unable to load the submission form. Please refresh the page.';
     }
   }
 
   function getSubmissionData(status: 'draft' | 'pending') {
-    const authors = (document.querySelector<HTMLTextAreaElement>('#authors').value)
-      .split(',')
-      .map((item) => item.trim())
-      .filter(Boolean);
-
-    const keywords = (document.querySelector<HTMLInputElement>('#keywords').value)
+    const keywords = (
+      document.querySelector<HTMLInputElement>('#keywords')!.value
+    )
       .split(',')
       .map((item) => item.trim())
       .filter(Boolean);
 
     return {
       contentType: typeSelect.value,
-      title: document.querySelector<HTMLInputElement>('#title').value.trim(),
-      summary: document.querySelector<HTMLTextAreaElement>('#summary').value.trim(),
+      title: document.querySelector<HTMLInputElement>('#title')!.value.trim(),
+      summary: document.querySelector<HTMLTextAreaElement>('#summary')!.value.trim(),
       kind: kindSelect.value,
-      date: document.querySelector<HTMLInputElement>('#date').value,
-      authors,
-      topic: topicInput.value.trim(),
+      date: document.querySelector<HTMLInputElement>('#date')!.value,
+      authors: getSelectedAuthors(),
+      topic: topicSelect.value,
       keywords,
-      body: document.querySelector<HTMLTextAreaElement>('#body').value,
+      body: document.querySelector<HTMLTextAreaElement>('#body')!.value,
       status
     };
   }
 
   async function saveSubmission(status: 'draft' | 'pending') {
+    updateAuthorCount();
+
     if (!form.reportValidity()) return;
 
     saveButton.disabled = true;
@@ -246,7 +381,13 @@ import Editorial from '../../../layouts/Editorial.astro';
       );
 
       form.reset();
+      authorSearch.value = '';
+      renderAuthors();
       updateKindOptions();
+      updateAuthorCount();
+
+      const dateInput = document.querySelector<HTMLInputElement>('#date')!;
+      dateInput.value = new Date().toISOString().slice(0, 10);
     } catch (error) {
       showMessage(
         error instanceof Error
@@ -264,12 +405,14 @@ import Editorial from '../../../layouts/Editorial.astro';
 
   typeSelect.addEventListener('change', updateKindOptions);
 
+  authorSearch.addEventListener('input', renderAuthors);
+
   saveButton.addEventListener('click', () => saveSubmission('draft'));
   submitButton.addEventListener('click', () => saveSubmission('pending'));
 
   updateKindOptions();
 
-  const dateInput = document.querySelector<HTMLInputElement>('#date');
+  const dateInput = document.querySelector<HTMLInputElement>('#date')!;
   dateInput.value = new Date().toISOString().slice(0, 10);
 
   checkSession();
@@ -331,14 +474,14 @@ import Editorial from '../../../layouts/Editorial.astro';
     font-size: 1.2rem;
   }
 
-  .form-section label {
+  .form-section > label {
     display: block;
     margin: 1.25rem 0 0.5rem;
     color: var(--ink);
     font-size: 0.9rem;
   }
 
-  .form-section input,
+  .form-section input:not([type="checkbox"]),
   .form-section select,
   .form-section textarea {
     display: block;
@@ -361,6 +504,39 @@ import Editorial from '../../../layouts/Editorial.astro';
   .form-section textarea:focus {
     outline: 1px solid var(--accent);
     border-color: var(--accent);
+  }
+
+  .author-options {
+    display: grid;
+    gap: 0.15rem;
+    max-height: 240px;
+    overflow-y: auto;
+    margin-top: 0.7rem;
+    padding: 0.6rem;
+    border: 1px solid var(--rule);
+    background: #080808;
+  }
+
+  .author-option {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    margin: 0 !important;
+    padding: 0.55rem;
+    color: var(--ink);
+    cursor: pointer;
+    border-radius: 3px;
+  }
+
+  .author-option:hover {
+    background: var(--surface);
+  }
+
+  .author-option input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    flex: 0 0 auto;
+    accent-color: var(--accent);
   }
 
   .hint {
