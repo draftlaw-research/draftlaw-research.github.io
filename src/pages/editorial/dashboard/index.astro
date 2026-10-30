@@ -14,7 +14,14 @@ const description = "The DraftLaw Research editorial workspace.";
         <p>Manage submissions, contributors and website sections from one place.</p>
       </div>
       <div class="notification-area" id="notification-area" hidden>
-        <button type="button" class="notification-bell" id="notification-toggle" aria-label="Open notifications" aria-expanded="false" aria-controls="notification-panel">
+        <button
+          type="button"
+          class="notification-bell"
+          id="notification-toggle"
+          aria-label="Open notifications"
+          aria-expanded="false"
+          aria-controls="notification-panel"
+        >
           <span aria-hidden="true">🔔</span>
           <span class="notification-indicator" id="notification-indicator" hidden></span>
         </button>
@@ -27,10 +34,11 @@ const description = "The DraftLaw Research editorial workspace.";
         </section>
       </div>
     </header>
+
     <div id="workspace" hidden>
       <section class="section">
         <div class="section-head">
-          <h2>Your workspace</h2>
+          <h2 id="workspace-heading">Editorial Workspace</h2>
         </div>
 
         <div class="dashboard-grid">
@@ -90,82 +98,19 @@ const description = "The DraftLaw Research editorial workspace.";
             <span class="coming-soon">Management form coming soon</span>
           </article>
 
-          <article class="dashboard-card active-card" id="content">
-            <p class="eyebrow">09 / CONTENT LIBRARY</p>
-            <h3>Website content browser</h3>
-            <p>View existing website records and their stored locations.</p>
-            <button class="action-button" id="open-content" type="button">Browse website content →</button>
-          </article>
-
           <article class="dashboard-card admin-only" id="accounts" hidden>
-            <p class="eyebrow">10 / ADMINISTRATION</p>
+            <p class="eyebrow">09 / ADMINISTRATION</p>
             <h3>Editor Accounts</h3>
             <p>Create editor accounts and manage their access to the portal.</p>
-            <span class="coming-soon">Account management coming soon</span>
+            <a class="action-button" href="/editorial/admin/accounts/">Manage editor accounts →</a>
           </article>
 
           <article class="dashboard-card admin-only" id="activity" hidden>
-            <p class="eyebrow">11 / ADMINISTRATION</p>
+            <p class="eyebrow">10 / ADMINISTRATION</p>
             <h3>Activity Log</h3>
             <p>Review actions performed by administrators and editors.</p>
             <span class="coming-soon">Activity records coming soon</span>
           </article>
-        </div>
-      </section>
-
-      <section class="section" id="content-manager" hidden>
-        <div class="section-head content-heading">
-          <div>
-            <p class="eyebrow">WEBSITE MANAGEMENT</p>
-            <h2>Website content</h2>
-            <p class="section-description">
-              Select a section to view its existing website records.
-            </p>
-          </div>
-
-          <button class="back-button" id="back-dashboard">
-            ← Dashboard
-          </button>
-        </div>
-
-        <div id="content-status" class="content-status" role="status">
-          Loading website content...
-        </div>
-
-        <div id="content-browser" hidden>
-          <div class="content-summary">
-            <div>
-              <span class="summary-label">TOTAL CONTENT RECORDS</span>
-              <strong id="total-records">0</strong>
-            </div>
-            <p id="branch-label">Development branch</p>
-          </div>
-
-          <div class="collection-grid" id="collection-grid"></div>
-
-          <section class="record-section" id="record-section" hidden>
-            <div class="record-heading">
-              <div>
-                <p class="eyebrow">SELECTED SECTION</p>
-                <h3 id="selected-title">Articles</h3>
-                <p id="selected-count" class="section-description"></p>
-              </div>
-              <button class="back-button" id="back-collections">
-                ← All sections
-              </button>
-            </div>
-
-            <div class="search-area">
-              <label for="record-search">Search records</label>
-              <input
-                type="search"
-                id="record-search"
-                placeholder="Search by title..."
-              />
-            </div>
-
-            <div id="record-list" class="record-list"></div>
-          </section>
         </div>
       </section>
 
@@ -186,25 +131,11 @@ const description = "The DraftLaw Research editorial workspace.";
   </div>
 
   <script>
-    const collectionDefinitions = [
-      { key: "authors", label: "Authors", description: "Author profiles and biographies." },
-      { key: "topics", label: "Topics", description: "Website content categories and topics." },
-      { key: "team", label: "Team Members", description: "DraftLaw Research team profiles." },
-      { key: "student-collaborators", label: "Student Collaborators", description: "Student collaborator profiles." },
-      { key: "newsletter", label: "Newsletter", description: "Calls, events, fellowships and opportunities." },
-      { key: "programs", label: "Programs", description: "DraftLaw Research programs." },
-      { key: "announcements", label: "Announcements", description: "Updates, open calls and results." },
-      { key: "pages", label: "Website Pages", description: "Special website pages, including the submission page." }
-    ];
-
-    let allRecords = [];
-    let selectedCollection = null;
-    let currentRole = null;
-
     const $ = (selector) => document.querySelector(selector);
 
     const notificationToggle = $("#notification-toggle");
     const notificationPanel = $("#notification-panel");
+
     notificationToggle.addEventListener("click", () => {
       const opening = notificationPanel.hidden;
       notificationPanel.hidden = !opening;
@@ -234,14 +165,16 @@ const description = "The DraftLaw Research editorial workspace.";
           return;
         }
 
-        currentRole = result.user.role;
+        const currentRole = result.user.role;
 
         $("#editorial-user-name").textContent =
           currentRole === "admin" ? "Admin" : result.user.username;
 
+        $("#workspace-heading").textContent =
+          currentRole === "admin" ? "Admin Workspace" : "Editor Workspace";
+
         if (currentRole === "admin") {
           $("#admin-shortcuts").hidden = false;
-
           document.querySelectorAll(".admin-only").forEach((item) => {
             item.hidden = false;
           });
@@ -259,207 +192,6 @@ const description = "The DraftLaw Research editorial workspace.";
       }
     }
 
-    async function loadContent() {
-      const status = $("#content-status");
-      const browser = $("#content-browser");
-
-      status.hidden = false;
-      browser.hidden = true;
-      status.textContent = "Loading website content...";
-
-      try {
-        const response = await fetch("/api/admin/content", {
-          credentials: "same-origin",
-          cache: "no-store"
-        });
-
-        const result = await response.json();
-
-        if (!response.ok || !result.ok) {
-          throw new Error(result.message || "Unable to load content.");
-        }
-
-        allRecords = result.records || [];
-
-        const specialFiles = result.specialFiles || {};
-
-        const pageRecord = specialFiles["src/content/pages/submit.md"];
-
-        const pageRecords = pageRecord ? [pageRecord] : [];
-
-        const collectionCounts = {};
-
-        for (const definition of collectionDefinitions) {
-          if (definition.key === "pages") {
-            collectionCounts[definition.key] = pageRecords.length;
-          } else {
-            collectionCounts[definition.key] = allRecords.filter(
-              record => record.collection === definition.key
-            ).length;
-          }
-        }
-
-        $("#total-records").textContent = result.total;
-        $("#branch-label").textContent = `Branch: ${result.branch}`;
-
-        renderCollections(collectionCounts, pageRecords);
-
-        status.hidden = true;
-        browser.hidden = false;
-      } catch (error) {
-        status.textContent = error.message;
-      }
-    }
-
-    function renderCollections(counts, pageRecords) {
-      const grid = $("#collection-grid");
-      grid.replaceChildren();
-
-      for (const definition of collectionDefinitions) {
-        const card = document.createElement("button");
-        card.type = "button";
-        card.className = "collection-card";
-
-        const number = document.createElement("span");
-        number.className = "collection-count";
-        number.textContent = counts[definition.key] ?? 0;
-
-        const title = document.createElement("strong");
-        title.textContent = definition.label;
-
-        const description = document.createElement("span");
-        description.className = "collection-description";
-        description.textContent = definition.description;
-
-        const arrow = document.createElement("span");
-        arrow.className = "collection-arrow";
-        arrow.textContent = "View records →";
-
-        card.append(number, title, description, arrow);
-
-        card.addEventListener("click", () => {
-          openCollection(definition, pageRecords);
-        });
-
-        grid.append(card);
-      }
-    }
-
-    function openCollection(definition, pageRecords) {
-      selectedCollection = definition.key;
-
-      let records = [];
-
-      if (definition.key === "pages") {
-        records = pageRecords;
-      } else {
-        records = allRecords.filter(
-          record => record.collection === definition.key
-        );
-      }
-
-      $("#selected-title").textContent = definition.label;
-      $("#selected-count").textContent = `${records.length} record(s)`;
-      $("#record-search").value = "";
-
-      $("#record-section").hidden = false;
-      $("#collection-grid").hidden = true;
-
-      renderRecords(records);
-    }
-
-    function renderRecords(records) {
-      const list = $("#record-list");
-      const search = $("#record-search").value.trim().toLowerCase();
-
-      const filtered = records.filter(record => {
-        const title = String(record.title || "").toLowerCase();
-        return title.includes(search);
-      });
-
-      list.replaceChildren();
-
-      if (filtered.length === 0) {
-        const empty = document.createElement("p");
-        empty.className = "empty-records";
-        empty.textContent = search
-          ? "No matching records found."
-          : "There are no records in this section yet.";
-        list.append(empty);
-        return;
-      }
-
-      for (const record of filtered) {
-        const card = document.createElement("article");
-        card.className = "record-card";
-
-        const title = document.createElement("h4");
-        title.textContent = record.title || "Untitled record";
-
-        const metadata = document.createElement("p");
-        metadata.className = "record-meta";
-
-        const details = [];
-
-        if (record.date) details.push(record.date);
-        if (record.kind) details.push(record.kind);
-        if (record.status) details.push(record.status);
-
-        metadata.textContent = details.join(" · ") || "Website record";
-
-        const path = document.createElement("code");
-        path.className = "record-path";
-        path.textContent = record.path || "";
-
-        card.append(title, metadata, path);
-        list.append(card);
-      }
-    }
-
-    $("#open-content").addEventListener("click", async () => {
-      $("#content-manager").hidden = false;
-      $("#process").hidden = true;
-      document.querySelector(".dashboard-grid").hidden = true;
-
-      await loadContent();
-
-      $("#content-manager").scrollIntoView({ behavior: "smooth" });
-    });
-
-    $("#back-dashboard").addEventListener("click", () => {
-      $("#content-manager").hidden = true;
-      $("#process").hidden = false;
-      document.querySelector(".dashboard-grid").hidden = false;
-      $("#record-section").hidden = true;
-      $("#collection-grid").hidden = false;
-    });
-
-    $("#back-collections").addEventListener("click", () => {
-      $("#record-section").hidden = true;
-      $("#collection-grid").hidden = false;
-    });
-
-    $("#record-search").addEventListener("input", () => {
-      if (!selectedCollection) return;
-
-      const definition = collectionDefinitions.find(
-        item => item.key === selectedCollection
-      );
-
-      let records = [];
-
-      if (definition.key === "pages") {
-        const pageRecord = null;
-        records = pageRecord ? [pageRecord] : [];
-      } else {
-        records = allRecords.filter(
-          record => record.collection === definition.key
-        );
-      }
-
-      renderRecords(records);
-    });
-
     loadDashboard();
   </script>
 
@@ -471,19 +203,27 @@ const description = "The DraftLaw Research editorial workspace.";
       gap: 1.5rem;
     }
 
-    .notification-area { position: relative; flex: 0 0 auto; }
+    .notification-area {
+      position: relative;
+      flex: 0 0 auto;
+    }
+
     .notification-bell {
       position: relative;
       width: 46px;
       height: 46px;
       border: 1px solid var(--rule);
       border-radius: 50%;
-      background: var(--surface);
+      background: transparent;
       color: var(--text);
       font-size: 1.45rem;
       cursor: pointer;
     }
-    .notification-bell:hover { background: var(--accent-soft); }
+
+    .notification-bell:hover {
+      background: var(--accent-soft);
+    }
+
     .notification-indicator {
       position: absolute;
       top: 5px;
@@ -494,6 +234,7 @@ const description = "The DraftLaw Research editorial workspace.";
       background: #d34b4b;
       box-shadow: 0 0 0 3px var(--surface), 0 0 10px #d34b4b;
     }
+
     .notification-panel {
       position: absolute;
       z-index: 5;
@@ -505,10 +246,28 @@ const description = "The DraftLaw Research editorial workspace.";
       background: var(--surface);
       box-shadow: 0 12px 35px rgb(0 0 0 / 14%);
     }
-    .notification-panel-heading { display: flex; justify-content: space-between; gap: 1rem; align-items: center; }
-    .notification-panel-heading h2 { margin: 0; font-size: 1rem; }
-    .notification-panel-heading span, .notification-empty { color: var(--muted); font-size: .85rem; }
-    .notification-empty { margin: 1rem 0 .2rem; }
+
+    .notification-panel-heading {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      align-items: center;
+    }
+
+    .notification-panel-heading h2 {
+      margin: 0;
+      font-size: 1rem;
+    }
+
+    .notification-panel-heading span,
+    .notification-empty {
+      color: var(--muted);
+      font-size: .85rem;
+    }
+
+    .notification-empty {
+      margin: 1rem 0 .2rem;
+    }
 
     .dashboard-heading {
       padding-top: 2rem;
@@ -517,15 +276,17 @@ const description = "The DraftLaw Research editorial workspace.";
     .dashboard-grid {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 1px;
-      background: var(--rule);
-      border: 1px solid var(--rule);
+      gap: 1.25rem;
+      background: transparent;
+      border: 0;
     }
 
     .dashboard-card {
-      padding: 1.7rem;
-      background: var(--surface);
       min-width: 0;
+      padding: 1.7rem;
+      border: 1px solid var(--rule);
+      border-radius: 4px;
+      background: transparent;
     }
 
     .dashboard-card h3 {
@@ -572,165 +333,6 @@ const description = "The DraftLaw Research editorial workspace.";
       background: var(--accent-soft);
     }
 
-    .content-heading,
-    .record-heading {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 1rem;
-    }
-
-    .section-description {
-      color: var(--muted);
-      font-size: 0.9rem;
-    }
-
-    .content-status {
-      padding: 1.5rem 0;
-      color: var(--muted);
-    }
-
-    .content-summary {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 1rem;
-      padding: 1.2rem;
-      margin: 1.5rem 0;
-      border: 1px solid var(--rule);
-      background: var(--surface);
-    }
-
-    .content-summary > div {
-      display: grid;
-      gap: 0.35rem;
-    }
-
-    .summary-label {
-      color: var(--muted);
-      font-size: 0.72rem;
-      letter-spacing: 0.08em;
-    }
-
-    .content-summary strong {
-      font-size: 2rem;
-      color: var(--accent);
-    }
-
-    .content-summary p {
-      color: var(--muted);
-      font-size: 0.85rem;
-    }
-
-    .collection-grid {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 1px;
-      background: var(--rule);
-      border: 1px solid var(--rule);
-    }
-
-    .collection-card {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-      text-align: left;
-      gap: 0.65rem;
-      min-height: 180px;
-      padding: 1.3rem;
-      border: 0;
-      color: var(--ink);
-      background: var(--surface);
-      cursor: pointer;
-      font: inherit;
-    }
-
-    .collection-card:hover {
-      background: var(--accent-soft);
-    }
-
-    .collection-count {
-      color: var(--accent);
-      font-size: 1.8rem;
-      font-weight: bold;
-    }
-
-    .collection-card strong {
-      font-size: 1.05rem;
-    }
-
-    .collection-description {
-      color: var(--muted);
-      font-size: 0.83rem;
-      line-height: 1.5;
-    }
-
-    .collection-arrow {
-      margin-top: auto;
-      color: var(--accent);
-      font-size: 0.8rem;
-    }
-
-    .record-section {
-      margin-top: 2rem;
-    }
-
-    .search-area {
-      display: grid;
-      gap: 0.5rem;
-      margin: 1.5rem 0;
-    }
-
-    .search-area label {
-      color: var(--muted);
-      font-size: 0.85rem;
-    }
-
-    .search-area input {
-      width: 100%;
-      padding: 0.85rem;
-      border: 1px solid var(--rule);
-      background: var(--surface);
-      color: var(--ink);
-      font: inherit;
-    }
-
-    .record-list {
-      display: grid;
-      gap: 0.8rem;
-    }
-
-    .record-card {
-      padding: 1.2rem;
-      border: 1px solid var(--rule);
-      background: var(--surface);
-      min-width: 0;
-    }
-
-    .record-card h4 {
-      margin: 0 0 0.6rem;
-      font-size: 1.05rem;
-      overflow-wrap: anywhere;
-    }
-
-    .record-meta {
-      color: var(--muted);
-      font-size: 0.83rem;
-      margin-bottom: 0.7rem;
-    }
-
-    .record-path {
-      display: block;
-      color: var(--accent);
-      font-size: 0.75rem;
-      overflow-wrap: anywhere;
-    }
-
-    .empty-records {
-      color: var(--muted);
-      padding: 1.5rem 0;
-    }
-
     .process-note {
       max-width: 70ch;
       color: var(--muted);
@@ -741,23 +343,14 @@ const description = "The DraftLaw Research editorial workspace.";
       color: var(--muted);
     }
 
-    @media (max-width: 850px) {
-      .collection-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
-    }
-
     @media (max-width: 650px) {
-      .dashboard-grid,
-      .collection-grid {
+      .dashboard-grid {
         grid-template-columns: 1fr;
+        gap: 1rem;
       }
 
-      .dashboard-title-row { align-items: flex-start; }
-      .content-heading,
-      .record-heading {
+      .dashboard-title-row {
         align-items: flex-start;
-        flex-direction: column;
       }
     }
   </style>
