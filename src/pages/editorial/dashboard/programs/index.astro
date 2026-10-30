@@ -1,0 +1,823 @@
+
+---
+import Editorial from "../../../../layouts/Editorial.astro";
+---
+
+<Editorial
+  title="Create program"
+  description="Create and publish a DraftLaw Research program."
+>
+  <main class="wrap program-wrap">
+    <header class="page-title">
+      <p class="eyebrow">EDITORIAL WORKSPACE / PROGRAMS</p>
+      <h1>Create a program</h1>
+      <p>Complete the information below. Programs are published directly without moderator approval.</p>
+    </header>
+
+    <p id="loading-message" class="message">Checking your login...</p>
+
+    <form id="program-form" hidden>
+      <section class="form-section">
+        <h2>1. Program information</h2>
+
+        <div class="field">
+          <label for="title">Program name <span>*</span></label>
+          <input id="title" name="title" type="text" maxlength="250"
+            placeholder="Enter the program name" required />
+        </div>
+
+        <div class="field">
+          <label for="summary">Short summary <span>*</span></label>
+          <textarea id="summary" name="summary" rows="4" maxlength="400"
+            placeholder="Write a short introduction to the program." required></textarea>
+          <p class="hint">This summary appears on the Programs page. Maximum 400 characters.</p>
+          <p class="hint"><span id="summary-count">0</span> / 400 characters</p>
+        </div>
+
+        <div class="field">
+          <label for="status">Program status</label>
+          <select id="status" name="status">
+            <option value="Open for applications">Open for applications</option>
+            <option value="Upcoming">Upcoming</option>
+            <option value="Ongoing" selected>Ongoing</option>
+            <option value="Closed">Closed</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="order">Display order</label>
+          <input id="order" name="order" type="number" step="any"
+            placeholder="e.g. 1" />
+          <p class="hint">Optional. Smaller numbers appear first.</p>
+        </div>
+      </section>
+
+      <section class="form-section">
+        <h2>2. Full program description</h2>
+        <p class="editor-help">
+          Use the formatting toolbar below to organise the program description.
+          Your formatting will be converted into Markdown when published.
+        </p>
+
+        <div class="editor-shell">
+          <div class="editor-toolbar" role="toolbar" aria-label="Text formatting">
+            <button type="button" data-action="undo" title="Undo">↶</button>
+            <button type="button" data-action="redo" title="Redo">↷</button>
+            <span class="toolbar-divider"></span>
+
+            <select id="block-format" aria-label="Text style">
+              <option value="paragraph">Paragraph</option>
+              <option value="h1">Heading 1</option>
+              <option value="h2">Heading 2</option>
+              <option value="h3">Heading 3</option>
+            </select>
+
+            <span class="toolbar-divider"></span>
+            <button type="button" data-action="bold" title="Bold"><strong>B</strong></button>
+            <button type="button" data-action="italic" title="Italic"><em>I</em></button>
+            <button type="button" data-action="underline" title="Underline"><u>U</u></button>
+            <button type="button" data-action="strike" title="Strikethrough"><s>S</s></button>
+            <button type="button" data-action="highlight" title="Highlight">▨</button>
+
+            <span class="toolbar-divider"></span>
+            <button type="button" data-action="bullet" title="Bullet list">• List</button>
+            <button type="button" data-action="ordered" title="Numbered list">1. List</button>
+            <button type="button" data-action="quote" title="Block quote">❝ Quote</button>
+            <button type="button" data-action="code" title="Code block">Code</button>
+
+            <span class="toolbar-divider"></span>
+            <button type="button" data-action="link" title="Insert link">Link</button>
+            <button type="button" data-action="table" title="Insert table">Table</button>
+            <button type="button" data-action="formula" title="Insert formula">Formula</button>
+            <button type="button" data-action="rule" title="Horizontal line">―</button>
+          </div>
+
+          <div id="rich-editor" class="rich-editor"></div>
+
+          <div class="editor-footer">
+            <span id="editor-word-count">0 words · 0 characters</span>
+            <span>Formatting is saved as Markdown</span>
+          </div>
+        </div>
+
+        <p class="hint">
+          Suggested sections: About, Objectives, For mentors, For students,
+          Eligibility, and How to participate.
+        </p>
+        <p class="hint">
+          Image insertion is disabled for Programs, in keeping with the CMS configuration.
+        </p>
+      </section>
+
+      <div class="form-actions">
+        <a class="back-link" href="/editorial/dashboard/">← Back to workspace</a>
+        <button type="submit" id="publish-button" class="primary-button">
+          Save and publish
+        </button>
+      </div>
+
+      <p id="page-message" class="message" role="status" aria-live="polite" hidden></p>
+    </form>
+  </main>
+</Editorial>
+
+<script>
+  import { Editor } from "@tiptap/core";
+  import StarterKit from "@tiptap/starter-kit";
+  import { Table } from "@tiptap/extension-table";
+  import { TableRow } from "@tiptap/extension-table";
+  import { TableCell } from "@tiptap/extension-table";
+  import { TableHeader } from "@tiptap/extension-table";
+  import TextAlign from "@tiptap/extension-text-align";
+  import Highlight from "@tiptap/extension-highlight";
+  import Color from "@tiptap/extension-color";
+  import { TextStyle } from "@tiptap/extension-text-style";
+  import Subscript from "@tiptap/extension-subscript";
+  import Superscript from "@tiptap/extension-superscript";
+  import Placeholder from "@tiptap/extension-placeholder";
+  import CharacterCount from "@tiptap/extension-character-count";
+  import Underline from "@tiptap/extension-underline";
+  import Link from "@tiptap/extension-link";
+  import TurndownService from "turndown";
+  import { gfm } from "turndown-plugin-gfm";
+
+  const form = document.querySelector<HTMLFormElement>("#program-form")!;
+  const loading = document.querySelector<HTMLElement>("#loading-message")!;
+  const message = document.querySelector<HTMLElement>("#page-message")!;
+  const publishButton = document.querySelector<HTMLButtonElement>("#publish-button")!;
+  const titleInput = document.querySelector<HTMLInputElement>("#title")!;
+  const summaryInput = document.querySelector<HTMLTextAreaElement>("#summary")!;
+  const summaryCount = document.querySelector<HTMLElement>("#summary-count")!;
+  const statusInput = document.querySelector<HTMLSelectElement>("#status")!;
+  const orderInput = document.querySelector<HTMLInputElement>("#order")!;
+  const editorElement = document.querySelector<HTMLDivElement>("#rich-editor")!;
+  const toolbar = document.querySelector<HTMLDivElement>(".editor-toolbar")!;
+  const blockFormat = document.querySelector<HTMLSelectElement>("#block-format")!;
+  const wordCount = document.querySelector<HTMLElement>("#editor-word-count")!;
+
+  const turndown = new TurndownService({
+    headingStyle: "atx",
+    codeBlockStyle: "fenced",
+    bulletListMarker: "-",
+    emDelimiter: "*",
+    strongDelimiter: "**"
+  });
+
+  turndown.use(gfm);
+
+  turndown.addRule("formattedText", {
+    filter: (node) => {
+      if (!(node instanceof HTMLElement)) return false;
+      const style = node.getAttribute("style") || "";
+      return /(?:^|;)\s*color\s*:/i.test(style) ||
+        /(?:^|;)\s*background-color\s*:/i.test(style);
+    },
+    replacement: (content, node) => {
+      const styles = (node as HTMLElement).getAttribute("style") || "";
+      const color = styles.match(/(?:^|;)\s*color\s*:\s*([^;]+)/i)?.[1]?.trim();
+      const background = styles.match(/(?:^|;)\s*background-color\s*:\s*([^;]+)/i)?.[1]?.trim();
+
+      const safeColor = color && /^[#(),.%\w\s-]+$/.test(color) ? color : "";
+      const safeBackground = background && /^[#(),.%\w\s-]+$/.test(background) ? background : "";
+
+      const declarations = [
+        safeColor ? `color: ${safeColor}` : "",
+        safeBackground ? `background-color: ${safeBackground}` : ""
+      ].filter(Boolean);
+
+      return declarations.length
+        ? `<span style="${declarations.join("; ")}">${content}</span>`
+        : content;
+    }
+  });
+
+  turndown.addRule("underline", {
+    filter: ["u"],
+    replacement: content => `<u>${content}</u>`
+  });
+
+  turndown.addRule("subscript", {
+    filter: ["sub"],
+    replacement: content => `<sub>${content}</sub>`
+  });
+
+  turndown.addRule("superscript", {
+    filter: ["sup"],
+    replacement: content => `<sup>${content}</sup>`
+  });
+
+  turndown.addRule("highlight", {
+    filter: ["mark"],
+    replacement: content => `<mark>${content}</mark>`
+  });
+
+  const editor = new Editor({
+    element: editorElement,
+    extensions: [
+      StarterKit.configure({
+        heading: { levels: [1, 2, 3] }
+      }),
+      Underline,
+      Link.configure({
+        openOnClick: false,
+        autolink: true,
+        linkOnPaste: true,
+        HTMLAttributes: {
+          target: "_blank",
+          rel: "noopener noreferrer"
+        }
+      }),
+      Table.configure({ resizable: true }),
+      TableRow,
+      TableHeader,
+      TableCell,
+      TextAlign.configure({ types: ["heading", "paragraph"] }),
+      Highlight.configure({ multicolor: true }),
+      TextStyle,
+      Color,
+      Subscript,
+      Superscript,
+      Placeholder.configure({
+        placeholder: "Start writing the program description here..."
+      }),
+      CharacterCount
+    ],
+    content: "<p></p>",
+    editorProps: {
+      transformPastedHTML(html) {
+        const doc = new DOMParser().parseFromString(html, "text/html");
+
+        doc.querySelectorAll("script, style, meta, link, title, xml")
+          .forEach(element => element.remove());
+
+        doc.querySelectorAll("o\\:p").forEach(element => {
+          element.replaceWith(...Array.from(element.childNodes));
+        });
+
+        doc.querySelectorAll<HTMLElement>("[style]").forEach(element => {
+          const style = element.style;
+          const allowed = [
+            "color",
+            "background-color",
+            "text-align",
+            "font-weight",
+            "font-style",
+            "text-decoration"
+          ];
+
+          const preserved = allowed
+            .map(property => {
+              const value = style.getPropertyValue(property);
+              return value ? `${property}: ${value}` : "";
+            })
+            .filter(Boolean);
+
+          if (preserved.length) {
+            element.setAttribute("style", preserved.join("; "));
+          } else {
+            element.removeAttribute("style");
+          }
+        });
+
+        doc.querySelectorAll<HTMLAnchorElement>("a").forEach(link => {
+          const href = link.getAttribute("href");
+          if (!href) return;
+
+          try {
+            const url = new URL(href, window.location.origin);
+            if (!["http:", "https:", "mailto:"].includes(url.protocol)) {
+              link.removeAttribute("href");
+            }
+          } catch {
+            link.removeAttribute("href");
+          }
+        });
+
+        // Programs do not allow media, so pasted images are removed.
+        doc.querySelectorAll("img, picture, video, audio").forEach(element => element.remove());
+
+        return doc.body.innerHTML;
+      }
+    },
+    onUpdate: () => {
+      updateWordCount();
+      updateToolbarState();
+    },
+    onSelectionUpdate: () => updateToolbarState()
+  });
+
+  function showMessage(text: string, type: "success" | "error") {
+    message.textContent = text;
+    message.className = `message ${type}`;
+    message.hidden = false;
+  }
+
+  function updateWordCount() {
+    const words = editor.storage.characterCount.words();
+    const characters = editor.storage.characterCount.characters();
+    wordCount.textContent = `${words} words · ${characters} characters`;
+  }
+
+  function updateToolbarState() {
+    toolbar.querySelectorAll<HTMLButtonElement>("button[data-action]").forEach(button => {
+      const action = button.dataset.action;
+
+      const active =
+        (action === "bold" && editor.isActive("bold")) ||
+        (action === "italic" && editor.isActive("italic")) ||
+        (action === "underline" && editor.isActive("underline")) ||
+        (action === "strike" && editor.isActive("strike")) ||
+        (action === "highlight" && editor.isActive("highlight")) ||
+        (action === "bullet" && editor.isActive("bulletList")) ||
+        (action === "ordered" && editor.isActive("orderedList")) ||
+        (action === "quote" && editor.isActive("blockquote")) ||
+        (action === "code" && editor.isActive("codeBlock"));
+
+      button.classList.toggle("active", Boolean(active));
+    });
+
+    const heading = editor.getAttributes("heading").level;
+    blockFormat.value = editor.isActive("heading") && [1, 2, 3].includes(heading)
+      ? `h${heading}`
+      : "paragraph";
+  }
+
+  function addLink() {
+    const previous = editor.getAttributes("link").href || "";
+    const url = window.prompt("Enter the link address:", previous);
+
+    if (url === null) return;
+
+    if (!url.trim()) {
+      editor.chain().focus().extendMarkRange("link").unsetLink().run();
+      return;
+    }
+
+    try {
+      const parsed = new URL(url.trim());
+
+      if (!["http:", "https:", "mailto:"].includes(parsed.protocol)) {
+        throw new Error("Unsupported link type.");
+      }
+
+      editor.chain().focus()
+        .extendMarkRange("link")
+        .setLink({ href: url.trim() })
+        .run();
+    } catch {
+      showMessage("Please enter a valid web address or email link.", "error");
+    }
+  }
+
+  function insertFormula() {
+    const formula = window.prompt("Enter your formula. Example: E = mc^2");
+
+    if (formula === null || !formula.trim()) return;
+
+    editor.chain().focus().insertContent(` $${formula.trim()}$ `).run();
+  }
+
+  function runToolbarAction(action: string) {
+    const chain = editor.chain().focus();
+
+    switch (action) {
+      case "undo": chain.undo().run(); break;
+      case "redo": chain.redo().run(); break;
+      case "bold": chain.toggleBold().run(); break;
+      case "italic": chain.toggleItalic().run(); break;
+      case "underline": chain.toggleUnderline().run(); break;
+      case "strike": chain.toggleStrike().run(); break;
+      case "highlight": chain.toggleHighlight().run(); break;
+      case "bullet": chain.toggleBulletList().run(); break;
+      case "ordered": chain.toggleOrderedList().run(); break;
+      case "quote": chain.toggleBlockquote().run(); break;
+      case "code": chain.toggleCodeBlock().run(); break;
+      case "link": addLink(); break;
+      case "table":
+        chain.insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
+        break;
+      case "formula": insertFormula(); break;
+      case "rule": chain.setHorizontalRule().run(); break;
+    }
+  }
+
+  toolbar.addEventListener("mousedown", event => {
+    if ((event.target as HTMLElement).closest("button")) {
+      event.preventDefault();
+    }
+  });
+
+  toolbar.addEventListener("click", event => {
+    const button = (event.target as HTMLElement)
+      .closest<HTMLButtonElement>("button[data-action]");
+
+    if (button) runToolbarAction(button.dataset.action || "");
+  });
+
+  blockFormat.addEventListener("change", () => {
+    const value = blockFormat.value;
+    const chain = editor.chain().focus();
+
+    if (value === "paragraph") {
+      chain.setParagraph().run();
+    } else {
+      chain.setHeading({
+        level: Number(value.substring(1)) as 1 | 2 | 3
+      }).run();
+    }
+  });
+
+  summaryInput.addEventListener("input", () => {
+    summaryCount.textContent = String(summaryInput.value.length);
+  });
+
+  async function checkSession() {
+    try {
+      const response = await fetch("/api/auth/me", {
+        credentials: "same-origin",
+        cache: "no-store"
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.ok ||
+          !["admin", "editor"].includes(result.user?.role)) {
+        window.location.replace("/editorial/");
+        return;
+      }
+
+      loading.hidden = true;
+      form.hidden = false;
+      updateWordCount();
+    } catch {
+      loading.textContent = "Unable to verify your login. Please refresh the page.";
+    }
+  }
+
+  form.addEventListener("submit", async event => {
+    event.preventDefault();
+
+    message.hidden = true;
+
+    if (!titleInput.value.trim()) {
+      showMessage("Please enter the program name.", "error");
+      titleInput.focus();
+      return;
+    }
+
+    if (!summaryInput.value.trim()) {
+      showMessage("Please enter the program summary.", "error");
+      summaryInput.focus();
+      return;
+    }
+
+    if (editor.getText().trim().length > 1000000) {
+      showMessage("The program description is too long.", "error");
+      return;
+    }
+
+    publishButton.disabled = true;
+    publishButton.textContent = "Publishing...";
+
+    try {
+      const markdownBody = turndown.turndown(editor.getHTML()).trim();
+
+      const response = await fetch("/api/programs/create", {
+        method: "POST",
+        credentials: "same-origin",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: titleInput.value.trim(),
+          summary: summaryInput.value.trim(),
+          status: statusInput.value,
+          order: orderInput.value.trim(),
+          body: markdownBody
+        })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.ok) {
+        throw new Error(result.message || "The program could not be published.");
+      }
+
+      showMessage(
+        `${result.message} File: ${result.path}`,
+        "success"
+      );
+
+      form.reset();
+      editor.commands.clearContent();
+      summaryCount.textContent = "0";
+      updateWordCount();
+      window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+
+    } catch (error) {
+      showMessage(
+        error instanceof Error ? error.message : "Unable to publish the program.",
+        "error"
+      );
+    } finally {
+      publishButton.disabled = false;
+      publishButton.textContent = "Save and publish";
+    }
+  });
+
+  checkSession();
+</script>
+
+<style>
+  .program-wrap {
+    max-width: 1000px;
+    padding-bottom: 4rem;
+  }
+
+  .page-title {
+    padding: 2.5rem 0 1.5rem;
+  }
+
+  .page-title h1 {
+    margin: .4rem 0;
+  }
+
+  .page-title > p:last-child,
+  .hint,
+  .editor-help {
+    color: var(--muted, #aaa);
+    line-height: 1.6;
+  }
+
+  .form-section {
+    margin: 1.5rem 0;
+    padding: 1.5rem;
+    border: 1px solid rgba(255,255,255,.13);
+    border-radius: 14px;
+    background: rgba(0,0,0,.35);
+    backdrop-filter: blur(12px);
+  }
+
+  .form-section h2 {
+    margin-top: 0;
+  }
+
+  .field {
+    display: grid;
+    gap: .55rem;
+    margin: 1.25rem 0;
+  }
+
+  .field label {
+    font-weight: 650;
+  }
+
+  .field label span {
+    color: #d7b77e;
+  }
+
+  .field input,
+  .field textarea,
+  .field select {
+    box-sizing: border-box;
+    width: 100%;
+    padding: .85rem 1rem;
+    border: 1px solid rgba(255,255,255,.2);
+    border-radius: 8px;
+    background: rgba(10,10,10,.85);
+    color: var(--text, #eee);
+    font: inherit;
+  }
+
+  .field textarea {
+    resize: vertical;
+  }
+
+  .hint {
+    margin: 0;
+    font-size: .88rem;
+  }
+
+  .editor-help {
+    margin-bottom: 1rem;
+  }
+
+  .editor-shell {
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,.2);
+    border-radius: 10px;
+    background: #fff;
+  }
+
+  .editor-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .35rem;
+    padding: .65rem;
+    border-bottom: 1px solid #d4d4d4;
+    background: #f2f0eb;
+  }
+
+  .editor-toolbar button,
+  .editor-toolbar select {
+    min-height: 34px;
+    border: 1px solid #c9c5bd;
+    border-radius: 5px;
+    padding: .35rem .55rem;
+    background: #fff;
+    color: #222;
+    cursor: pointer;
+    font: inherit;
+  }
+
+  .editor-toolbar button:hover,
+  .editor-toolbar button.active {
+    background: #ded5c5;
+    border-color: #9b8767;
+  }
+
+  .editor-toolbar select {
+    max-width: 135px;
+  }
+
+  .toolbar-divider {
+    width: 1px;
+    height: 24px;
+    margin: 0 .2rem;
+    background: #c9c5bd;
+  }
+
+  .rich-editor {
+    min-height: 480px;
+    padding: 1.5rem;
+    background: #fff;
+    color: #222;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 1.05rem;
+    line-height: 1.8;
+    outline: none;
+  }
+
+  .rich-editor .tiptap {
+    min-height: 440px;
+    padding: 1rem;
+    outline: none;
+    color: #222;
+  }
+
+  .rich-editor .tiptap > * + * {
+    margin-top: .85em;
+  }
+
+  .rich-editor .tiptap h1,
+  .rich-editor .tiptap h2,
+  .rich-editor .tiptap h3 {
+    color: #222;
+    line-height: 1.3;
+  }
+
+  .rich-editor .tiptap h1 { font-size: 2rem; }
+  .rich-editor .tiptap h2 { font-size: 1.6rem; }
+  .rich-editor .tiptap h3 { font-size: 1.3rem; }
+
+  .rich-editor .tiptap p.is-editor-empty:first-child::before {
+    content: attr(data-placeholder);
+    float: left;
+    height: 0;
+    color: #777;
+    pointer-events: none;
+  }
+
+  .rich-editor .tiptap blockquote {
+    margin-left: 0;
+    padding-left: 1rem;
+    border-left: 3px solid #a88e64;
+    color: #555;
+  }
+
+  .rich-editor .tiptap pre {
+    overflow-x: auto;
+    padding: 1rem;
+    background: #151515;
+    color: #e8d8b8;
+    font-family: Consolas, monospace;
+    font-size: .85rem;
+  }
+
+  .rich-editor .tiptap code {
+    padding: .1rem .25rem;
+    background: #eee;
+    font-family: Consolas, monospace;
+  }
+
+  .rich-editor .tiptap pre code {
+    padding: 0;
+    background: transparent;
+  }
+
+  .rich-editor .tiptap a {
+    color: #735c35;
+    text-decoration: underline;
+  }
+
+  .rich-editor .tiptap table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+  }
+
+  .rich-editor .tiptap th,
+  .rich-editor .tiptap td {
+    min-width: 70px;
+    padding: .5rem;
+    border: 1px solid #aaa;
+    vertical-align: top;
+  }
+
+  .rich-editor .tiptap th {
+    background: #eee9df;
+    color: #222;
+    font-weight: bold;
+  }
+
+  .rich-editor .tiptap mark {
+    background: #f5df82;
+    color: #222;
+  }
+
+  .editor-footer {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: .5rem;
+    padding: .65rem .85rem;
+    border-top: 1px solid #d4d4d4;
+    background: #f2f0eb;
+    color: #555;
+    font-size: .85rem;
+  }
+
+  .form-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin: 2rem 0 1rem;
+  }
+
+  .back-link {
+    color: inherit;
+  }
+
+  .primary-button {
+    border: 1px solid #c5a977;
+    border-radius: 8px;
+    padding: .9rem 1.3rem;
+    background: #b69d73;
+    color: #10100e;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .primary-button:disabled {
+    opacity: .6;
+    cursor: wait;
+  }
+
+  .message {
+    padding: .9rem 1rem;
+    border: 1px solid rgba(255,255,255,.14);
+    border-radius: 8px;
+    background: rgba(3,3,3,.75);
+    color: var(--text, #eee);
+    line-height: 1.5;
+  }
+
+  .message.success {
+    border-color: #32845a;
+  }
+
+  .message.error {
+    border-color: #a64b4b;
+  }
+
+  @media (max-width: 600px) {
+    .form-actions {
+      align-items: stretch;
+      flex-direction: column;
+    }
+
+    .primary-button {
+      width: 100%;
+    }
+
+    .rich-editor {
+      padding: .5rem;
+    }
+
+    .rich-editor .tiptap {
+      padding: .75rem;
+    }
+  }
+</style>
