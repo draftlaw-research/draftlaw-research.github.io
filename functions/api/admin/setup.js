@@ -113,8 +113,9 @@ export async function onRequestPost({ request, env }) {
    } catch (error) {
     console.error("Admin setup failed:", error);
 
-    return Response.json(
+      return Response.json(
       { ok: false, message: "Unable to create admin account" },
       { status: 500 }
     );
   }
+}
