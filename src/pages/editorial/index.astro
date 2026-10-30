@@ -1,0 +1,151 @@
+
+---
+export const prerender = true;
+---
+
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Editorial Portal | DraftLaw Research</title>
+  </head>
+
+  <body>
+    <main class="login-container">
+      <section class="login-card">
+        <h1>DraftLaw Research</h1>
+        <p class="subtitle">Editorial Portal</p>
+
+        <form id="login-form">
+          <label for="username">Username</label>
+          <input id="username" name="username" type="text"
+            autocomplete="username" required minlength="4" maxlength="30" />
+
+          <label for="password">Password</label>
+          <input id="password" name="password" type="password"
+            autocomplete="current-password" required />
+
+          <p id="message" role="alert"></p>
+
+          <button type="submit" id="login-button">Log in</button>
+        </form>
+      </section>
+    </main>
+
+    <script>
+      const form = document.querySelector("#login-form");
+      const message = document.querySelector("#message");
+      const button = document.querySelector("#login-button");
+
+      async function checkSession() {
+        try {
+          const response = await fetch("/api/auth/me", {
+            credentials: "same-origin"
+          });
+
+          if (response.ok) {
+            window.location.href = "/editorial/dashboard";
+          }
+        } catch {
+          // The login form remains available if session checking fails.
+        }
+      }
+
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+
+        message.textContent = "";
+        button.disabled = true;
+        button.textContent = "Logging in...";
+
+        const username = document.querySelector("#username").value.trim();
+        const password = document.querySelector("#password").value;
+
+        try {
+          const response = await fetch("/api/auth/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "same-origin",
+            body: JSON.stringify({ username, password })
+          });
+
+          const result = await response.json();
+
+          if (!response.ok || !result.ok) {
+            message.textContent = result.message || "Login failed.";
+            return;
+          }
+
+          window.location.href = "/editorial/dashboard";
+        } catch {
+          message.textContent = "Unable to connect. Please try again.";
+        } finally {
+          button.disabled = false;
+          button.textContent = "Log in";
+        }
+      });
+
+      checkSession();
+    </script>
+
+    <style>
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        font-family: Arial, sans-serif;
+        background: #f4f5f7;
+        color: #222;
+      }
+
+      .login-container {
+        min-height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 24px;
+      }
+
+      .login-card {
+        width: 100%;
+        max-width: 400px;
+        padding: 36px;
+        background: white;
+        border: 1px solid #e5e5e5;
+        border-radius: 10px;
+      }
+
+      h1 { font-size: 25px; margin: 0; }
+      .subtitle { color: #666; margin: 8px 0 28px; }
+
+      label {
+        display: block;
+        margin: 16px 0 7px;
+        font-size: 14px;
+      }
+
+      input {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        font-size: 15px;
+      }
+
+      button {
+        width: 100%;
+        padding: 13px;
+        margin-top: 14px;
+        border: 0;
+        border-radius: 5px;
+        background: #222;
+        color: white;
+        font-size: 15px;
+        cursor: pointer;
+      }
+
+      button:disabled { opacity: 0.6; cursor: wait; }
+      #message { color: #b42318; font-size: 14px; }
+    </style>
+  </body>
+</html>
