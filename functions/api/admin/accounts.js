@@ -151,14 +151,14 @@ export async function onRequestGet({ request, env }) {
     const result = await env.EDITORIAL_DB
       .prepare(`
         SELECT
-  id,
-  username,
-  role,
-  is_active,
-  display_name,
-  profile_image_url,
-  created_at
-FROM users
+          id,
+          username,
+          role,
+          is_active,
+          display_name,
+          profile_image_url,
+          created_at
+        FROM users
         WHERE role IN ('editor', 'moderator')
         ORDER BY role, username
       `)
@@ -193,99 +193,13 @@ export async function onRequestPost({ request, env }) {
       return jsonError("Administrator login required.", 403);
     }
 
-    
-    // Update an editor or moderator profile.
-    // This route is administrator-only because getAdmin()
-    // rejects moderators and editors.
-    if (data.action === "update_profile") {
-      const userId = data.userId;
+    let data;
 
-      if (
-        typeof userId !== "string" ||
-        !userId.trim() ||
-        typeof data.displayName !== "string" ||
-        (
-          data.profileImageUrl !== null &&
-          typeof data.profileImageUrl !== "string"
-        )
-      ) {
-        return jsonError("Invalid profile details.");
-      }
-
-      const displayName = data.displayName.trim();
-      const profileImageUrl = data.profileImageUrl
-        ? data.profileImageUrl.trim()
-        : null;
-
-      if (displayName.length > 80) {
-        return jsonError("Name must not exceed 80 characters.");
-      }
-
-      if (
-        profileImageUrl &&
-        (
-          profileImageUrl.length > 1000 ||
-          !/^https:\/\/[^\s]+$/i.test(profileImageUrl)
-        )
-      ) {
-        return jsonError("Invalid profile image address.");
-      }
-
-      const target = await env.EDITORIAL_DB
-        .prepare(`
-          SELECT id, username, role
-          FROM users
-          WHERE id = ?
-            AND role IN ('editor', 'moderator')
-          LIMIT 1
-        `)
-        .bind(userId)
-        .first();
-
-      if (!target) {
-        return jsonError("Account not found.", 404);
-      }
-
-      const now = new Date().toISOString();
-
-      await env.EDITORIAL_DB
-        .prepare(`
-          UPDATE users
-          SET display_name = ?,
-              profile_image_url = ?,
-              updated_at = ?
-          WHERE id = ?
-        `)
-        .bind(
-          displayName || null,
-          profileImageUrl,
-          now,
-          userId
-        )
-        .run();
-
-      await recordActivity(
-        env,
-        admin.id,
-        "profile_updated",
-        userId,
-        {
-          username: target.username,
-          role: target.role
-        }
-      );
-
-      return Response.json(
-        {
-          ok: true,
-          message: "Profile updated successfully."
-        },
-        {
-          headers: { "Cache-Control": "no-store" }
-        }
-      );
+    try {
+      data = await request.json();
+    } catch {
+      return jsonError("Invalid request data.");
     }
-
 
     const username = String(data.username || "").trim();
     const password = String(data.password || "");
@@ -380,7 +294,7 @@ export async function onRequestPost({ request, env }) {
   }
 }
 
-// Activate or deactivate an editor or moderator account.
+// Update a profile, or activate/deactivate an account.
 export async function onRequestPatch({ request, env }) {
   try {
     if (!env.EDITORIAL_DB) {
@@ -401,6 +315,98 @@ export async function onRequestPatch({ request, env }) {
       return jsonError("Invalid request data.");
     }
 
+    // Update an editor or moderator profile.
+    if (data.action === "update_profile") {
+      const userId = data.userId;
+
+      if (
+        typeof userId !== "string" ||
+        !userId.trim() ||
+        typeof data.displayName !== "string" ||
+        (
+          data.profileImageUrl !== undefined &&
+          data.profileImageUrl !== null &&
+          typeof data.profileImageUrl !== "string"
+        )
+      ) {
+        return jsonError("Invalid profile details.");
+      }
+
+      const displayName = data.displayName.trim();
+      const profileImageUrl = data.profileImageUrl
+        ? data.profileImageUrl.trim()
+        : null;
+
+      if (displayName.length > 80) {
+        return jsonError("Name must not exceed 80 characters.");
+      }
+
+      if (
+        profileImageUrl &&
+        (
+          profileImageUrl.length > 1000 ||
+          !/^https:\/\/[^\s]+$/i.test(profileImageUrl)
+        )
+      ) {
+        return jsonError("Invalid profile image address.");
+      }
+
+      const target = await env.EDITORIAL_DB
+        .prepare(`
+          SELECT id, username, role
+          FROM users
+          WHERE id = ?
+            AND role IN ('editor', 'moderator')
+          LIMIT 1
+        `)
+        .bind(userId)
+        .first();
+
+      if (!target) {
+        return jsonError("Account not found.", 404);
+      }
+
+      const now = new Date().toISOString();
+
+      await env.EDITORIAL_DB
+        .prepare(`
+          UPDATE users
+          SET display_name = ?,
+              profile_image_url = ?,
+              updated_at = ?
+          WHERE id = ?
+        `)
+        .bind(
+          displayName || null,
+          profileImageUrl,
+          now,
+          userId
+        )
+        .run();
+
+      await recordActivity(
+        env,
+        admin.id,
+        "profile_updated",
+        userId,
+        {
+          username: target.username,
+          role: target.role
+        }
+      );
+
+      return Response.json(
+        {
+          ok: true,
+          message: "Profile updated successfully."
+        },
+        {
+          headers: { "Cache-Control": "no-store" }
+        }
+      );
+    }
+
+    // Activate or deactivate an editor or moderator account.
     const userId = data.userId;
     const active = data.active;
 
@@ -473,7 +479,7 @@ export async function onRequestPatch({ request, env }) {
     );
 
   } catch (error) {
-    console.error("Account status update failed:", error);
-    return jsonError("Unable to update account status.", 500);
+    console.error("Account update failed:", error);
+    return jsonError("Unable to update the account.", 500);
   }
 }
