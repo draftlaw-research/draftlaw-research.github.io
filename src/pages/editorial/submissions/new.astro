@@ -38,7 +38,7 @@ import Editorial from '../../../layouts/Editorial.astro';
           placeholder="Write a short summary (maximum 400 characters)"></textarea>
         <p class="hint">Maximum 400 characters.</p>
 
-        <label for="kind">Content category *</label>
+        <label for="kind">Type *</label>
         <select id="kind" required></select>
 
         <label for="date">Publication date *</label>
@@ -48,11 +48,16 @@ import Editorial from '../../../layouts/Editorial.astro';
       <div class="form-section">
         <h2>2. Authors and topic</h2>
 
-        <label for="author-search">Search and select authors *</label>
+        <label for="author-search">Author name *</label>
+
+        <div id="selected-authors" class="selected-authors">
+          <span class="empty-selection">No authors selected yet.</span>
+        </div>
+
         <input
           id="author-search"
           type="search"
-          placeholder="Start typing an author's name..."
+          placeholder="Search for an author by name..."
           autocomplete="off"
         />
 
@@ -62,13 +67,13 @@ import Editorial from '../../../layouts/Editorial.astro';
 
         <p id="author-count" class="hint">No authors selected.</p>
 
-        <label for="topic">Topic <span id="topic-required">*</span></label>
-        <select id="topic">
-          <option value="">Loading available topics...</option>
-        </select>
-        <p class="hint">
-          Articles require a topic. Guides may leave this field empty.
-        </p>
+        <div id="topic-field">
+          <label for="topic">Topic *</label>
+          <select id="topic">
+            <option value="">Loading available topics...</option>
+          </select>
+          <p class="hint">Articles require a topic.</p>
+        </div>
 
         <label for="keywords">Keywords</label>
         <input id="keywords" type="text"
@@ -117,11 +122,12 @@ import Editorial from '../../../layouts/Editorial.astro';
   const typeSelect = document.querySelector<HTMLSelectElement>('#content-type')!;
   const kindSelect = document.querySelector<HTMLSelectElement>('#kind')!;
   const topicSelect = document.querySelector<HTMLSelectElement>('#topic')!;
-  const topicRequired = document.querySelector<HTMLSpanElement>('#topic-required')!;
+  const topicField = document.querySelector<HTMLDivElement>('#topic-field')!;
 
   const authorSearch = document.querySelector<HTMLInputElement>('#author-search')!;
   const authorOptions = document.querySelector<HTMLDivElement>('#author-options')!;
   const authorCount = document.querySelector<HTMLParagraphElement>('#author-count')!;
+  const selectedAuthorsBox = document.querySelector<HTMLDivElement>('#selected-authors')!;
 
   const saveButton = document.querySelector<HTMLButtonElement>('#save-draft')!;
   const submitButton = document.querySelector<HTMLButtonElement>('#submit-review')!;
@@ -175,8 +181,13 @@ import Editorial from '../../../layouts/Editorial.astro';
     });
 
     const isArticle = type === 'article';
+
+    topicField.hidden = !isArticle;
     topicSelect.required = isArticle;
-    topicRequired.hidden = !isArticle;
+
+    if (!isArticle) {
+      topicSelect.value = '';
+    }
   }
 
   function getSelectedAuthors(): string[] {
@@ -188,15 +199,79 @@ import Editorial from '../../../layouts/Editorial.astro';
   }
 
   function updateAuthorCount() {
-    const count = getSelectedAuthors().length;
+    const selectedPaths = getSelectedAuthors();
 
-    authorCount.textContent = count === 1
+    authorCount.textContent = selectedPaths.length === 1
       ? '1 author selected.'
-      : `${count} authors selected.`;
+      : `${selectedPaths.length} authors selected.`;
 
     authorSearch.setCustomValidity(
-      count === 0 ? 'Please select at least one author.' : ''
+      selectedPaths.length === 0
+        ? 'Please select at least one author.'
+        : ''
     );
+
+    renderSelectedAuthors();
+  }
+
+  function renderSelectedAuthors() {
+    selectedAuthorsBox.replaceChildren();
+
+    const selectedPaths = getSelectedAuthors();
+
+    if (selectedPaths.length === 0) {
+      const empty = document.createElement('span');
+      empty.className = 'empty-selection';
+      empty.textContent = 'No authors selected yet.';
+      selectedAuthorsBox.append(empty);
+      return;
+    }
+
+    selectedPaths.forEach((path) => {
+      const author = availableAuthors.find((item) => item.path === path);
+      if (!author) return;
+
+      const tag = document.createElement('span');
+      tag.className = 'author-tag';
+
+      const name = document.createElement('span');
+      name.textContent = author.name.trim();
+
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.textContent = '×';
+      remove.setAttribute('aria-label', `Remove ${author.name.trim()}`);
+
+      remove.addEventListener('click', () => {
+        const checkbox = Array.from(
+          authorOptions.querySelectorAll<HTMLInputElement>(
+            'input[name="authors"]'
+          )
+        ).find((item) => item.value === path);
+
+        if (checkbox) {
+          checkbox.checked = false;
+        } else {
+          authorSearch.value = '';
+          renderAuthors();
+
+          const restoredCheckbox = Array.from(
+            authorOptions.querySelectorAll<HTMLInputElement>(
+              'input[name="authors"]'
+            )
+          ).find((item) => item.value === path);
+
+          if (restoredCheckbox) {
+            restoredCheckbox.checked = false;
+          }
+        }
+
+        updateAuthorCount();
+      });
+
+      tag.append(name, remove);
+      selectedAuthorsBox.append(tag);
+    });
   }
 
   function renderAuthors() {
@@ -206,7 +281,7 @@ import Editorial from '../../../layouts/Editorial.astro';
     authorOptions.replaceChildren();
 
     const filteredAuthors = availableAuthors.filter((author) =>
-      author.name.toLowerCase().includes(searchTerm)
+      author.name.trim().toLowerCase().includes(searchTerm)
     );
 
     if (filteredAuthors.length === 0) {
@@ -506,6 +581,44 @@ import Editorial from '../../../layouts/Editorial.astro';
     border-color: var(--accent);
   }
 
+  .selected-authors {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    min-height: 48px;
+    margin-bottom: 0.7rem;
+    padding: 0.65rem;
+    border: 1px solid var(--rule);
+    background: #080808;
+  }
+
+  .empty-selection {
+    align-self: center;
+    color: var(--muted);
+    font-size: 0.82rem;
+  }
+
+  .author-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.35rem 0.55rem;
+    border: 1px solid var(--accent);
+    border-radius: 3px;
+    background: var(--accent-soft);
+    color: var(--ink);
+    font-size: 0.82rem;
+  }
+
+  .author-tag button {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--accent);
+    font-size: 1.1rem;
+    cursor: pointer;
+  }
+
   .author-options {
     display: grid;
     gap: 0.15rem;
@@ -594,6 +707,10 @@ import Editorial from '../../../layouts/Editorial.astro';
   .message.error {
     border-color: #a85b4c;
     color: #e3a394;
+  }
+
+  #topic-field[hidden] {
+    display: none;
   }
 
   @media (max-width: 600px) {
