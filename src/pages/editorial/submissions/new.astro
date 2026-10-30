@@ -12,8 +12,8 @@ import Editorial from '../../../layouts/Editorial.astro';
       <p class="eyebrow">EDITORIAL WORKSPACE</p>
       <h1>Create a submission</h1>
       <p class="intro">
-        Prepare a new article or guide. You can save your work as a draft
-        or submit it to the editorial team for review.
+        Prepare a new article or guide. Save your work as a draft or submit it
+        to the editorial team for review.
       </p>
     </div>
 
@@ -48,18 +48,14 @@ import Editorial from '../../../layouts/Editorial.astro';
       <div class="form-section">
         <h2>2. Authors and topic</h2>
 
-        <label for="author-search">Author name *</label>
+        <label for="author-search">Search and select authors *</label>
+        <input id="author-search" type="search"
+          placeholder="Start typing an author's name..."
+          autocomplete="off" />
 
         <div id="selected-authors" class="selected-authors">
-          <span class="empty-selection">No authors selected yet.</span>
+          <span class="hint">No authors selected yet.</span>
         </div>
-
-        <input
-          id="author-search"
-          type="search"
-          placeholder="Search for an author by name..."
-          autocomplete="off"
-        />
 
         <div id="author-options" class="author-options">
           <p class="hint">Loading available authors...</p>
@@ -68,11 +64,13 @@ import Editorial from '../../../layouts/Editorial.astro';
         <p id="author-count" class="hint">No authors selected.</p>
 
         <div id="topic-field">
-          <label for="topic">Topic *</label>
+          <label for="topic">Topic <span id="topic-required">*</span></label>
           <select id="topic">
             <option value="">Loading available topics...</option>
           </select>
-          <p class="hint">Articles require a topic.</p>
+          <p class="hint">
+            Articles require a topic. Guides may leave this field empty.
+          </p>
         </div>
 
         <label for="keywords">Keywords</label>
@@ -82,7 +80,68 @@ import Editorial from '../../../layouts/Editorial.astro';
       </div>
 
       <div class="form-section">
-        <h2>3. Full content</h2>
+        <h2>3. Cover image</h2>
+
+        <label for="cover">Upload cover image (optional)</label>
+        <input
+          id="cover"
+          type="file"
+          accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+        />
+
+        <p class="hint">
+          JPEG, PNG or WebP. Maximum file size: 200 KB.
+          Recommended dimensions: 1200 × 630 pixels.
+        </p>
+
+        <div id="cover-preview-container" class="cover-preview-container" hidden>
+          <img id="cover-preview" alt="Cover image preview" />
+          <p id="cover-file-name" class="hint"></p>
+          <button type="button" id="remove-cover" class="remove-cover">
+            Remove image
+          </button>
+        </div>
+
+        <label for="cover-alt">Image description</label>
+        <input id="cover-alt" type="text" maxlength="1000"
+          placeholder="Describe the image for screen readers" />
+        <p class="hint">
+          A short description helps readers using screen readers understand the image.
+        </p>
+
+        <label for="cover-credit">Image credit (optional)</label>
+        <input id="cover-credit" type="text" maxlength="1000"
+          placeholder="Photographer, source or licence information" />
+      </div>
+
+      <div class="form-section">
+        <h2>4. Publication settings</h2>
+
+        <label class="switch-option">
+          <input id="featured" type="checkbox" />
+          <span class="switch-control"></span>
+          <span class="switch-text">
+            <strong>Featured content</strong>
+            <small>
+              Mark this content to be featured on the website.
+            </small>
+          </span>
+        </label>
+
+        <label class="switch-option">
+          <input id="peer-reviewed" type="checkbox" checked />
+          <span class="switch-control"></span>
+          <span class="switch-text">
+            <strong>Blind peer reviewed</strong>
+            <small>
+              Mark this content as having undergone blind peer review.
+            </small>
+          </span>
+        </label>
+      </div>
+
+      <div class="form-section">
+        <h2>5. Full content</h2>
 
         <label for="body">Main content *</label>
         <textarea id="body" rows="18" required
@@ -123,11 +182,18 @@ import Editorial from '../../../layouts/Editorial.astro';
   const kindSelect = document.querySelector<HTMLSelectElement>('#kind')!;
   const topicSelect = document.querySelector<HTMLSelectElement>('#topic')!;
   const topicField = document.querySelector<HTMLDivElement>('#topic-field')!;
+  const topicRequired = document.querySelector<HTMLSpanElement>('#topic-required')!;
 
   const authorSearch = document.querySelector<HTMLInputElement>('#author-search')!;
   const authorOptions = document.querySelector<HTMLDivElement>('#author-options')!;
-  const authorCount = document.querySelector<HTMLParagraphElement>('#author-count')!;
   const selectedAuthorsBox = document.querySelector<HTMLDivElement>('#selected-authors')!;
+  const authorCount = document.querySelector<HTMLParagraphElement>('#author-count')!;
+
+  const coverInput = document.querySelector<HTMLInputElement>('#cover')!;
+  const coverPreviewContainer = document.querySelector<HTMLDivElement>('#cover-preview-container')!;
+  const coverPreview = document.querySelector<HTMLImageElement>('#cover-preview')!;
+  const coverFileName = document.querySelector<HTMLParagraphElement>('#cover-file-name')!;
+  const removeCoverButton = document.querySelector<HTMLButtonElement>('#remove-cover')!;
 
   const saveButton = document.querySelector<HTMLButtonElement>('#save-draft')!;
   const submitButton = document.querySelector<HTMLButtonElement>('#submit-review')!;
@@ -144,6 +210,12 @@ import Editorial from '../../../layouts/Editorial.astro';
 
   let availableAuthors: AuthorOption[] = [];
   let availableTopics: TopicOption[] = [];
+
+  // Keep selected authors independently of the search results.
+  // This prevents selected authors disappearing when the list is filtered.
+  const selectedAuthorPaths = new Set<string>();
+
+  let coverPreviewUrl = '';
 
   const kindOptions = {
     article: [
@@ -182,55 +254,44 @@ import Editorial from '../../../layouts/Editorial.astro';
 
     const isArticle = type === 'article';
 
-    topicField.hidden = !isArticle;
     topicSelect.required = isArticle;
-
-    if (!isArticle) {
-      topicSelect.value = '';
-    }
+    topicRequired.hidden = !isArticle;
+    topicField.hidden = !isArticle;
+    if (!isArticle) topicSelect.value = '';
   }
 
   function getSelectedAuthors(): string[] {
-    return Array.from(
-      authorOptions.querySelectorAll<HTMLInputElement>(
-        'input[name="authors"]:checked'
-      )
-    ).map((checkbox) => checkbox.value);
+    return Array.from(selectedAuthorPaths);
   }
 
   function updateAuthorCount() {
-    const selectedPaths = getSelectedAuthors();
+    const count = selectedAuthorPaths.size;
 
-    authorCount.textContent = selectedPaths.length === 1
+    authorCount.textContent = count === 1
       ? '1 author selected.'
-      : `${selectedPaths.length} authors selected.`;
+      : `${count} authors selected.`;
 
     authorSearch.setCustomValidity(
-      selectedPaths.length === 0
-        ? 'Please select at least one author.'
-        : ''
+      count === 0 ? 'Please select at least one author.' : ''
     );
-
-    renderSelectedAuthors();
   }
 
   function renderSelectedAuthors() {
     selectedAuthorsBox.replaceChildren();
 
-    const selectedPaths = getSelectedAuthors();
+    const selected = availableAuthors.filter((author) =>
+      selectedAuthorPaths.has(author.path)
+    );
 
-    if (selectedPaths.length === 0) {
+    if (selected.length === 0) {
       const empty = document.createElement('span');
-      empty.className = 'empty-selection';
+      empty.className = 'hint';
       empty.textContent = 'No authors selected yet.';
       selectedAuthorsBox.append(empty);
       return;
     }
 
-    selectedPaths.forEach((path) => {
-      const author = availableAuthors.find((item) => item.path === path);
-      if (!author) return;
-
+    selected.forEach((author) => {
       const tag = document.createElement('span');
       tag.className = 'author-tag';
 
@@ -240,32 +301,11 @@ import Editorial from '../../../layouts/Editorial.astro';
       const remove = document.createElement('button');
       remove.type = 'button';
       remove.textContent = '×';
-      remove.setAttribute('aria-label', `Remove ${author.name.trim()}`);
-
+      remove.setAttribute('aria-label', `Remove ${author.name}`);
       remove.addEventListener('click', () => {
-        const checkbox = Array.from(
-          authorOptions.querySelectorAll<HTMLInputElement>(
-            'input[name="authors"]'
-          )
-        ).find((item) => item.value === path);
-
-        if (checkbox) {
-          checkbox.checked = false;
-        } else {
-          authorSearch.value = '';
-          renderAuthors();
-
-          const restoredCheckbox = Array.from(
-            authorOptions.querySelectorAll<HTMLInputElement>(
-              'input[name="authors"]'
-            )
-          ).find((item) => item.value === path);
-
-          if (restoredCheckbox) {
-            restoredCheckbox.checked = false;
-          }
-        }
-
+        selectedAuthorPaths.delete(author.path);
+        renderSelectedAuthors();
+        renderAuthors();
         updateAuthorCount();
       });
 
@@ -275,13 +315,12 @@ import Editorial from '../../../layouts/Editorial.astro';
   }
 
   function renderAuthors() {
-    const selectedPaths = new Set(getSelectedAuthors());
     const searchTerm = authorSearch.value.trim().toLowerCase();
 
     authorOptions.replaceChildren();
 
     const filteredAuthors = availableAuthors.filter((author) =>
-      author.name.trim().toLowerCase().includes(searchTerm)
+      author.name.toLowerCase().includes(searchTerm)
     );
 
     if (filteredAuthors.length === 0) {
@@ -300,9 +339,18 @@ import Editorial from '../../../layouts/Editorial.astro';
       checkbox.type = 'checkbox';
       checkbox.name = 'authors';
       checkbox.value = author.path;
-      checkbox.checked = selectedPaths.has(author.path);
+      checkbox.checked = selectedAuthorPaths.has(author.path);
 
-      checkbox.addEventListener('change', updateAuthorCount);
+      checkbox.addEventListener('change', () => {
+        if (checkbox.checked) {
+          selectedAuthorPaths.add(author.path);
+        } else {
+          selectedAuthorPaths.delete(author.path);
+        }
+
+        renderSelectedAuthors();
+        updateAuthorCount();
+      });
 
       const name = document.createElement('span');
       name.textContent = author.name.trim();
@@ -359,6 +407,7 @@ import Editorial from '../../../layouts/Editorial.astro';
     }
 
     renderAuthors();
+    renderSelectedAuthors();
     loadTopics();
   }
 
@@ -393,7 +442,57 @@ import Editorial from '../../../layouts/Editorial.astro';
     }
   }
 
-  function getSubmissionData(status: 'draft' | 'pending') {
+  function showCoverPreview(file: File) {
+    if (coverPreviewUrl) {
+      URL.revokeObjectURL(coverPreviewUrl);
+    }
+
+    coverPreviewUrl = URL.createObjectURL(file);
+    coverPreview.src = coverPreviewUrl;
+    coverFileName.textContent = file.name;
+    coverPreviewContainer.hidden = false;
+  }
+
+  function clearCover() {
+    if (coverPreviewUrl) {
+      URL.revokeObjectURL(coverPreviewUrl);
+      coverPreviewUrl = '';
+    }
+
+    coverInput.value = '';
+    coverPreview.removeAttribute('src');
+    coverPreviewContainer.hidden = true;
+    coverFileName.textContent = '';
+  }
+
+  async function uploadCover(): Promise<string> {
+    const file = coverInput.files?.[0];
+
+    if (!file) return '';
+
+    const formData = new FormData();
+    formData.append('cover', file);
+
+    const response = await fetch('/api/submissions/upload-cover', {
+      method: 'POST',
+      credentials: 'same-origin',
+      cache: 'no-store',
+      body: formData
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.ok || !result.cover) {
+      throw new Error(result.message || 'The cover image could not be uploaded.');
+    }
+
+    return result.cover;
+  }
+
+  function getSubmissionData(
+    status: 'draft' | 'pending',
+    cover: string
+  ) {
     const keywords = (
       document.querySelector<HTMLInputElement>('#keywords')!.value
     )
@@ -408,9 +507,14 @@ import Editorial from '../../../layouts/Editorial.astro';
       kind: kindSelect.value,
       date: document.querySelector<HTMLInputElement>('#date')!.value,
       authors: getSelectedAuthors(),
-      topic: topicSelect.value,
+      topic: typeSelect.value === 'article' ? topicSelect.value : '',
       keywords,
       body: document.querySelector<HTMLTextAreaElement>('#body')!.value,
+      cover,
+      coverAlt: document.querySelector<HTMLInputElement>('#cover-alt')!.value.trim(),
+      coverCredit: document.querySelector<HTMLInputElement>('#cover-credit')!.value.trim(),
+      featured: document.querySelector<HTMLInputElement>('#featured')!.checked,
+      peerReviewed: document.querySelector<HTMLInputElement>('#peer-reviewed')!.checked,
       status
     };
   }
@@ -419,6 +523,13 @@ import Editorial from '../../../layouts/Editorial.astro';
     updateAuthorCount();
 
     if (!form.reportValidity()) return;
+
+    const selectedFile = coverInput.files?.[0];
+
+    if (selectedFile && selectedFile.size > 200 * 1024) {
+      showMessage('The cover image must be 200 KB or smaller.', 'error');
+      return;
+    }
 
     saveButton.disabled = true;
     submitButton.disabled = true;
@@ -432,6 +543,9 @@ import Editorial from '../../../layouts/Editorial.astro';
     message.hidden = true;
 
     try {
+      // Upload the image first, if one was selected.
+      const cover = await uploadCover();
+
       const response = await fetch('/api/submissions/create', {
         method: 'POST',
         headers: {
@@ -439,7 +553,7 @@ import Editorial from '../../../layouts/Editorial.astro';
         },
         credentials: 'same-origin',
         cache: 'no-store',
-        body: JSON.stringify(getSubmissionData(status))
+        body: JSON.stringify(getSubmissionData(status, cover))
       });
 
       const result = await response.json();
@@ -456,8 +570,11 @@ import Editorial from '../../../layouts/Editorial.astro';
       );
 
       form.reset();
+      selectedAuthorPaths.clear();
       authorSearch.value = '';
+      clearCover();
       renderAuthors();
+      renderSelectedAuthors();
       updateKindOptions();
       updateAuthorCount();
 
@@ -479,8 +596,35 @@ import Editorial from '../../../layouts/Editorial.astro';
   }
 
   typeSelect.addEventListener('change', updateKindOptions);
-
   authorSearch.addEventListener('input', renderAuthors);
+
+  coverInput.addEventListener('change', () => {
+    const file = coverInput.files?.[0];
+
+    if (!file) {
+      clearCover();
+      return;
+    }
+
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+
+    if (!allowedTypes.includes(file.type)) {
+      clearCover();
+      showMessage('Please choose a JPEG, PNG or WebP image.', 'error');
+      return;
+    }
+
+    if (file.size > 200 * 1024) {
+      clearCover();
+      showMessage('The cover image must be 200 KB or smaller.', 'error');
+      return;
+    }
+
+    message.hidden = true;
+    showCoverPreview(file);
+  });
+
+  removeCoverButton.addEventListener('click', clearCover);
 
   saveButton.addEventListener('click', () => saveSubmission('draft'));
   submitButton.addEventListener('click', () => saveSubmission('pending'));
@@ -549,7 +693,8 @@ import Editorial from '../../../layouts/Editorial.astro';
     font-size: 1.2rem;
   }
 
-  .form-section > label {
+  .form-section > label,
+  #topic-field > label {
     display: block;
     margin: 1.25rem 0 0.5rem;
     color: var(--ink);
@@ -557,6 +702,7 @@ import Editorial from '../../../layouts/Editorial.astro';
   }
 
   .form-section input:not([type="checkbox"]),
+  .form-section input[type="file"],
   .form-section select,
   .form-section textarea {
     display: block;
@@ -569,6 +715,10 @@ import Editorial from '../../../layouts/Editorial.astro';
     font: inherit;
   }
 
+  .form-section input[type="file"] {
+    cursor: pointer;
+  }
+
   .form-section textarea {
     resize: vertical;
     line-height: 1.65;
@@ -579,44 +729,6 @@ import Editorial from '../../../layouts/Editorial.astro';
   .form-section textarea:focus {
     outline: 1px solid var(--accent);
     border-color: var(--accent);
-  }
-
-  .selected-authors {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    min-height: 48px;
-    margin-bottom: 0.7rem;
-    padding: 0.65rem;
-    border: 1px solid var(--rule);
-    background: #080808;
-  }
-
-  .empty-selection {
-    align-self: center;
-    color: var(--muted);
-    font-size: 0.82rem;
-  }
-
-  .author-tag {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.35rem 0.55rem;
-    border: 1px solid var(--accent);
-    border-radius: 3px;
-    background: var(--accent-soft);
-    color: var(--ink);
-    font-size: 0.82rem;
-  }
-
-  .author-tag button {
-    padding: 0;
-    border: 0;
-    background: transparent;
-    color: var(--accent);
-    font-size: 1.1rem;
-    cursor: pointer;
   }
 
   .author-options {
@@ -652,11 +764,136 @@ import Editorial from '../../../layouts/Editorial.astro';
     accent-color: var(--accent);
   }
 
+  .selected-authors {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    min-height: 42px;
+    margin-top: 0.7rem;
+    padding: 0.65rem;
+    border: 1px solid var(--rule);
+    background: #080808;
+  }
+
+  .author-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.35rem 0.55rem;
+    border: 1px solid var(--accent);
+    border-radius: 3px;
+    color: var(--ink);
+    font-size: 0.82rem;
+  }
+
+  .author-tag button {
+    border: 0;
+    background: transparent;
+    color: var(--accent);
+    font-size: 1.1rem;
+    cursor: pointer;
+  }
+
   .hint {
     margin: 0.45rem 0 0;
     color: var(--muted);
     font-size: 0.78rem;
     line-height: 1.6;
+  }
+
+  .cover-preview-container {
+    margin-top: 1rem;
+    padding: 1rem;
+    border: 1px solid var(--rule);
+  }
+
+  .cover-preview-container img {
+    display: block;
+    width: 100%;
+    max-width: 500px;
+    max-height: 280px;
+    object-fit: contain;
+    object-position: left center;
+    background: #080808;
+  }
+
+  .remove-cover {
+    margin-top: 0.7rem;
+    padding: 0.45rem 0.7rem;
+    border: 1px solid #a85b4c;
+    border-radius: 3px;
+    background: transparent;
+    color: #e3a394;
+    cursor: pointer;
+  }
+
+  .switch-option {
+    display: flex !important;
+    align-items: center;
+    gap: 0.9rem;
+    margin: 1rem 0 !important;
+    cursor: pointer;
+  }
+
+  .switch-option > input {
+    position: absolute;
+    opacity: 0;
+    width: 1px;
+    height: 1px;
+  }
+
+  .switch-control {
+    position: relative;
+    flex: 0 0 42px;
+    width: 42px;
+    height: 23px;
+    border: 1px solid var(--muted);
+    border-radius: 20px;
+    background: #080808;
+    transition: background 0.2s;
+  }
+
+  .switch-control::after {
+    content: "";
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    background: var(--muted);
+    transition: transform 0.2s;
+  }
+
+  .switch-option input:checked + .switch-control {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+
+  .switch-option input:checked + .switch-control::after {
+    transform: translateX(19px);
+    background: #080808;
+  }
+
+  .switch-option input:focus-visible + .switch-control {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+  }
+
+  .switch-text {
+    display: grid;
+    gap: 0.2rem;
+  }
+
+  .switch-text strong {
+    color: var(--ink);
+    font-size: 0.9rem;
+  }
+
+  .switch-text small {
+    color: var(--muted);
+    font-size: 0.78rem;
+    font-weight: normal;
   }
 
   .form-actions {
@@ -707,10 +944,6 @@ import Editorial from '../../../layouts/Editorial.astro';
   .message.error {
     border-color: #a85b4c;
     color: #e3a394;
-  }
-
-  #topic-field[hidden] {
-    display: none;
   }
 
   @media (max-width: 600px) {
