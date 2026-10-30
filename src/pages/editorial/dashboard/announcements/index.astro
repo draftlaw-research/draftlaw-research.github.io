@@ -1,0 +1,286 @@
+
+---
+import Editorial from '../../../../layouts/Editorial.astro';
+
+export const prerender = true;
+---
+
+<Editorial title="Program Announcements">
+  <section class="page-wrap">
+    <a class="back-link" href="/editorial/dashboard/">← Back to dashboard</a>
+
+    <p class="eyebrow">EDITORIAL DASHBOARD / INITIATIVES</p>
+    <h1>Program Announcements</h1>
+    <p class="intro">
+      Publish an announcement about a DraftLaw Research program.
+      Announcements are published directly when submitted.
+    </p>
+
+    <form id="announcement-form">
+      <label for="title">Announcement title *</label>
+      <input id="title" name="title" type="text" maxlength="250" required />
+
+      <label for="date">Announcement date *</label>
+      <input id="date" name="date" type="date" required />
+
+      <label for="type">Announcement type</label>
+      <select id="type" name="type">
+        <option value="Update" selected>Update</option>
+        <option value="Open call">Open call</option>
+        <option value="Result">Result</option>
+      </select>
+
+      <label for="program">Related program (optional)</label>
+      <select id="program" name="program">
+        <option value="">No specific program</option>
+      </select>
+      <p class="field-help">Choose a program if this announcement relates to one.</p>
+
+      <label for="deadline">Deadline (for open calls)</label>
+      <input id="deadline" name="deadline" type="date" />
+
+      <label for="link">Link to apply or read more (optional)</label>
+      <input
+        id="link"
+        name="link"
+        type="url"
+        placeholder="https://"
+      />
+
+      <label for="body">Announcement text *</label>
+      <textarea
+        id="body"
+        name="body"
+        rows="6"
+        maxlength="5000"
+        required
+        placeholder="Write the announcement in 2 or 3 sentences."
+      ></textarea>
+
+      <p id="message" role="status" aria-live="polite"></p>
+
+      <button id="submit-button" type="submit">Publish announcement</button>
+    </form>
+  </section>
+</Editorial>
+
+<script>
+  const form = document.querySelector<HTMLFormElement>('#announcement-form')!;
+  const message = document.querySelector<HTMLParagraphElement>('#message')!;
+  const button = document.querySelector<HTMLButtonElement>('#submit-button')!;
+  const programSelect = document.querySelector<HTMLSelectElement>('#program')!;
+  const dateInput = document.querySelector<HTMLInputElement>('#date')!;
+
+  // Set today's date as the initial announcement date.
+  const today = new Date();
+  const localToday = new Date(
+    today.getTime() - today.getTimezoneOffset() * 60000
+  ).toISOString().slice(0, 10);
+  dateInput.value = localToday;
+
+  async function checkLogin() {
+    try {
+      const response = await fetch('/api/auth/me', {
+        credentials: 'same-origin'
+      });
+
+      if (!response.ok) {
+        window.location.href = '/editorial/';
+        return false;
+      }
+
+      const result = await response.json();
+
+      if (!result.ok || !['admin', 'editor'].includes(result.user?.role)) {
+        window.location.href = '/editorial/';
+        return false;
+      }
+
+      return true;
+    } catch {
+      message.textContent = 'Unable to verify your login. Please refresh the page.';
+      return false;
+    }
+  }
+
+  async function loadPrograms() {
+    try {
+      const response = await fetch('/api/announcements', {
+        credentials: 'same-origin'
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.ok) {
+        throw new Error(result.message || 'Could not load programs.');
+      }
+
+      for (const item of result.programs) {
+        const option = document.createElement('option');
+        option.value = item.path;
+        option.textContent = item.title;
+        programSelect.append(option);
+      }
+    } catch (error) {
+      message.textContent =
+        error instanceof Error ? error.message : 'Could not load programs.';
+    }
+  }
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+
+    message.textContent = '';
+    button.disabled = true;
+    button.textContent = 'Publishing...';
+
+    const data = {
+      title: (document.querySelector<HTMLInputElement>('#title')!).value.trim(),
+      date: dateInput.value,
+      type: (document.querySelector<HTMLSelectElement>('#type')!).value,
+      program: programSelect.value,
+      deadline: (document.querySelector<HTMLInputElement>('#deadline')!).value,
+      link: (document.querySelector<HTMLInputElement>('#link')!).value.trim(),
+      body: (document.querySelector<HTMLTextAreaElement>('#body')!).value.trim()
+    };
+
+    try {
+      const response = await fetch('/api/announcements', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify(data)
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.ok) {
+        throw new Error(result.message || 'The announcement could not be published.');
+      }
+
+      message.textContent = 'Announcement published successfully.';
+      form.reset();
+      dateInput.value = localToday;
+      programSelect.value = '';
+    } catch (error) {
+      message.textContent =
+        error instanceof Error ? error.message : 'Something went wrong.';
+    } finally {
+      button.disabled = false;
+      button.textContent = 'Publish announcement';
+    }
+  });
+
+  await checkLogin();
+  await loadPrograms();
+</script>
+
+<style>
+  * {
+    box-sizing: border-box;
+  }
+
+  .page-wrap {
+    width: min(760px, calc(100% - 2rem));
+    margin: 3rem auto;
+    padding: 2rem;
+    border: 1px solid rgba(255,255,255,.13);
+    border-radius: 18px;
+    background: rgba(12,12,12,.82);
+    color: #f5f5f5;
+    backdrop-filter: blur(18px);
+  }
+
+  .back-link {
+    color: #c7b58b;
+    text-decoration: none;
+    font-size: .9rem;
+  }
+
+  .eyebrow {
+    margin-top: 2rem;
+    color: #c7b58b;
+    font-size: .72rem;
+    letter-spacing: .12em;
+  }
+
+  h1 {
+    margin: .5rem 0;
+    font-size: clamp(2rem, 5vw, 3rem);
+  }
+
+  .intro,
+  .field-help {
+    color: #b8b8b8;
+    line-height: 1.6;
+  }
+
+  form {
+    display: grid;
+    gap: .65rem;
+    margin-top: 2rem;
+  }
+
+  label {
+    margin-top: .8rem;
+    font-size: .9rem;
+    font-weight: 600;
+  }
+
+  input,
+  select,
+  textarea {
+    width: 100%;
+    padding: .85rem 1rem;
+    border: 1px solid rgba(255,255,255,.2);
+    border-radius: 9px;
+    background: rgba(255,255,255,.07);
+    color: #fff;
+    font: inherit;
+  }
+
+  select option {
+    color: #111;
+    background: #fff;
+  }
+
+  textarea {
+    resize: vertical;
+    line-height: 1.6;
+  }
+
+  .field-help {
+    margin: 0;
+    font-size: .8rem;
+  }
+
+  #message {
+    min-height: 1.5rem;
+    color: #d8c79f;
+    font-size: .9rem;
+  }
+
+  button {
+    margin-top: .5rem;
+    padding: .95rem 1.2rem;
+    border: 1px solid #c7b58b;
+    border-radius: 9px;
+    background: #c7b58b;
+    color: #111;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  button:disabled {
+    opacity: .6;
+    cursor: wait;
+  }
+
+  @media (max-width: 600px) {
+    .page-wrap {
+      margin: 1.5rem auto;
+      padding: 1.25rem;
+    }
+  }
+</style>
