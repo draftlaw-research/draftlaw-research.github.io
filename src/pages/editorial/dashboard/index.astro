@@ -13,6 +13,7 @@ const description = "The DraftLaw Research editorial workspace.";
         <h1>Editorial Dashboard</h1>
         <p>Manage submissions, contributors and website sections from one place.</p>
       </div>
+
       <div class="notification-area" id="notification-area" hidden>
         <button
           type="button"
@@ -25,6 +26,7 @@ const description = "The DraftLaw Research editorial workspace.";
           <span aria-hidden="true">🔔</span>
           <span class="notification-indicator" id="notification-indicator" hidden></span>
         </button>
+
         <section class="notification-panel" id="notification-panel" hidden>
           <div class="notification-panel-heading">
             <h2>Notifications</h2>
@@ -42,6 +44,7 @@ const description = "The DraftLaw Research editorial workspace.";
         </div>
 
         <div class="dashboard-grid">
+
           <article class="dashboard-card active-card" id="submissions">
             <p class="eyebrow">01 / REVIEW</p>
             <h3>Submissions</h3>
@@ -56,41 +59,33 @@ const description = "The DraftLaw Research editorial workspace.";
             <a class="action-button" href="/editorial/dashboard/authors/">Create author profile →</a>
           </article>
 
-          
-<article class="dashboard-card" id="topics">
-  <p class="eyebrow">03 / WEBSITE SECTION</p>
-  <h3>Topics</h3>
-  <p>Create and publish topics and categories used across the website.</p>
-  <a class="action-button" href="/editorial/dashboard/topics/">Create topic →</a>
-</article>
+          <article class="dashboard-card" id="topics">
+            <p class="eyebrow">03 / WEBSITE SECTION</p>
+            <h3>Topics</h3>
+            <p>Create and publish topics and categories used across the website.</p>
+            <a class="action-button" href="/editorial/dashboard/topics/">Create topic →</a>
+          </article>
 
+          <article class="dashboard-card" id="team-members">
+            <p class="eyebrow">04 / WEBSITE SECTION</p>
+            <h3>Team Members</h3>
+            <p>Add and publish members of the DraftLaw Research team.</p>
+            <a class="action-button" href="/editorial/dashboard/team/">Add team member →</a>
+          </article>
 
-          
-<article class="dashboard-card" id="team-members">
-  <p class="eyebrow">04 / WEBSITE SECTION</p>
-  <h3>Team Members</h3>
-  <p>Add and publish members of the DraftLaw Research team.</p>
-  <a class="action-button" href="/editorial/dashboard/team/">Add team member →</a>
-</article>
+          <article class="dashboard-card" id="student-collaborators">
+            <p class="eyebrow">05 / WEBSITE SECTION</p>
+            <h3>Student Collaborators</h3>
+            <p>Add and publish Student Collaborator profiles.</p>
+            <a class="action-button" href="/editorial/dashboard/student-collaborators/">Add Student Collaborator →</a>
+          </article>
 
-
-          
-<article class="dashboard-card" id="student-collaborators">
-  <p class="eyebrow">05 / WEBSITE SECTION</p>
-  <h3>Student Collaborators</h3>
-  <p>Add and publish Student Collaborator profiles.</p>
-  <a class="action-button" href="/editorial/dashboard/student-collaborators/">Add Student Collaborator →</a>
-</article>
-
-
-          
-<article class="dashboard-card" id="newsletter-items">
-  <p class="eyebrow">06 / WEBSITE SECTION</p>
-  <h3>Newsletter Items</h3>
-  <p>Publish calls for papers, events, competitions and opportunities.</p>
-  <a class="action-button" href="/editorial/dashboard/newsletter/">Add newsletter item →</a>
-</article>
-
+          <article class="dashboard-card" id="newsletter-items">
+            <p class="eyebrow">06 / WEBSITE SECTION</p>
+            <h3>Newsletter Items</h3>
+            <p>Publish calls for papers, events, competitions and opportunities.</p>
+            <a class="action-button" href="/editorial/dashboard/newsletter/">Add newsletter item →</a>
+          </article>
 
           <article class="dashboard-card" id="programs">
             <p class="eyebrow">07 / INITIATIVES</p>
@@ -100,13 +95,13 @@ const description = "The DraftLaw Research editorial workspace.";
           </article>
 
           <article class="dashboard-card" id="announcements">
-  <p class="eyebrow">08 / INITIATIVES</p>
-  <h3>Program Announcements</h3>
-  <p>Publish open calls, program updates and results.</p>
-  <a class="action-button" href="/editorial/dashboard/announcements/">
-    Add an announcement →
-  </a>
-</article>
+            <p class="eyebrow">08 / INITIATIVES</p>
+            <h3>Program Announcements</h3>
+            <p>Publish open calls, program updates and results.</p>
+            <a class="action-button" href="/editorial/dashboard/announcements/">
+              Add an announcement →
+            </a>
+          </article>
 
           <article class="dashboard-card admin-only" id="accounts" hidden>
             <p class="eyebrow">09 / ADMINISTRATION</p>
@@ -115,16 +110,17 @@ const description = "The DraftLaw Research editorial workspace.";
             <a class="action-button" href="/editorial/admin/accounts/">Manage editor accounts →</a>
           </article>
 
-          
-<article class="dashboard-card admin-only" id="activity" hidden>
-  <p class="eyebrow">04 / RECORDS</p>
-  <h3>Activity log</h3>
-  <p>Review recent publication and development activity.</p>
-  <a class="action-button" href="/editorial/dashboard/activity/">
-    View activity log →
-  </a>
-</article>
+          <article class="dashboard-card admin-only" id="activity" hidden>
+            <p class="eyebrow">10 / ADMINISTRATION</p>
+            <h3>Activity log</h3>
+            <p>Review recent publication and development activity.</p>
+            <a class="action-button" href="/editorial/dashboard/activity/">
+              View activity log →
+            </a>
+          </article>
 
+        </div>
+      </section>
 
       <section class="section" id="process">
         <div class="section-head">
@@ -171,8 +167,11 @@ const description = "The DraftLaw Research editorial workspace.";
 
         const result = await response.json();
 
-        if (!result.ok || !result.user ||
-            !["admin", "editor"].includes(result.user.role)) {
+        if (
+          !result.ok ||
+          !result.user ||
+          !["admin", "editor"].includes(result.user.role)
+        ) {
           window.location.replace("/editorial");
           return;
         }
@@ -187,6 +186,7 @@ const description = "The DraftLaw Research editorial workspace.";
 
         if (currentRole === "admin") {
           $("#admin-shortcuts").hidden = false;
+
           document.querySelectorAll(".admin-only").forEach((item) => {
             item.hidden = false;
           });
@@ -198,6 +198,7 @@ const description = "The DraftLaw Research editorial workspace.";
         $("#notification-area").hidden = false;
         workspace.hidden = false;
         status.hidden = true;
+
       } catch {
         status.textContent =
           "We could not verify your session. Please refresh or log in again.";
@@ -294,40 +295,32 @@ const description = "The DraftLaw Research editorial workspace.";
     }
 
     .dashboard-card {
-  position: relative;
-  min-width: 0;
-  padding: 1.7rem;
+      position: relative;
+      min-width: 0;
+      padding: 1.7rem;
+      border: 1px solid rgba(255, 255, 255, 0.13);
+      border-radius: 16px;
+      background: rgba(3, 3, 3, 0.88);
+      box-shadow:
+        0 25px 60px rgba(0, 0, 0, 0.55),
+        0 8px 22px rgba(0, 0, 0, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.06);
+      -webkit-backdrop-filter: blur(22px);
+      backdrop-filter: blur(22px);
+      transition:
+        transform 0.25s ease,
+        border-color 0.25s ease,
+        box-shadow 0.25s ease;
+    }
 
-  border: 1px solid rgba(255, 255, 255, 0.13);
-  border-radius: 16px;
-
-  /* Solid black floating card */
-  background: rgba(3, 3, 3, 0.88);
-
-  /* Floating depth */
-  box-shadow:
-    0 25px 60px rgba(0, 0, 0, 0.55),
-    0 8px 22px rgba(0, 0, 0, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.06);
-
-  -webkit-backdrop-filter: blur(22px);
-  backdrop-filter: blur(22px);
-
-  transition:
-    transform 0.25s ease,
-    border-color 0.25s ease,
-    box-shadow 0.25s ease;
-}
-
-.dashboard-card:hover {
-  transform: translateY(-4px);
-  border-color: rgba(182, 157, 115, 0.55);
-
-  box-shadow:
-    0 32px 70px rgba(0, 0, 0, 0.65),
-    0 12px 28px rgba(0, 0, 0, 0.35),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
-}
+    .dashboard-card:hover {
+      transform: translateY(-4px);
+      border-color: rgba(182, 157, 115, 0.55);
+      box-shadow:
+        0 32px 70px rgba(0, 0, 0, 0.65),
+        0 12px 28px rgba(0, 0, 0, 0.35),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    }
 
     .coming-soon {
       display: inline-block;
