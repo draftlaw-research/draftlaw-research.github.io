@@ -183,71 +183,24 @@ export async function onRequestPost({ request, env }) {
     );
 
     if (!githubResponse.ok) {
-  const errorText = await githubResponse.text();
+      const errorText = await githubResponse.text();
 
-  console.error("GitHub inline image upload failed:", {
-    status: githubResponse.status,
-    response: errorText
-  });
+      console.error("GitHub inline image upload failed:", {
+        status: githubResponse.status,
+        response: errorText
+      });
 
-  return Response.json(
-    {
-      ok: false,
-      message: `GitHub error ${githubResponse.status}: ${
-        errorText || "GitHub returned an empty response."
-      }`
-    },
-    { status: 502 }
-  );
-}
+      return Response.json(
+        {
+          ok: false,
+          message: `GitHub error ${githubResponse.status}: ${
+            errorText || "GitHub returned an empty response."
+          }`
+        },
+        { status: 502 }
+      );
+    }
 
-return Response.json(
-  {
-    ok: true,
-    image: `/src/assets/images/${filename}`,
-    message: "Image uploaded successfully."
-  },
-  {
-    status: 201,
-    headers: { "Cache-Control": "no-store" }
-  }
-);
-
-} catch (error) {
-  console.error("Inline image upload failed:", error);
-
-  return Response.json(
-    {
-      ok: false,
-      message: error.message || "Unable to upload the image."
-    },
-    { status: 400 }
-  );
-}
-
-return Response.json(
-  {
-    ok: true,
-    image: `/src/assets/images/${filename}`,
-    message: "Image uploaded successfully."
-  },
-  {
-    status: 201,
-    headers: { "Cache-Control": "no-store" }
-  }
-);
-
-} catch (error) {
-  console.error("Inline image upload failed:", error);
-
-  return Response.json(
-    {
-      ok: false,
-      message: error.message || "Unable to upload the image."
-    },
-    { status: 400 }
-  );
-}
     return Response.json(
       {
         ok: true,
@@ -266,7 +219,9 @@ return Response.json(
     return Response.json(
       {
         ok: false,
-        message: error.message || "Unable to upload the image."
+        message: error instanceof Error
+          ? error.message
+          : "Unable to upload the image."
       },
       { status: 400 }
     );
