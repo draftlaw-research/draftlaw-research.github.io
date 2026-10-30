@@ -114,7 +114,10 @@ export async function onRequestPost({ request, env }) {
   try {
     if (!env.EDITORIAL_DB || !env.GITHUB_TOKEN) {
       return Response.json(
-        { ok: false, message: "Image upload is not configured." },
+        {
+          ok: false,
+          message: "Image upload is not configured."
+        },
         { status: 500 }
       );
     }
@@ -123,7 +126,10 @@ export async function onRequestPost({ request, env }) {
 
     if (!user) {
       return Response.json(
-        { ok: false, message: "Please log in to continue." },
+        {
+          ok: false,
+          message: "Please log in to continue."
+        },
         { status: 401 }
       );
     }
@@ -133,14 +139,20 @@ export async function onRequestPost({ request, env }) {
 
     if (!file || typeof file.arrayBuffer !== "function") {
       return Response.json(
-        { ok: false, message: "Choose a cover image first." },
+        {
+          ok: false,
+          message: "Choose a cover image first."
+        },
         { status: 400 }
       );
     }
 
     if (file.size === 0 || file.size > MAX_FILE_SIZE) {
       return Response.json(
-        { ok: false, message: "The cover image must be between 1 byte and 200 KB." },
+        {
+          ok: false,
+          message: "The cover image must be between 1 byte and 200 KB."
+        },
         { status: 400 }
       );
     }
@@ -150,13 +162,18 @@ export async function onRequestPost({ request, env }) {
 
     if (!extension) {
       return Response.json(
-        { ok: false, message: "The file is not a valid JPEG, PNG or WebP image." },
+        {
+          ok: false,
+          message: "The file is not a valid JPEG, PNG or WebP image."
+        },
         { status: 400 }
       );
     }
 
     const filename = `editorial-${crypto.randomUUID()}.${extension}`;
-    const githubPath = `src/assets/covers/${filename}`;
+
+    // Store uploaded images in the public folder.
+    const githubPath = `public/uploads/${filename}`;
 
     const githubResponse = await fetch(
       `https://api.github.com/repos/${REPOSITORY}/contents/${githubPath}`,
@@ -166,6 +183,7 @@ export async function onRequestPost({ request, env }) {
           "Authorization": `Bearer ${env.GITHUB_TOKEN}`,
           "Accept": "application/vnd.github+json",
           "X-GitHub-Api-Version": "2022-11-28",
+          "User-Agent": "DraftLaw-Editorial-Portal",
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
@@ -178,7 +196,11 @@ export async function onRequestPost({ request, env }) {
 
     if (!githubResponse.ok) {
       const errorText = await githubResponse.text();
-      console.error("GitHub image upload failed:", errorText);
+
+      console.error(
+        "GitHub cover image upload failed:",
+        errorText
+      );
 
       return Response.json(
         {
@@ -189,15 +211,31 @@ export async function onRequestPost({ request, env }) {
       );
     }
 
+    const githubResult = await githubResponse.json();
+    const coverUrl = githubResult.content?.download_url;
+
+    if (!coverUrl) {
+      console.error(
+        "GitHub did not return a cover image URL:",
+        githubResult
+      );
+
+      throw new Error(
+        "GitHub did not return the cover image URL."
+      );
+    }
+
     return Response.json(
       {
         ok: true,
-        cover: `/src/assets/covers/${filename}`,
+        cover: coverUrl,
         message: "Cover image uploaded successfully."
       },
       {
         status: 201,
-        headers: { "Cache-Control": "no-store" }
+        headers: {
+          "Cache-Control": "no-store"
+        }
       }
     );
 
@@ -207,9 +245,11 @@ export async function onRequestPost({ request, env }) {
     return Response.json(
       {
         ok: false,
-        message: error.message || "Unable to upload the cover image."
+        message: error instanceof Error
+          ? error.message
+          : "Unable to upload the cover image."
       },
-      { status: 400 }
+      { status: 500 }
     );
   }
 }
