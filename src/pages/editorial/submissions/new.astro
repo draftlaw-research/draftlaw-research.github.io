@@ -304,7 +304,49 @@ import Editorial from '../../../layouts/Editorial.astro';
   });
 
   turndown.use(gfm);
+  // Preserve text colours and background colours.
+turndown.addRule('formattedText', {
+  filter: (node) => {
+    if (!(node instanceof HTMLElement)) return false;
 
+    const style = node.getAttribute('style') || '';
+
+    return (
+      /(?:^|;)\s*color\s*:/i.test(style) ||
+      /(?:^|;)\s*background-color\s*:/i.test(style)
+    );
+  },
+
+  replacement: (content, node) => {
+    const element = node as HTMLElement;
+    const styles = element.getAttribute('style') || '';
+
+    const color = styles.match(
+      /(?:^|;)\s*color\s*:\s*([^;]+)/i
+    )?.[1]?.trim();
+
+    const background = styles.match(
+      /(?:^|;)\s*background-color\s*:\s*([^;]+)/i
+    )?.[1]?.trim();
+
+    const safeColor = color && /^[#(),.%\w\s-]+$/.test(color)
+      ? color
+      : '';
+
+    const safeBackground = background && /^[#(),.%\w\s-]+$/.test(background)
+      ? background
+      : '';
+
+    const declarations = [
+      safeColor ? `color: ${safeColor}` : '',
+      safeBackground ? `background-color: ${safeBackground}` : ''
+    ].filter(Boolean);
+
+    if (!declarations.length) return content;
+
+    return `<span style="${declarations.join('; ')}">${content}</span>`;
+  }
+});
   turndown.addRule('underline', {
     filter: ['u'],
     replacement: (content) => `<u>${content}</u>`
@@ -343,47 +385,127 @@ import Editorial from '../../../layouts/Editorial.astro';
   });
 
   const editor = new Editor({
-    element: editorElement,
-    extensions: [
-      StarterKit.configure({
-        heading: { levels: [1, 2, 3] }
-      }),
-      Underline,
-      Link.configure({
-        openOnClick: false,
-        autolink: true,
-        linkOnPaste: true
-      }),
-      Image.configure({
-        inline: false,
-        allowBase64: false
-      }),
-      Table.configure({
-        resizable: true
-      }),
-      TableRow,
-      TableHeader,
-      TableCell,
-      TextAlign.configure({
-        types: ['heading', 'paragraph']
-      }),
-      Highlight,
-      TextStyle,
-      Color,
-      Subscript,
-      Superscript,
-      Placeholder.configure({
-        placeholder: 'Start writing your article or guide here...'
-      }),
-      CharacterCount
-    ],
-    content: '<p></p>',
-    onUpdate: ({ editor }) => {
-      updateWordCount();
-      updateToolbarState();
-    },
-    onSelectionUpdate: () => updateToolbarState()
-  });
+  element: editorElement,
+  extensions: [
+    StarterKit.configure({
+      heading: { levels: [1, 2, 3] }
+    }),
+
+    Underline,
+
+    Link.configure({
+      openOnClick: false,
+      autolink: true,
+      linkOnPaste: true,
+      HTMLAttributes: {
+        target: '_blank',
+        rel: 'noopener noreferrer'
+      }
+    }),
+
+    Image.configure({
+      inline: false,
+      allowBase64: false
+    }),
+
+    Table.configure({
+      resizable: true
+    }),
+    TableRow,
+    TableHeader,
+    TableCell,
+
+    TextAlign.configure({
+      types: ['heading', 'paragraph']
+    }),
+
+    Highlight.configure({
+      multicolor: true
+    }),
+
+    TextStyle,
+    Color,
+    Subscript,
+    Superscript,
+
+    Placeholder.configure({
+      placeholder: 'Start writing your article or guide here...'
+    }),
+
+    CharacterCount
+  ],
+
+  content: '<p></p>',
+
+  editorProps: {
+  transformPastedHTML(html) {
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+
+    // Remove unnecessary Microsoft Word and Google Docs content.
+    doc.querySelectorAll(
+      'script, style, meta, link, title, xml'
+    ).forEach((element) => element.remove());
+
+    // Remove Microsoft Word's empty paragraph markers.
+    doc.querySelectorAll('o\\:p').forEach((element) => {
+      element.replaceWith(...Array.from(element.childNodes));
+    });
+
+    // Keep useful paragraph and text formatting.
+    doc.querySelectorAll<HTMLElement>('[style]').forEach((element) => {
+      const style = element.style;
+
+      const allowedStyles = [
+        'color',
+        'background-color',
+        'text-align',
+        'font-weight',
+        'font-style',
+        'text-decoration'
+      ];
+
+      const preservedStyles = allowedStyles
+        .map((property) => {
+          const value = style.getPropertyValue(property);
+          return value ? `${property}: ${value}` : '';
+        })
+        .filter(Boolean);
+
+      if (preservedStyles.length) {
+        element.setAttribute('style', preservedStyles.join('; '));
+      } else {
+        element.removeAttribute('style');
+      }
+    });
+
+    // Preserve valid hyperlinks.
+    doc.querySelectorAll<HTMLAnchorElement>('a').forEach((link) => {
+      const href = link.getAttribute('href');
+
+      if (!href) return;
+
+      try {
+        const url = new URL(href, window.location.origin);
+
+        if (!['http:', 'https:', 'mailto:'].includes(url.protocol)) {
+          link.removeAttribute('href');
+        }
+      } catch {
+        link.removeAttribute('href');
+      }
+    });
+
+    return doc.body.innerHTML;
+  }
+},
+
+  onUpdate: ({ editor }) => {
+    updateWordCount();
+    updateToolbarState();
+  },
+
+  onSelectionUpdate: () => updateToolbarState()
+});
 
   function showMessage(text: string, type: 'success' | 'error') {
     message.textContent = text;
