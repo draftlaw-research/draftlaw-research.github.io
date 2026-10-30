@@ -4,8 +4,6 @@ const BRANCH = "editorial-portal-development";
 const API = `https://api.github.com/repos/${REPOSITORY}`;
 
 const COLLECTIONS = {
-  articles: "Articles",
-  guides: "Guides",
   authors: "Authors",
   topics: "Topics",
   team: "Team Members",
@@ -78,58 +76,6 @@ async function checkAdmin(request, env) {
   );
 }
 
-function readTarString(bytes, start, length) {
-  return new TextDecoder().decode(
-    bytes.subarray(start, start + length)
-  ).replace(/\0.*$/, "");
-}
-
-function readTarOctal(bytes, start, length) {
-  const value = readTarString(bytes, start, length).trim();
-
-  return value ? parseInt(value, 8) : 0;
-}
-
-function extractTarFiles(bytes) {
-  const files = new Map();
-  let offset = 0;
-
-  while (offset + 512 <= bytes.length) {
-    const header = bytes.subarray(offset, offset + 512);
-
-    if (header.every(byte => byte === 0)) {
-      break;
-    }
-
-    const name = readTarString(header, 0, 100);
-    const prefix = readTarString(header, 345, 155);
-    const path = prefix ? `${prefix}/${name}` : name;
-
-    const size = readTarOctal(header, 124, 12);
-    const type = readTarString(header, 156, 1);
-
-    const contentStart = offset + 512;
-    const contentEnd = contentStart + size;
-
-    if (
-      (type === "" || type === "0") &&
-      size >= 0 &&
-      contentEnd <= bytes.length
-    ) {
-      const content = new TextDecoder().decode(
-        bytes.subarray(contentStart, contentEnd)
-      );
-
-      files.set(path, content);
-    }
-
-    offset = contentStart + Math.ceil(size / 512) * 512;
-  }
-
-  return files;
-}
-
-// Convert individual YAML values into JavaScript values.
 function parseScalar(value) {
   value = value.trim();
 
@@ -156,7 +102,6 @@ function parseScalar(value) {
   return value;
 }
 
-// Read YAML frontmatter while preserving the Markdown body.
 function parseFrontmatter(content) {
   const match = content.match(
     /^---\s*\r?\n([\s\S]*?)\r?\n---/
@@ -186,7 +131,6 @@ function parseFrontmatter(content) {
 
     i++;
 
-    // Read YAML lists, such as authors and keywords.
     if (value === "") {
       const items = [];
 
@@ -203,7 +147,6 @@ function parseFrontmatter(content) {
       continue;
     }
 
-    // Read quoted values that continue across multiple lines.
     if (value.startsWith('"') || value.startsWith("'")) {
       const quote = value[0];
 
@@ -219,7 +162,6 @@ function parseFrontmatter(content) {
       continue;
     }
 
-    // Read ordinary indented multiline YAML values.
     const parts = [value];
 
     while (
@@ -237,7 +179,6 @@ function parseFrontmatter(content) {
   return result;
 }
 
-// Read a content record.
 function parseRecord(content, path, collection) {
   const filename = path.split("/").pop();
   const slug = filename.replace(/\.md$/i, "");
@@ -282,6 +223,124 @@ function parseRecord(content, path, collection) {
   };
 }
 
+async function githubRequest(url, token) {
+  const response = await fetch(url, {
+    headers: githubHeaders(token)
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(
+      `GitHub request failed (${response.status}): ${
+        data.message || "Unknown error"
+      }`
+    );
+  }
+
+  return data;
+}
+
+async function getRepositoryTree(token) {
+  const commit = await githubRequest(
+    `${API}/commits/${encodeURIComponent(BRANCH)}`,
+    token
+  );
+
+  const treeSha = commit.commit?.tree?.sha;
+
+  if (!treeSha) {
+    throw new Error("Could not identify the repository tree.");
+  }
+
+  const tree = await githubRequest(
+    `${API}/git/trees/${treeSha}?recursive=1`,
+    token
+  );
+
+  if (tree.truncated) {
+    throw new Error(
+      "GitHub returned an incomplete repository file list."
+    );
+  }
+
+  return tree.tree || [];
+}
+
+async function getFileContents(paths, token) {
+  const files = new Map();
+  const batchSize = 20;
+
+  for (let start = 0; start < paths.length; start += batchSize) {
+    const batch = paths.slice(start, start + batchSize);
+
+    const fields = batch.map((path, index) => {
+      const expression = `${BRANCH}:${path}`;
+
+      return `
+        f${index}: object(expression: ${JSON.stringify(expression)}) {
+          ... on Blob {
+            text
+          }
+        }
+      `;
+    }).join("\n");
+
+    const query = `
+      query {
+        repository(
+          owner: "draftlaw-research",
+          name: "draftlaw-research.github.io"
+        ) {
+          ${fields}
+        }
+      }
+    `;
+
+    const response = await fetch(
+      "https://api.github.com/graphql",
+      {
+        method: "POST",
+        headers: {
+          ...githubHeaders(token),
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ query })
+      }
+    );
+
+    const result = await response.json();
+
+    if (!response.ok || result.errors?.length) {
+      const message = result.errors?.[0]?.message;
+
+      throw new Error(
+        `GitHub file retrieval failed: ${
+          message || response.status
+        }`
+      );
+    }
+
+    const repository = result.data?.repository;
+
+    if (!repository) {
+      throw new Error(
+        "GitHub did not return the requested repository."
+      );
+    }
+
+    batch.forEach((path, index) => {
+      const content = repository[`f${index}`]?.text;
+
+      if (typeof content === "string") {
+        files.set(path, content);
+      }
+    });
+  }
+
+  return files;
+}
+
 export async function onRequestGet({ request, env }) {
   let stage = "initialisation";
 
@@ -308,60 +367,48 @@ export async function onRequestGet({ request, env }) {
       );
     }
 
-    stage = "downloading repository archive";
+    stage = "reading repository file list";
 
-    const archiveResponse = await fetch(
-      `${API}/tarball/${BRANCH}`,
-      {
-        headers: githubHeaders(env.GITHUB_TOKEN)
-      }
+    const tree = await getRepositoryTree(env.GITHUB_TOKEN);
+
+    const relevantPaths = tree
+      .filter(item => item.type === "blob")
+      .map(item => item.path)
+      .filter(path => {
+        const isCollectionFile = Object.keys(COLLECTIONS).some(
+          collection =>
+            path.startsWith(`src/content/${collection}/`) &&
+            path.endsWith(".md")
+        );
+
+        const isSubmitPage =
+          path === "src/content/pages/submit.md";
+
+        const isMostRead =
+          path === "src/data/most-read.json";
+
+        return isCollectionFile || isSubmitPage || isMostRead;
+      });
+
+    stage = "retrieving selected GitHub files";
+
+    const files = await getFileContents(
+      relevantPaths,
+      env.GITHUB_TOKEN
     );
 
-    if (!archiveResponse.ok) {
-      throw new Error(
-        `GitHub archive request failed: ${archiveResponse.status}`
-      );
-    }
-
-    stage = "extracting repository archive";
-
-    const decompressed = archiveResponse.body.pipeThrough(
-      new DecompressionStream("gzip")
-    );
-
-    const tarBytes = new Uint8Array(
-      await new Response(decompressed).arrayBuffer()
-    );
-
-    const archiveFiles = extractTarFiles(tarBytes);
-
-    if (archiveFiles.size === 0) {
-      throw new Error(
-        "The repository archive contained no readable files."
-      );
-    }
-
-    stage = "reading content files";
+    stage = "reading content records";
 
     const records = [];
 
-    for (const [archivePath, content] of archiveFiles) {
-      const path = archivePath
-        .split("/")
-        .slice(1)
-        .join("/");
-
-      if (!path.endsWith(".md")) continue;
-
+    for (const [path, content] of files) {
       const collection = Object.keys(COLLECTIONS).find(
         name => path.startsWith(`src/content/${name}/`)
       );
 
       if (!collection) continue;
 
-      records.push(
-        parseRecord(content, path, collection)
-      );
+      records.push(parseRecord(content, path, collection));
     }
 
     records.sort((a, b) =>
@@ -373,26 +420,26 @@ export async function onRequestGet({ request, env }) {
 
     const specialFiles = {};
 
-    const submitEntry = [...archiveFiles.entries()].find(
-      ([path]) => path.endsWith("/src/content/pages/submit.md")
+    const submitContent = files.get(
+      "src/content/pages/submit.md"
     );
 
-    if (submitEntry) {
+    if (submitContent) {
       specialFiles["src/content/pages/submit.md"] =
         parseRecord(
-          submitEntry[1],
+          submitContent,
           "src/content/pages/submit.md",
           "pages"
         );
     }
 
-    const mostReadEntry = [...archiveFiles.entries()].find(
-      ([path]) => path.endsWith("/src/data/most-read.json")
+    const mostReadContent = files.get(
+      "src/data/most-read.json"
     );
 
-    if (mostReadEntry) {
+    if (mostReadContent) {
       specialFiles["src/data/most-read.json"] =
-        JSON.parse(mostReadEntry[1]);
+        JSON.parse(mostReadContent);
     }
 
     return Response.json(
