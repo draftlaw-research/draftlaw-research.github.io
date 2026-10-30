@@ -1,0 +1,235 @@
+---
+export const prerender = true;
+import Editorial from '../../../layouts/Editorial.astro';
+---
+
+<Editorial title="Submission Centre">
+  <main class="submission-centre">
+    <header class="page-heading">
+      <a href="/editorial/dashboard/" class="back-link">← Back to dashboard</a>
+      <p class="eyebrow">EDITORIAL WORKSPACE</p>
+      <h1>Submission Centre</h1>
+      <p class="intro" id="welcome-message">
+        Choose what you would like to do with your submissions.
+      </p>
+    </header>
+
+    <div id="loading-message" class="status-message">
+      Checking your account...
+    </div>
+
+    <div id="admin-options" class="options-grid" hidden>
+      <a class="option-card create-card" href="/editorial/submissions/new/">
+        <span class="option-number">01</span>
+        <h2>Create a submission</h2>
+        <p>Prepare a new article or guidelines submission.</p>
+        <span class="option-action">Create submission →</span>
+      </a>
+
+      <article class="option-card">
+        <span class="option-number">02</span>
+        <h2>Review submissions</h2>
+        <p>Review submissions sent by editors and decide whether to approve or reject them.</p>
+        <span class="coming-soon">Review workspace coming next</span>
+      </article>
+    </div>
+
+    <div id="editor-options" class="options-grid" hidden>
+      <a class="option-card create-card" href="/editorial/submissions/new/">
+        <span class="option-number">01</span>
+        <h2>Create a submission</h2>
+        <p>Prepare a new article or guidelines submission.</p>
+        <span class="option-action">Create submission →</span>
+      </a>
+
+      <article class="option-card">
+        <span class="option-number">02</span>
+        <h2>My drafts</h2>
+        <p>Find and continue working on submissions you have saved as drafts.</p>
+        <span class="coming-soon">Drafts section coming next</span>
+      </article>
+
+      <article class="option-card">
+        <span class="option-number">03</span>
+        <h2>Rejected submissions</h2>
+        <p>Review rejected work, read the administrator's reasons, and prepare it for resubmission.</p>
+        <span class="coming-soon">Resubmission section coming next</span>
+      </article>
+    </div>
+
+    <p id="error-message" class="status-message error-message" hidden></p>
+  </main>
+
+  <script>
+    const loading = document.querySelector('#loading-message');
+    const adminOptions = document.querySelector('#admin-options');
+    const editorOptions = document.querySelector('#editor-options');
+    const welcome = document.querySelector('#welcome-message');
+    const error = document.querySelector('#error-message');
+
+    async function loadSubmissionCentre() {
+      try {
+        const response = await fetch('/api/auth/me', {
+          credentials: 'same-origin',
+          cache: 'no-store'
+        });
+
+        if (!response.ok) {
+          window.location.replace('/editorial');
+          return;
+        }
+
+        const result = await response.json();
+
+        if (!result.ok || !result.user) {
+          window.location.replace('/editorial');
+          return;
+        }
+
+        if (result.user.role === 'admin') {
+          adminOptions.hidden = false;
+          welcome.textContent =
+            'Manage incoming submissions and create new content.';
+        } else if (result.user.role === 'editor') {
+          editorOptions.hidden = false;
+          welcome.textContent =
+            'Create submissions, continue your drafts, and manage rejected work.';
+        } else {
+          window.location.replace('/editorial');
+          return;
+        }
+
+        loading.hidden = true;
+      } catch {
+        loading.hidden = true;
+        error.hidden = false;
+        error.textContent =
+          'We could not verify your account. Please refresh the page or log in again.';
+      }
+    }
+
+    loadSubmissionCentre();
+  </script>
+
+  <style>
+    .submission-centre {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem 4rem;
+    }
+
+    .page-heading {
+      margin-bottom: 2.5rem;
+    }
+
+    .back-link {
+      display: inline-block;
+      margin-bottom: 2rem;
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 0.9rem;
+    }
+
+    .back-link:hover {
+      color: var(--accent);
+    }
+
+    .page-heading h1 {
+      margin: 0.5rem 0;
+    }
+
+    .intro {
+      max-width: 65ch;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    .options-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1rem;
+    }
+
+    .option-card {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      min-height: 230px;
+      padding: 1.7rem;
+      border: 1px solid var(--rule);
+      background: var(--surface);
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .option-number {
+      color: var(--accent);
+      font-size: 0.8rem;
+      font-family: var(--font-ui);
+      letter-spacing: 0.08em;
+    }
+
+    .option-card h2 {
+      margin: 1.2rem 0 0.6rem;
+      font-size: 1.35rem;
+    }
+
+    .option-card p {
+      margin: 0;
+      max-width: 48ch;
+      color: var(--muted);
+      line-height: 1.65;
+    }
+
+    .create-card {
+      transition: background 0.2s ease, border-color 0.2s ease;
+    }
+
+    .create-card:hover {
+      background: var(--accent-soft);
+      border-color: var(--accent);
+    }
+
+    .option-action {
+      margin-top: auto;
+      padding-top: 1.5rem;
+      color: var(--accent);
+      font-size: 0.9rem;
+    }
+
+    .coming-soon {
+      display: inline-block;
+      margin-top: auto;
+      padding-top: 1.5rem;
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+
+    .status-message {
+      padding: 1.5rem 0;
+      color: var(--muted);
+    }
+
+    .error-message {
+      color: #b42318;
+    }
+
+    [hidden] {
+      display: none !important;
+    }
+
+    @media (max-width: 650px) {
+      .submission-centre {
+        padding-inline: 1rem;
+      }
+
+      .options-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .option-card {
+        min-height: 200px;
+      }
+    }
+  </style>
+</Editorial>
