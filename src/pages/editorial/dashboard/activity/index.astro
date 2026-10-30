@@ -1,0 +1,325 @@
+
+---
+import Editorial from "../../../../layouts/Editorial.astro";
+
+export const prerender = true;
+---
+
+<Editorial title="Activity Log" description="Editorial publication and repository activity.">
+  <main class="activity-wrap">
+    <a class="back-link" href="/editorial/dashboard/">← Back to dashboard</a>
+
+    <header class="page-heading">
+      <p class="eyebrow">EDITORIAL WORKSPACE / ADMINISTRATION</p>
+      <h1>Activity Log</h1>
+      <p>Review recent publication and development activity recorded on GitHub.</p>
+    </header>
+
+    <section class="activity-panel">
+      <div class="panel-heading">
+        <div>
+          <h2>Recent activity</h2>
+          <p id="branch-name">Loading branch information...</p>
+        </div>
+        <button type="button" id="refresh-button">Refresh</button>
+      </div>
+
+      <p id="status" class="status" role="status" aria-live="polite">
+        Verifying administrator access...
+      </p>
+
+      <div id="activity-list" class="activity-list" hidden></div>
+    </section>
+  </main>
+</Editorial>
+
+<script>
+  const statusElement = document.querySelector<HTMLParagraphElement>("#status")!;
+  const listElement = document.querySelector<HTMLDivElement>("#activity-list")!;
+  const branchElement = document.querySelector<HTMLParagraphElement>("#branch-name")!;
+  const refreshButton = document.querySelector<HTMLButtonElement>("#refresh-button")!;
+
+  function formatDate(value: string) {
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) return "Date unavailable";
+
+    return new Intl.DateTimeFormat(undefined, {
+      dateStyle: "medium",
+      timeStyle: "short"
+    }).format(date);
+  }
+
+  function makeElement(tag: string, className: string, text: string) {
+    const element = document.createElement(tag);
+    element.className = className;
+    element.textContent = text;
+    return element;
+  }
+
+  function renderActivity(items: Array<{
+    sha: string;
+    message: string;
+    author: string;
+    date: string;
+    url: string;
+  }>) {
+    listElement.replaceChildren();
+
+    if (!items.length) {
+      listElement.append(
+        makeElement("p", "empty-state", "No repository activity was found.")
+      );
+      return;
+    }
+
+    for (const item of items) {
+      const article = document.createElement("article");
+      article.className = "activity-item";
+
+      const topLine = document.createElement("div");
+      topLine.className = "activity-meta";
+
+      topLine.append(
+        makeElement("span", "activity-author", item.author || "Unknown contributor"),
+        makeElement("time", "activity-date", formatDate(item.date))
+      );
+
+      const message = makeElement(
+        "h3",
+        "activity-message",
+        item.message || "Repository update"
+      );
+
+      const bottomLine = document.createElement("div");
+      bottomLine.className = "activity-bottom";
+
+      bottomLine.append(
+        makeElement("span", "commit-id", item.sha.slice(0, 7))
+      );
+
+      const link = document.createElement("a");
+      link.href = item.url;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      link.textContent = "View commit on GitHub ↗";
+
+      bottomLine.append(link);
+      article.append(topLine, message, bottomLine);
+      listElement.append(article);
+    }
+  }
+
+  async function verifyAdministrator() {
+    const response = await fetch("/api/auth/me", {
+      credentials: "same-origin",
+      cache: "no-store"
+    });
+
+    if (!response.ok) {
+      window.location.replace("/editorial/");
+      return false;
+    }
+
+    const result = await response.json();
+
+    if (!result.ok || result.user?.role !== "admin") {
+      statusElement.textContent =
+        "Administrator access is required to view the Activity Log.";
+      refreshButton.hidden = true;
+      return false;
+    }
+
+    return true;
+  }
+
+  async function loadActivity() {
+    refreshButton.disabled = true;
+    listElement.hidden = true;
+    statusElement.hidden = false;
+    statusElement.textContent = "Loading recent activity...";
+
+    try {
+      const response = await fetch("/api/admin/activity", {
+        credentials: "same-origin",
+        cache: "no-store"
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.ok) {
+        throw new Error(result.message || "Unable to load activity.");
+      }
+
+      branchElement.textContent = `Branch: ${result.branch}`;
+      renderActivity(result.activities || []);
+
+      statusElement.hidden = true;
+      listElement.hidden = false;
+    } catch (error) {
+      statusElement.textContent =
+        error instanceof Error
+          ? error.message
+          : "Something went wrong while loading activity.";
+    } finally {
+      refreshButton.disabled = false;
+    }
+  }
+
+  refreshButton.addEventListener("click", loadActivity);
+
+  if (await verifyAdministrator()) {
+    await loadActivity();
+  }
+</script>
+
+<style>
+  * {
+    box-sizing: border-box;
+  }
+
+  .activity-wrap {
+    width: min(1000px, calc(100% - 2rem));
+    margin: 3rem auto;
+    color: var(--ink, #f5f5f5);
+  }
+
+  .back-link {
+    color: var(--accent, #c7b58b);
+    text-decoration: none;
+    font-size: .9rem;
+  }
+
+  .page-heading {
+    margin: 2rem 0;
+  }
+
+  .eyebrow {
+    color: var(--accent, #c7b58b);
+    font-size: .72rem;
+    letter-spacing: .13em;
+  }
+
+  h1 {
+    margin: .5rem 0;
+    font-size: clamp(2rem, 5vw, 3rem);
+  }
+
+  .page-heading > p:last-child,
+  .panel-heading p {
+    color: var(--muted, #aaa);
+    line-height: 1.6;
+  }
+
+  .activity-panel {
+    padding: clamp(1.2rem, 3vw, 2rem);
+    border: 1px solid rgba(255,255,255,.13);
+    border-radius: 18px;
+    background: rgba(12,12,12,.82);
+    backdrop-filter: blur(18px);
+  }
+
+  .panel-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .panel-heading h2 {
+    margin: 0;
+  }
+
+  .panel-heading p {
+    margin: .4rem 0 0;
+    font-size: .85rem;
+  }
+
+  button {
+    padding: .7rem 1rem;
+    border: 1px solid var(--accent, #c7b58b);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--ink, #fff);
+    font: inherit;
+    cursor: pointer;
+  }
+
+  button:disabled {
+    opacity: .5;
+    cursor: wait;
+  }
+
+  .status,
+  .empty-state {
+    color: var(--muted, #aaa);
+    line-height: 1.6;
+  }
+
+  .activity-list {
+    display: grid;
+    gap: .85rem;
+  }
+
+  .activity-item {
+    padding: 1.2rem;
+    border: 1px solid rgba(255,255,255,.1);
+    border-radius: 12px;
+    background: rgba(255,255,255,.035);
+  }
+
+  .activity-meta,
+  .activity-bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: .6rem 1rem;
+  }
+
+  .activity-author {
+    color: var(--accent, #c7b58b);
+    font-size: .85rem;
+    font-weight: 700;
+  }
+
+  .activity-date,
+  .commit-id {
+    color: var(--muted, #aaa);
+    font-size: .78rem;
+  }
+
+  .activity-message {
+    margin: 1rem 0;
+    font-size: 1rem;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+  }
+
+  .activity-bottom a {
+    color: var(--accent, #c7b58b);
+    font-size: .82rem;
+    text-decoration: none;
+  }
+
+  .activity-bottom a:hover,
+  .back-link:hover {
+    text-decoration: underline;
+  }
+
+  @media (max-width: 600px) {
+    .activity-wrap {
+      margin: 1.5rem auto;
+    }
+
+    .panel-heading {
+      align-items: flex-start;
+    }
+
+    .activity-meta {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+  }
+</style>
