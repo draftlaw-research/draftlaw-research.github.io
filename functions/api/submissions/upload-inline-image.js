@@ -202,17 +202,24 @@ export async function onRequestPost({ request, env }) {
       );
     }
 
-    return Response.json(
-      {
-        ok: true,
-        image: `/uploads/${filename}`,
-        message: "Image uploaded successfully."
-      },
-      {
-        status: 201,
-        headers: { "Cache-Control": "no-store" }
-      }
-    );
+    const githubResult = await githubResponse.json();
+const imageUrl = githubResult.content?.download_url;
+
+if (!imageUrl) {
+  throw new Error("GitHub did not return an image download address.");
+}
+
+return Response.json(
+  {
+    ok: true,
+    image: imageUrl,
+    message: "Image uploaded successfully."
+  },
+  {
+    status: 201,
+    headers: { "Cache-Control": "no-store" }
+  }
+);
 
   } catch (error) {
     console.error("Inline image upload failed:", error);
