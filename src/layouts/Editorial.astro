@@ -1,3 +1,4 @@
+
 ---
 import '@fontsource-variable/gelasio';
 import '@fontsource-variable/gelasio/wght-italic.css';
@@ -45,18 +46,49 @@ const socials = SOCIALS.filter((s) => s.url);
 
     <header class="editorial-header">
       <div class="wrap editorial-header-inner">
-        <a class="editorial-brand" href="/editorial/dashboard/" aria-label="DraftLaw Research Editorial Dashboard">
-          <img src="/logo.svg" alt="" width="40" height="40" />
-          <span>DRAFTLAW RESEARCH <span class="brand-divider">/</span> EDITORIAL</span>
+
+        <a
+          class="editorial-brand"
+          href="/editorial/dashboard/"
+          aria-label="DraftLaw Research Editorial Dashboard"
+        >
+          <Image
+            src={logo}
+            alt=""
+            width={300}
+            class="editorial-brand-logo"
+          />
+
+          <span class="editorial-brand-text">
+            <span class="editorial-brand-name">DRAFTLAW RESEARCH</span>
+            <span class="editorial-brand-sub">/ EDITORIAL</span>
+          </span>
         </a>
 
         <div class="editorial-account" id="editorial-account" hidden>
           <div class="signed-in-label">SIGNED IN AS</div>
           <div class="signed-in-user" id="editorial-user-name">Admin</div>
-          <a class="editorial-account-link" href="/">Visit public website ↗</a>
-          <button class="editorial-signout" id="editorial-signout" type="button">Sign out</button>
-          <p class="signout-message" id="signout-message" role="status" hidden></p>
+
+          <a class="editorial-account-link" href="/">
+            Visit public website ↗
+          </a>
+
+          <button
+            class="editorial-signout"
+            id="editorial-signout"
+            type="button"
+          >
+            Sign out
+          </button>
+
+          <p
+            class="signout-message"
+            id="signout-message"
+            role="status"
+            hidden
+          ></p>
         </div>
+
       </div>
     </header>
 
@@ -66,59 +98,111 @@ const socials = SOCIALS.filter((s) => s.url);
 
     <footer class="site-footer editorial-footer">
       <div class="wrap footer-grid">
+
         <div>
-          <a class="footer-logo" href="/" aria-label={`${SITE.name}, home`} style="display:block">
+          <a
+            class="footer-logo"
+            href="/"
+            aria-label={`${SITE.name}, home`}
+            style="display:block"
+          >
             <Image src={logo} alt={SITE.name} width={300} />
           </a>
+
           <p>
-            A nonprofit initiative building the next generation of legal scholars and giving legal voices a place to be
-            heard. {SITE.location}.
+            A nonprofit initiative building the next generation of legal
+            scholars and giving legal voices a place to be heard. Based in
+            Sweden, working internationally.
           </p>
         </div>
 
         <div>
           <h2>Editorial shortcuts</h2>
+
           <ul id="admin-shortcuts" hidden>
-            <li><a href="/editorial/dashboard/#content">Website content</a></li>
-            <li><a href="/editorial/dashboard/#submissions">Submissions and approvals</a></li>
-            <li><a href="/editorial/dashboard/#accounts">Editor accounts</a></li>
-            <li><a href="/editorial/dashboard/#activity">Activity log</a></li>
+            <li>
+              <a href="/editorial/dashboard/#content">Website content</a>
+            </li>
+            <li>
+              <a href="/editorial/dashboard/#submissions">
+                Submissions and approvals
+              </a>
+            </li>
+            <li>
+              <a href="/editorial/dashboard/#accounts">Editor accounts</a>
+            </li>
+            <li>
+              <a href="/editorial/dashboard/#activity">Activity log</a>
+            </li>
           </ul>
+
           <ul id="editor-shortcuts" hidden>
-            <li><a href="/editorial/dashboard/#content">My assigned content</a></li>
-            <li><a href="/editorial/dashboard/#submissions">My submissions</a></li>
-            <li><a href="/editorial/dashboard/#workspace">Editorial workspace</a></li>
+            <li>
+              <a href="/editorial/dashboard/#content">
+                My assigned content
+              </a>
+            </li>
+            <li>
+              <a href="/editorial/dashboard/#submissions">
+                My submissions
+              </a>
+            </li>
+            <li>
+              <a href="/editorial/dashboard/#workspace">
+                Editorial workspace
+              </a>
+            </li>
+            <li id="editor-activity-shortcut" hidden>
+              <a href="/editorial/dashboard/#activity">My activity</a>
+            </li>
           </ul>
         </div>
 
         <div>
           <h2>Follow us</h2>
           <ul>
-            {socials.map((s) => <li><a href={s.url} target="_blank" rel="noopener">{s.label}</a></li>)}
+            {socials.map((s) => (
+              <li>
+                <a href={s.url} target="_blank" rel="noopener noreferrer">
+                  {s.label}
+                </a>
+              </li>
+            ))}
           </ul>
         </div>
 
         <div>
           <h2>Contact</h2>
           <ul>
-            <li><a href={`mailto:${SITE.email}`}>{SITE.email}</a></li>
-            <li>WhatsApp: <a href="https://wa.me/46704251738" target="_blank" rel="noopener noreferrer">+46 70 425 17 38</a></li>
-            <li><a href="/submit/">How to submit</a></li>
+            <li>
+              <a href={`mailto:${SITE.email}`}>{SITE.email}</a>
+            </li>
+            <li>
+              <a href="/submit/">How to submit</a>
+            </li>
           </ul>
         </div>
+
       </div>
+
       <div class="wrap footer-base">
         © {year} {SITE.name}. {SITE.rights}
       </div>
     </footer>
 
     <script>
-      const signOutButton = document.querySelector('#editorial-signout');
-      const signOutMessage = document.querySelector('#signout-message');
+      const signOutButton =
+        document.querySelector<HTMLButtonElement>('#editorial-signout');
+
+      const signOutMessage =
+        document.querySelector<HTMLParagraphElement>('#signout-message');
 
       signOutButton?.addEventListener('click', async () => {
         signOutButton.disabled = true;
-        signOutMessage.hidden = true;
+
+        if (signOutMessage) {
+          signOutMessage.hidden = true;
+        }
 
         try {
           const response = await fetch('/api/auth/logout', {
@@ -136,13 +220,19 @@ const socials = SOCIALS.filter((s) => s.url);
           window.location.replace('/editorial');
         } catch {
           signOutButton.disabled = false;
-          signOutMessage.textContent = 'Could not sign out. Please try again.';
-          signOutMessage.hidden = false;
+
+          if (signOutMessage) {
+            signOutMessage.textContent =
+              'Could not sign out. Please try again.';
+            signOutMessage.hidden = false;
+          }
         }
       });
     </script>
 
     <style>
+      /* EDITORIAL HEADER */
+
       .editorial-header {
         background: var(--header-bg);
         border-bottom: 1px solid var(--rule);
@@ -150,44 +240,68 @@ const socials = SOCIALS.filter((s) => s.url);
 
       .editorial-header-inner {
         display: flex;
-        align-items: flex-start;
+        align-items: center;
         justify-content: space-between;
         gap: 2rem;
-        padding-block: 1rem;
+        padding-block: 1.1rem;
       }
+
+      /* ORGANISATION BRAND */
 
       .editorial-brand {
         display: inline-flex;
         align-items: center;
-        gap: 0.75rem;
+        gap: 1rem;
         color: var(--ink);
         text-decoration: none;
         font-family: var(--font-ui);
-        font-size: 0.78rem;
-        letter-spacing: 0.09em;
-        font-weight: 600;
+        line-height: 1;
+        flex-shrink: 0;
       }
 
-      .editorial-brand img {
+      .editorial-brand-logo {
         display: block;
-        width: 40px;
-        height: 40px;
+        width: 76px;
+        height: 76px;
         object-fit: contain;
       }
 
-      .brand-divider {
-        color: var(--accent);
-        padding-inline: 0.2rem;
+      .editorial-brand-text {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.48rem;
       }
+
+      .editorial-brand-name {
+        color: var(--ink);
+        font-family: var(--font-ui);
+        font-size: 1.45rem;
+        font-weight: 700;
+        letter-spacing: 0.055em;
+        line-height: 1.1;
+      }
+
+      .editorial-brand-sub {
+        color: var(--accent);
+        font-family: var(--font-ui);
+        font-size: 0.68rem;
+        font-weight: 500;
+        letter-spacing: 0.2em;
+        line-height: 1.2;
+      }
+
+      /* ACCOUNT AREA */
 
       .editorial-account {
         display: flex;
         flex-direction: column;
         align-items: flex-end;
-        gap: 0.22rem;
+        gap: 0.25rem;
         text-align: right;
         font-family: var(--font-ui);
         font-size: 0.72rem;
+        flex-shrink: 0;
       }
 
       .signed-in-label {
@@ -205,7 +319,7 @@ const socials = SOCIALS.filter((s) => s.url);
       .editorial-account-link,
       .editorial-signout {
         color: var(--muted);
-        font: inherit;
+        font-family: inherit;
         font-size: 0.7rem;
         text-decoration: none;
       }
@@ -234,19 +348,83 @@ const socials = SOCIALS.filter((s) => s.url);
         font-size: 0.68rem;
       }
 
-      @media (max-width: 600px) {
+      /* FOOTER */
+
+      .editorial-footer {
+        border-top: 1px solid var(--rule);
+      }
+
+      .editorial-footer h2 {
+        font-family: var(--font-ui);
+      }
+
+      .editorial-footer ul {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+
+      .editorial-footer li {
+        margin-block: 0.45rem;
+      }
+
+      .editorial-footer a {
+        text-decoration: none;
+      }
+
+      .editorial-footer a:hover {
+        color: var(--accent);
+      }
+
+      /* MOBILE */
+
+      @media (max-width: 700px) {
         .editorial-header-inner {
+          align-items: center;
           flex-wrap: wrap;
           gap: 1rem;
         }
 
         .editorial-brand {
-          font-size: 0.68rem;
+          gap: 0.7rem;
         }
 
-        .editorial-brand img {
-          width: 32px;
-          height: 32px;
+        .editorial-brand-logo {
+          width: 56px;
+          height: 56px;
+        }
+
+        .editorial-brand-name {
+          font-size: 1.05rem;
+          letter-spacing: 0.035em;
+        }
+
+        .editorial-brand-sub {
+          font-size: 0.58rem;
+          letter-spacing: 0.16em;
+        }
+
+        .editorial-account {
+          margin-left: auto;
+        }
+      }
+
+      @media (max-width: 400px) {
+        .editorial-header-inner {
+          align-items: flex-start;
+        }
+
+        .editorial-brand-logo {
+          width: 46px;
+          height: 46px;
+        }
+
+        .editorial-brand-name {
+          font-size: 0.9rem;
+        }
+
+        .editorial-brand-sub {
+          font-size: 0.55rem;
         }
       }
     </style>
