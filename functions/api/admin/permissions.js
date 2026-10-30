@@ -162,8 +162,14 @@ export async function onRequestGet({ request, env }) {
     if (user.role === "admin") {
       usersQuery = await env.EDITORIAL_DB
         .prepare(`
-          SELECT id, username, role, is_active
-          FROM users
+          SELECT
+  id,
+  username,
+  role,
+  is_active,
+  display_name,
+  profile_image_url
+FROM users
           WHERE role IN ('editor', 'moderator')
           ORDER BY role, username
         `)
@@ -171,8 +177,14 @@ export async function onRequestGet({ request, env }) {
     } else {
       usersQuery = await env.EDITORIAL_DB
         .prepare(`
-          SELECT id, username, role, is_active
-          FROM users
+          SELECT
+  id,
+  username,
+  role,
+  is_active,
+  display_name,
+  profile_image_url
+FROM users
           WHERE role = 'editor'
           ORDER BY username
         `)
