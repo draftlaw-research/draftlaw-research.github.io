@@ -1,5 +1,8 @@
 
 ---
+import { Image } from "astro:assets";
+import logo from "../../assets/logo/logo-full.png";
+
 export const prerender = true;
 ---
 
@@ -7,59 +10,134 @@ export const prerender = true;
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#080808" />
     <title>Editorial Portal | DraftLaw Research</title>
+    <meta
+      name="description"
+      content="DraftLaw Research Editorial Portal login."
+    />
   </head>
 
   <body>
-    <main class="login-container">
-      <section class="login-card">
-        <h1>DraftLaw Research</h1>
-        <p class="subtitle">Editorial Portal</p>
+    <main class="login-page">
+      <div class="background-glow glow-one"></div>
+      <div class="background-glow glow-two"></div>
+      <div class="background-glow glow-three"></div>
 
-        <form id="login-form">
-          <label for="username">Username</label>
-          <input id="username" name="username" type="text"
-            autocomplete="username" required minlength="4" maxlength="30" />
+      <div class="login-content">
 
-          <label for="password">Password</label>
-          <input id="password" name="password" type="password"
-            autocomplete="current-password" required />
+        <!-- BRAND -->
+        <header class="login-brand">
+          <Image
+            src={logo}
+            alt="DraftLaw Research logo"
+            width={300}
+            class="brand-logo"
+          />
 
-          <p id="message" role="alert"></p>
+          <div class="brand-divider"></div>
 
-          <button type="submit" id="login-button">Log in</button>
-        </form>
-      </section>
+          <div class="brand-text">
+            <h1>DraftLaw Research</h1>
+            <p> / EDITORIAL</p>
+          </div>
+        </header>
+
+        <!-- LOGIN CARD -->
+        <section class="login-card">
+          <div class="card-top-line"></div>
+
+          <div class="login-intro">
+            <p class="eyebrow">EDITORIAL PORTAL</p>
+            <h2>Welcome back.</h2>
+            <p class="subtitle">
+              Sign in to access your editorial workspace.
+            </p>
+          </div>
+
+          <form id="login-form">
+            <div class="form-field">
+              <label for="username">Username</label>
+              <input
+                id="username"
+                name="username"
+                type="text"
+                autocomplete="username"
+                placeholder="Enter your username"
+                required
+                minlength="4"
+                maxlength="30"
+              />
+            </div>
+
+            <div class="form-field">
+              <label for="password">Password</label>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                autocomplete="current-password"
+                placeholder="Enter your password"
+                required
+              />
+            </div>
+
+            <p id="message" role="alert" aria-live="polite"></p>
+
+            <button type="submit" id="login-button">
+              <span>Log in</span>
+              <span class="button-arrow" aria-hidden="true">→</span>
+            </button>
+          </form>
+
+          <div class="card-footer">
+            <span class="footer-mark"></span>
+            <p>Authorised editorial access only</p>
+          </div>
+        </section>
+
+        <footer class="page-footer">
+          <p>© {new Date().getFullYear()} DraftLaw Research</p>
+          <a href="/">Visit public website ↗</a>
+        </footer>
+
+      </div>
     </main>
 
     <script>
-      const form = document.querySelector("#login-form");
-      const message = document.querySelector("#message");
-      const button = document.querySelector("#login-button");
+      const form = document.querySelector<HTMLFormElement>("#login-form");
+      const message = document.querySelector<HTMLParagraphElement>("#message");
+      const button = document.querySelector<HTMLButtonElement>("#login-button");
 
       async function checkSession() {
         try {
           const response = await fetch("/api/auth/me", {
-            credentials: "same-origin"
+            credentials: "same-origin",
+            cache: "no-store"
           });
 
           if (response.ok) {
-            window.location.href = "/editorial/dashboard";
+            window.location.href = "/editorial/dashboard/";
           }
         } catch {
           // The login form remains available if session checking fails.
         }
       }
 
-      form.addEventListener("submit", async (event) => {
+      form?.addEventListener("submit", async (event) => {
         event.preventDefault();
+
+        if (!form || !message || !button) return;
 
         message.textContent = "";
         button.disabled = true;
-        button.textContent = "Logging in...";
+        button.innerHTML = "<span>Signing in...</span>";
 
-        const username = document.querySelector("#username").value.trim();
-        const password = document.querySelector("#password").value;
+        const username =
+          (document.querySelector<HTMLInputElement>("#username")?.value || "").trim();
+
+        const password =
+          document.querySelector<HTMLInputElement>("#password")?.value || "";
 
         try {
           const response = await fetch("/api/auth/login", {
@@ -76,12 +154,13 @@ export const prerender = true;
             return;
           }
 
-          window.location.href = "/editorial/dashboard";
+          window.location.href = "/editorial/dashboard/";
         } catch {
           message.textContent = "Unable to connect. Please try again.";
         } finally {
           button.disabled = false;
-          button.textContent = "Log in";
+          button.innerHTML =
+            '<span>Log in</span><span class="button-arrow" aria-hidden="true">→</span>';
         }
       });
 
@@ -89,63 +168,393 @@ export const prerender = true;
     </script>
 
     <style>
-      * { box-sizing: border-box; }
+      :global(*) {
+        box-sizing: border-box;
+      }
 
-      body {
+      :global(html) {
+        min-height: 100%;
+        background: #080808;
+      }
+
+      :global(body) {
         margin: 0;
-        font-family: Arial, sans-serif;
-        background: #f4f5f7;
-        color: #222;
+        min-height: 100vh;
+        font-family: Arial, Helvetica, sans-serif;
+        color: #eee9df;
+        background: #080808;
       }
 
-      .login-container {
-        min-height: 100vh;
+      .login-page {
+        position: relative;
+        isolation: isolate;
         display: flex;
-        justify-content: center;
         align-items: center;
-        padding: 24px;
+        justify-content: center;
+        min-height: 100vh;
+        overflow: hidden;
+        padding: 3rem 1.5rem;
+        background:
+          radial-gradient(ellipse at 50% 45%, #28231b 0%, #141311 36%, #080808 78%);
       }
+
+      /* SOFT BLURRED BACKGROUND LIGHTS */
+
+      .background-glow {
+        position: absolute;
+        z-index: -1;
+        border-radius: 50%;
+        filter: blur(90px);
+        pointer-events: none;
+        opacity: 0.35;
+      }
+
+      .glow-one {
+        width: 360px;
+        height: 360px;
+        top: 5%;
+        left: 8%;
+        background: #80663e;
+      }
+
+      .glow-two {
+        width: 420px;
+        height: 420px;
+        right: 4%;
+        bottom: 0;
+        background: #4b3029;
+        opacity: 0.28;
+      }
+
+      .glow-three {
+        width: 260px;
+        height: 260px;
+        top: 48%;
+        left: 45%;
+        background: #78623e;
+        opacity: 0.13;
+      }
+
+      .login-content {
+        position: relative;
+        z-index: 1;
+        width: 100%;
+        max-width: 460px;
+      }
+
+      /* BRANDING */
+
+      .login-brand {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 1rem;
+        margin-bottom: 2.5rem;
+      }
+
+      .brand-logo {
+        display: block;
+        width: 76px;
+        height: 76px;
+        object-fit: contain;
+      }
+
+      .brand-divider {
+        width: 1px;
+        height: 48px;
+        background: rgba(182, 157, 115, 0.45);
+      }
+
+      .brand-text {
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+      }
+
+      .brand-text h1 {
+        margin: 0;
+        color: #eee9df;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 1.35rem;
+        font-weight: 700;
+        letter-spacing: 0.055em;
+        line-height: 1.15;
+        text-transform: uppercase;
+      }
+
+      .brand-text p {
+        margin: 0;
+        color: #b69d73;
+        font-size: 0.68rem;
+        font-weight: 600;
+        letter-spacing: 0.22em;
+      }
+
+      /* FLOATING LOGIN CARD */
 
       .login-card {
-        width: 100%;
-        max-width: 400px;
-        padding: 36px;
-        background: white;
-        border: 1px solid #e5e5e5;
-        border-radius: 10px;
+        position: relative;
+        overflow: hidden;
+        padding: 2.7rem 2.5rem 1.8rem;
+        border: 1px solid rgba(255, 255, 255, 0.13);
+        border-radius: 18px;
+        background: rgba(5, 5, 5, 0.82);
+        -webkit-backdrop-filter: blur(24px);
+        backdrop-filter: blur(24px);
+        box-shadow:
+          0 35px 90px rgba(0, 0, 0, 0.72),
+          0 12px 30px rgba(0, 0, 0, 0.42),
+          inset 0 1px 0 rgba(255, 255, 255, 0.07);
+        animation: card-appear 0.7s ease both;
       }
 
-      h1 { font-size: 25px; margin: 0; }
-      .subtitle { color: #666; margin: 8px 0 28px; }
+      .card-top-line {
+        position: absolute;
+        top: 0;
+        left: 15%;
+        width: 70%;
+        height: 1px;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          rgba(182, 157, 115, 0.7),
+          transparent
+        );
+      }
+
+      .login-intro {
+        margin-bottom: 2rem;
+      }
+
+      .eyebrow {
+        margin: 0 0 0.8rem;
+        color: #b69d73;
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.2em;
+      }
+
+      .login-intro h2 {
+        margin: 0;
+        color: #f2eee7;
+        font-family: Georgia, "Times New Roman", serif;
+        font-size: 2.1rem;
+        font-weight: 400;
+        letter-spacing: -0.035em;
+      }
+
+      .subtitle {
+        margin: 0.7rem 0 0;
+        color: #a8a196;
+        font-size: 0.9rem;
+        line-height: 1.6;
+      }
+
+      /* FORM */
+
+      .form-field {
+        margin-bottom: 1.25rem;
+      }
 
       label {
         display: block;
-        margin: 16px 0 7px;
-        font-size: 14px;
+        margin-bottom: 0.55rem;
+        color: #d8d0c3;
+        font-size: 0.8rem;
+        font-weight: 600;
+        letter-spacing: 0.025em;
       }
 
       input {
+        display: block;
         width: 100%;
-        padding: 12px;
-        border: 1px solid #ccc;
-        border-radius: 5px;
-        font-size: 15px;
+        min-height: 49px;
+        padding: 0.85rem 1rem;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 8px;
+        outline: none;
+        background: rgba(255, 255, 255, 0.055);
+        color: #f5f0e8;
+        font-family: inherit;
+        font-size: 0.9rem;
+        transition:
+          border-color 0.2s ease,
+          background 0.2s ease,
+          box-shadow 0.2s ease;
       }
 
-      button {
+      input::placeholder {
+        color: #77736c;
+      }
+
+      input:focus {
+        border-color: #b69d73;
+        background: rgba(255, 255, 255, 0.08);
+        box-shadow: 0 0 0 3px rgba(182, 157, 115, 0.12);
+      }
+
+      #message {
+        min-height: 1.2rem;
+        margin: 0.4rem 0 0.6rem;
+        color: #e28e82;
+        font-size: 0.82rem;
+        line-height: 1.5;
+      }
+
+      /* LOGIN BUTTON */
+
+      #login-button {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
         width: 100%;
-        padding: 13px;
-        margin-top: 14px;
-        border: 0;
-        border-radius: 5px;
-        background: #222;
-        color: white;
-        font-size: 15px;
+        min-height: 51px;
+        margin-top: 0.5rem;
+        padding: 0.85rem 1.1rem;
+        border: 1px solid #c5a977;
+        border-radius: 8px;
+        background: #b69d73;
+        color: #10100e;
+        font-family: inherit;
+        font-size: 0.9rem;
+        font-weight: 700;
         cursor: pointer;
+        transition:
+          background 0.2s ease,
+          transform 0.2s ease,
+          box-shadow 0.2s ease;
       }
 
-      button:disabled { opacity: 0.6; cursor: wait; }
-      #message { color: #b42318; font-size: 14px; }
+      #login-button:hover:not(:disabled) {
+        background: #cbb48c;
+        box-shadow: 0 8px 22px rgba(182, 157, 115, 0.18);
+        transform: translateY(-1px);
+      }
+
+      #login-button:disabled {
+        opacity: 0.65;
+        cursor: wait;
+      }
+
+      .button-arrow {
+        font-size: 1.2rem;
+        font-weight: 400;
+      }
+
+      /* CARD FOOTER */
+
+      .card-footer {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.55rem;
+        margin-top: 1.8rem;
+        padding-top: 1.2rem;
+        border-top: 1px solid rgba(255, 255, 255, 0.09);
+      }
+
+      .card-footer p {
+        margin: 0;
+        color: #817b70;
+        font-size: 0.7rem;
+        letter-spacing: 0.025em;
+      }
+
+      .footer-mark {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #b69d73;
+        box-shadow: 0 0 9px rgba(182, 157, 115, 0.5);
+      }
+
+      /* PAGE FOOTER */
+
+      .page-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-top: 1.7rem;
+        color: #817b70;
+        font-size: 0.72rem;
+      }
+
+      .page-footer p {
+        margin: 0;
+      }
+
+      .page-footer a {
+        color: #b69d73;
+        text-decoration: none;
+      }
+
+      .page-footer a:hover {
+        color: #e0c99e;
+      }
+
+      @keyframes card-appear {
+        from {
+          opacity: 0;
+          transform: translateY(14px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @media (max-width: 520px) {
+        .login-page {
+          padding: 2rem 1rem;
+        }
+
+        .login-brand {
+          gap: 0.75rem;
+          margin-bottom: 2rem;
+        }
+
+        .brand-logo {
+          width: 62px;
+          height: 62px;
+        }
+
+        .brand-text h1 {
+          font-size: 1.05rem;
+        }
+
+        .brand-text p {
+          font-size: 0.6rem;
+        }
+
+        .login-card {
+          padding: 2.1rem 1.5rem 1.5rem;
+          border-radius: 15px;
+        }
+
+        .login-intro h2 {
+          font-size: 1.8rem;
+        }
+
+        .page-footer {
+          flex-direction: column;
+          justify-content: center;
+          gap: 0.4rem;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .login-card {
+          animation: none;
+        }
+
+        *,
+        *::before,
+        *::after {
+          scroll-behavior: auto !important;
+          transition-duration: 0.01ms !important;
+        }
+      }
     </style>
   </body>
 </html>
