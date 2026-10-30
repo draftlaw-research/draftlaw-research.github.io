@@ -1,0 +1,440 @@
+
+---
+export const prerender = true;
+
+import Editorial from '../../../layouts/Editorial.astro';
+---
+
+<Editorial title="New Submission">
+  <section class="submission-page">
+    <div class="page-heading">
+      <a href="/editorial/dashboard/" class="back-link">← Back to dashboard</a>
+      <p class="eyebrow">EDITORIAL WORKSPACE</p>
+      <h1>Create a submission</h1>
+      <p class="intro">
+        Prepare a new article or guide. You can save your work as a draft
+        or submit it to the editorial team for review.
+      </p>
+    </div>
+
+    <div id="page-message" class="message" role="status" hidden></div>
+
+    <form id="submission-form" hidden>
+      <div class="form-section">
+        <h2>1. Content details</h2>
+
+        <label for="content-type">Content type *</label>
+        <select id="content-type" required>
+          <option value="article">Article</option>
+          <option value="guide">Guide</option>
+        </select>
+
+        <label for="title">Title *</label>
+        <input id="title" type="text" maxlength="250" required
+          placeholder="Enter the title" />
+
+        <label for="summary">Summary *</label>
+        <textarea id="summary" rows="3" maxlength="400" required
+          placeholder="Write a short summary (maximum 400 characters)"></textarea>
+        <p class="hint">Maximum 400 characters.</p>
+
+        <label for="kind">Content category *</label>
+        <select id="kind" required></select>
+
+        <label for="date">Publication date *</label>
+        <input id="date" type="date" required />
+      </div>
+
+      <div class="form-section">
+        <h2>2. Authors and topic</h2>
+
+        <label for="authors">Author file paths *</label>
+        <textarea id="authors" rows="2" required
+          placeholder="src/content/authors/author-name.md"></textarea>
+        <p class="hint">
+          Enter the full file path of each author. Separate multiple authors
+          with a comma. Each author must already exist on the website.
+        </p>
+
+        <label for="topic">Topic file path <span id="topic-required">*</span></label>
+        <input id="topic" type="text"
+          placeholder="src/content/topics/topic-name.md" />
+        <p class="hint">
+          Articles require a topic. Guides may leave this field empty.
+        </p>
+
+        <label for="keywords">Keywords</label>
+        <input id="keywords" type="text"
+          placeholder="human rights, international law, accountability" />
+        <p class="hint">Separate keywords with commas.</p>
+      </div>
+
+      <div class="form-section">
+        <h2>3. Full content</h2>
+
+        <label for="body">Main content *</label>
+        <textarea id="body" rows="18" required
+          placeholder="Write your full article or guide here. You may use Markdown formatting."></textarea>
+        <p class="hint">
+          You can use Markdown, such as ## for headings, **bold** for bold
+          text, and [link text](https://example.com) for links.
+        </p>
+      </div>
+
+      <div class="form-actions">
+        <button type="button" id="save-draft" class="secondary-button">
+          Save draft
+        </button>
+        <button type="button" id="submit-review" class="primary-button">
+          Submit for approval
+        </button>
+      </div>
+
+      <p class="hint final-hint">
+        Submitting for approval locks the submission while it is being
+        reviewed. You can revise it if the administrator rejects it.
+      </p>
+    </form>
+
+    <div id="loading-message" class="message">
+      Checking your login...
+    </div>
+  </section>
+</Editorial>
+
+<script>
+  const form = document.querySelector<HTMLFormElement>('#submission-form');
+  const message = document.querySelector<HTMLDivElement>('#page-message');
+  const loading = document.querySelector<HTMLDivElement>('#loading-message');
+
+  const typeSelect = document.querySelector<HTMLSelectElement>('#content-type');
+  const kindSelect = document.querySelector<HTMLSelectElement>('#kind');
+  const topicInput = document.querySelector<HTMLInputElement>('#topic');
+  const topicRequired = document.querySelector<HTMLSpanElement>('#topic-required');
+
+  const saveButton = document.querySelector<HTMLButtonElement>('#save-draft');
+  const submitButton = document.querySelector<HTMLButtonElement>('#submit-review');
+
+  const kindOptions = {
+    article: [
+      'Article',
+      'Case summary',
+      'Commentary',
+      'Opinion',
+      'Book review'
+    ],
+    guide: [
+      'Research Guide',
+      'Writing Guide',
+      'Moot Court Guide',
+      'Academic Skills',
+      'Other'
+    ]
+  };
+
+  function updateKindOptions() {
+    const type = typeSelect.value as 'article' | 'guide';
+
+    kindSelect.replaceChildren();
+
+    kindOptions[type].forEach((kind) => {
+      const option = document.createElement('option');
+      option.value = kind;
+      option.textContent = kind;
+      kindSelect.append(option);
+    });
+
+    const isArticle = type === 'article';
+    topicInput.required = isArticle;
+    topicRequired.hidden = !isArticle;
+  }
+
+  function showMessage(text: string, type: 'success' | 'error') {
+    message.textContent = text;
+    message.className = `message ${type}`;
+    message.hidden = false;
+  }
+
+  async function checkSession() {
+    try {
+      const response = await fetch('/api/auth/me', {
+        credentials: 'same-origin',
+        cache: 'no-store'
+      });
+
+      if (!response.ok) {
+        window.location.replace('/editorial');
+        return;
+      }
+
+      const result = await response.json();
+
+      if (!result.ok) {
+        window.location.replace('/editorial');
+        return;
+      }
+
+      loading.hidden = true;
+      form.hidden = false;
+    } catch {
+      loading.textContent =
+        'Unable to check your login. Please refresh the page.';
+    }
+  }
+
+  function getSubmissionData(status: 'draft' | 'pending') {
+    const authors = (document.querySelector<HTMLTextAreaElement>('#authors').value)
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean);
+
+    const keywords = (document.querySelector<HTMLInputElement>('#keywords').value)
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean);
+
+    return {
+      contentType: typeSelect.value,
+      title: document.querySelector<HTMLInputElement>('#title').value.trim(),
+      summary: document.querySelector<HTMLTextAreaElement>('#summary').value.trim(),
+      kind: kindSelect.value,
+      date: document.querySelector<HTMLInputElement>('#date').value,
+      authors,
+      topic: topicInput.value.trim(),
+      keywords,
+      body: document.querySelector<HTMLTextAreaElement>('#body').value,
+      status
+    };
+  }
+
+  async function saveSubmission(status: 'draft' | 'pending') {
+    if (!form.reportValidity()) return;
+
+    saveButton.disabled = true;
+    submitButton.disabled = true;
+
+    saveButton.textContent =
+      status === 'draft' ? 'Saving...' : 'Please wait...';
+
+    submitButton.textContent =
+      status === 'pending' ? 'Submitting...' : 'Please wait...';
+
+    message.hidden = true;
+
+    try {
+      const response = await fetch('/api/submissions/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'same-origin',
+        cache: 'no-store',
+        body: JSON.stringify(getSubmissionData(status))
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.ok) {
+        throw new Error(result.message || 'The submission could not be saved.');
+      }
+
+      showMessage(
+        status === 'draft'
+          ? 'Your draft has been saved successfully.'
+          : 'Your submission has been sent to the administrator for review.',
+        'success'
+      );
+
+      form.reset();
+      updateKindOptions();
+    } catch (error) {
+      showMessage(
+        error instanceof Error
+          ? error.message
+          : 'Something went wrong. Please try again.',
+        'error'
+      );
+    } finally {
+      saveButton.disabled = false;
+      submitButton.disabled = false;
+      saveButton.textContent = 'Save draft';
+      submitButton.textContent = 'Submit for approval';
+    }
+  }
+
+  typeSelect.addEventListener('change', updateKindOptions);
+
+  saveButton.addEventListener('click', () => saveSubmission('draft'));
+  submitButton.addEventListener('click', () => saveSubmission('pending'));
+
+  updateKindOptions();
+
+  const dateInput = document.querySelector<HTMLInputElement>('#date');
+  dateInput.value = new Date().toISOString().slice(0, 10);
+
+  checkSession();
+</script>
+
+<style>
+  .submission-page {
+    width: min(100% - 2rem, 850px);
+    margin: 0 auto;
+    padding: 3rem 0 5rem;
+  }
+
+  .page-heading {
+    margin-bottom: 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .back-link {
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 0.85rem;
+  }
+
+  .back-link:hover {
+    color: var(--accent);
+  }
+
+  .eyebrow {
+    margin: 2rem 0 0.5rem;
+    color: var(--accent);
+    font-family: var(--font-ui);
+    font-size: 0.7rem;
+    letter-spacing: 0.16em;
+  }
+
+  .page-heading h1 {
+    margin: 0;
+    color: var(--ink);
+    font-size: clamp(2rem, 5vw, 2.8rem);
+  }
+
+  .intro {
+    max-width: 650px;
+    color: var(--muted);
+    line-height: 1.7;
+  }
+
+  .form-section {
+    margin-bottom: 2rem;
+    padding: 1.6rem;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+  }
+
+  .form-section h2 {
+    margin: 0 0 1.5rem;
+    color: var(--accent);
+    font-size: 1.2rem;
+  }
+
+  .form-section label {
+    display: block;
+    margin: 1.25rem 0 0.5rem;
+    color: var(--ink);
+    font-size: 0.9rem;
+  }
+
+  .form-section input,
+  .form-section select,
+  .form-section textarea {
+    display: block;
+    width: 100%;
+    padding: 0.85rem;
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    background: #080808;
+    color: var(--ink);
+    font: inherit;
+  }
+
+  .form-section textarea {
+    resize: vertical;
+    line-height: 1.65;
+  }
+
+  .form-section input:focus,
+  .form-section select:focus,
+  .form-section textarea:focus {
+    outline: 1px solid var(--accent);
+    border-color: var(--accent);
+  }
+
+  .hint {
+    margin: 0.45rem 0 0;
+    color: var(--muted);
+    font-size: 0.78rem;
+    line-height: 1.6;
+  }
+
+  .form-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  .form-actions button {
+    padding: 0.9rem 1.4rem;
+    border: 1px solid var(--accent);
+    border-radius: 3px;
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .primary-button {
+    background: var(--accent);
+    color: var(--accent-ink);
+  }
+
+  .secondary-button {
+    background: transparent;
+    color: var(--accent);
+  }
+
+  .form-actions button:disabled {
+    opacity: 0.55;
+    cursor: wait;
+  }
+
+  .final-hint {
+    margin-top: 1rem;
+  }
+
+  .message {
+    margin: 1rem 0;
+    padding: 1rem;
+    border: 1px solid var(--rule);
+    color: var(--ink);
+    line-height: 1.6;
+  }
+
+  .message.success {
+    border-color: #547b55;
+  }
+
+  .message.error {
+    border-color: #a85b4c;
+    color: #e3a394;
+  }
+
+  @media (max-width: 600px) {
+    .submission-page {
+      padding-top: 2rem;
+    }
+
+    .form-section {
+      padding: 1.1rem;
+    }
+
+    .form-actions {
+      flex-direction: column;
+    }
+
+    .form-actions button {
+      width: 100%;
+    }
+  }
+</style>
