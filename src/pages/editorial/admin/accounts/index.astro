@@ -1198,3 +1198,137 @@ function createPermissionControl(
   }
 }
 </style>
+
+<style is:global>
+/* Individual account cards */
+#account-list {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.25rem !important;
+  align-items: stretch;
+}
+
+.account-card {
+  box-sizing: border-box;
+  border: 1px solid #555 !important;
+  background: #171717 !important;
+  padding: 1.25rem !important;
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem !important;
+  min-width: 0;
+}
+
+/* Profile heading */
+.account-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #444;
+}
+
+.editor-profile {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.editor-avatar {
+  width: 76px;
+  height: 76px;
+  min-width: 76px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.account-identity {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.account-identity h3 {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.editor-username {
+  font-size: 0.82rem;
+  color: #aaa;
+}
+
+/* Profile editing fields */
+.profile-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #444;
+}
+
+.profile-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.profile-field input {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+}
+
+.profile-field input[type="file"] {
+  font-size: 0.8rem;
+}
+
+.profile-remove {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.profile-editor button {
+  align-self: flex-start;
+}
+
+/* Content access permissions */
+.permission-heading {
+  margin: 0.5rem 0;
+}
+
+.permission-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.55rem;
+}
+
+.permission-control {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  padding: 0.65rem;
+  border: 1px solid #444;
+  border-radius: 3px;
+  line-height: 1.4;
+}
+
+/* Account actions */
+.account-actions {
+  margin-top: auto;
+  padding-top: 1rem;
+  border-top: 1px solid #444;
+}
+
+/* Smaller screens */
+@media (max-width: 900px) {
+  #account-list {
+    grid-template-columns: 1fr;
+  }
+}
+</style>
