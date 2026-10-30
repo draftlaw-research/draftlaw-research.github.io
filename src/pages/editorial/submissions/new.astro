@@ -882,17 +882,36 @@ turndown.addRule('formattedText', {
     return result.image;
   }
 
-  async function insertInlineImage(file: File) {
+  
+async function insertInlineImage(file: File) {
+  if (!file || !file.type.startsWith('image/')) {
+    alert('Please select a valid image.');
+    return;
+  }
+
+  if (inlineImageProcessing) {
+    alert('Please wait for the current image upload to finish.');
+    return;
+  }
+
+  inlineImageProcessing = true;
+  message.hidden = true;
+
   try {
     const imagePath = await uploadInlineImage(file);
+
+    const imageUrl = new URL(
+      imagePath,
+      window.location.origin
+    ).href;
 
     editor
       .chain()
       .focus()
       .setImage({
-  src: new URL(imagePath, window.location.origin).href,
-  alt: ''
-})
+        src: imageUrl,
+        alt: ''
+      })
       .run();
 
   } catch (error) {
@@ -903,8 +922,12 @@ turndown.addRule('formattedText', {
         ? error.message
         : 'Unable to upload the image. Please try again.'
     );
+  } finally {
+    inlineImageProcessing = false;
+    inlineImageInput.value = '';
   }
 }
+
 
   function addLink() {
     const previous = editor.getAttributes('link').href || '';
