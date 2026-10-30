@@ -1,0 +1,243 @@
+
+---
+import Editorial from "../../../../layouts/Editorial.astro";
+
+const description = "Create and publish a Newsletter item.";
+---
+
+<Editorial title="Create newsletter item" description={description}>
+  <div class="wrap newsletter-wrap">
+    <header class="page-title">
+      <p class="eyebrow">EDITORIAL WORKSPACE / NEWSLETTER ITEMS</p>
+      <h1>Add a newsletter item</h1>
+      <p>Publish calls, events, opportunities and other announcements directly to the website.</p>
+    </header>
+
+    <p id="access-status" class="notice" role="status">Checking your account...</p>
+
+    <form id="newsletter-form" hidden>
+      <section class="form-section">
+        <h2>Item information</h2>
+
+        <div class="field">
+          <label for="title">Title <span>*</span></label>
+          <input id="title" name="title" type="text" maxlength="200" required />
+        </div>
+
+        <div class="field">
+          <label for="category">Type</label>
+          <select id="category" name="category">
+            <option>Call for papers</option>
+            <option>Seminar or conference</option>
+            <option>Moot court</option>
+            <option>Fellowship or internship</option>
+            <option>Other</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="organiser">Organiser</label>
+          <input id="organiser" name="organiser" type="text" maxlength="200" />
+        </div>
+
+        <div class="field">
+          <label for="deadline">Deadline (last day to apply or submit)</label>
+          <input id="deadline" name="deadline" type="date" />
+        </div>
+
+        <div class="field">
+          <label for="eventDate">Event date</label>
+          <input id="eventDate" name="eventDate" type="date" />
+          <p class="help">For seminars, conferences and competitions.</p>
+        </div>
+
+        <div class="field">
+          <label for="location">Location</label>
+          <input id="location" name="location" type="text" maxlength="200" placeholder="e.g. Dhaka, Bangladesh or Online" />
+        </div>
+      </section>
+
+      <section class="form-section">
+        <h2>Original call and description</h2>
+
+        <div class="field">
+          <label for="link">Link to the original call <span>*</span></label>
+          <input id="link" name="link" type="url" placeholder="https://..." required />
+        </div>
+
+        <div class="field">
+          <label for="summary">Short description <span>*</span></label>
+          <textarea id="summary" name="summary" rows="5" maxlength="500" required placeholder="Write a short description in 2 or 3 sentences."></textarea>
+          <p class="help">Maximum 500 characters.</p>
+        </div>
+
+        <div class="field">
+          <label for="posted">Date posted <span>*</span></label>
+          <input id="posted" name="posted" type="date" required />
+        </div>
+      </section>
+
+      <div class="form-actions">
+        <a class="back-link" href="/editorial/dashboard/">← Back to workspace</a>
+        <button id="publish-button" type="submit">Save and publish</button>
+      </div>
+
+      <p id="form-message" class="notice" role="status" aria-live="polite"></p>
+    </form>
+  </div>
+
+  <script>
+    const form = document.querySelector<HTMLFormElement>("#newsletter-form")!;
+    const accessStatus = document.querySelector<HTMLElement>("#access-status")!;
+    const publishButton = document.querySelector<HTMLButtonElement>("#publish-button")!;
+    const message = document.querySelector<HTMLElement>("#form-message")!;
+
+    async function checkSession() {
+      try {
+        const response = await fetch("/api/auth/me", {
+          credentials: "same-origin",
+          cache: "no-store"
+        });
+        const result = await response.json();
+
+        if (!response.ok || !result.ok || !["admin", "editor"].includes(result.user?.role)) {
+          window.location.replace("/editorial/");
+          return;
+        }
+
+        accessStatus.hidden = true;
+        form.hidden = false;
+      } catch {
+        accessStatus.textContent = "Unable to verify your account. Please refresh the page.";
+      }
+    }
+
+    form.addEventListener("submit", async event => {
+      event.preventDefault();
+
+      message.textContent = "";
+      message.classList.remove("success");
+      publishButton.disabled = true;
+      publishButton.textContent = "Publishing...";
+
+      try {
+        const data = new FormData(form);
+
+        const payload = Object.fromEntries(
+          ["title", "category", "organiser", "deadline", "eventDate", "location", "link", "summary", "posted"]
+            .map(key => [key, String(data.get(key) || "").trim()])
+        );
+
+        const response = await fetch("/api/newsletter/create", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+
+        const result = await response.json();
+
+        if (!response.ok || !result.ok) {
+          throw new Error(result.message || "The newsletter item could not be published.");
+        }
+
+        message.textContent = `${result.message} File: ${result.path}`;
+        message.classList.add("success");
+        form.reset();
+
+        window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+      } catch (error) {
+        message.textContent = error instanceof Error
+          ? error.message
+          : "Something went wrong. Please try again.";
+      } finally {
+        publishButton.disabled = false;
+        publishButton.textContent = "Save and publish";
+      }
+    });
+
+    checkSession();
+  </script>
+
+  <style>
+    .newsletter-wrap { max-width: 900px; padding-bottom: 4rem; }
+    .page-title { padding: 2.5rem 0 1.5rem; }
+    .page-title h1 { margin: .4rem 0; }
+    .page-title > p:last-child, .help { color: var(--muted, #aaa); line-height: 1.6; }
+
+    .form-section {
+      padding: 1.8rem;
+      margin: 1rem 0;
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 16px;
+      background: rgba(3,3,3,.88);
+      box-shadow: 0 25px 60px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.05);
+      -webkit-backdrop-filter: blur(22px);
+      backdrop-filter: blur(22px);
+    }
+
+    .form-section h2 { margin: 0 0 1.2rem; font-size: 1.25rem; }
+    .field { margin: 1.2rem 0; }
+    .field label { display: block; margin-bottom: .45rem; font-weight: 600; }
+    .field label span { color: #c9a978; }
+
+    .field input, .field textarea, .field select {
+      width: 100%;
+      padding: .85rem .9rem;
+      border: 1px solid rgba(255,255,255,.17);
+      border-radius: 8px;
+      background: rgba(255,255,255,.055);
+      color: var(--text, #f5f0e8);
+      font: inherit;
+    }
+
+    .field select option { background: #171717; color: #fff; }
+
+    .field input:focus, .field textarea:focus, .field select:focus {
+      outline: 2px solid rgba(182,157,115,.55);
+      outline-offset: 1px;
+    }
+
+    .field textarea { resize: vertical; }
+    .help { margin: .5rem 0; font-size: .9rem; }
+
+    .form-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      padding: 1.5rem 0;
+    }
+
+    .back-link { color: inherit; }
+
+    button[type="submit"] {
+      border: 1px solid #c5a977;
+      border-radius: 8px;
+      padding: .9rem 1.3rem;
+      background: #b69d73;
+      color: #10100e;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    button:disabled { opacity: .6; cursor: wait; }
+
+    .notice {
+      padding: .9rem 1rem;
+      border: 1px solid rgba(255,255,255,.14);
+      border-radius: 8px;
+      background: rgba(3,3,3,.75);
+      color: var(--text, #eee);
+      line-height: 1.5;
+    }
+
+    .notice.success { border-color: #32845a; }
+
+    @media (max-width: 600px) {
+      .form-actions { align-items: stretch; flex-direction: column; }
+      button[type="submit"] { width: 100%; }
+    }
+  </style>
+</Editorial>
