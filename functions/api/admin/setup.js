@@ -110,10 +110,11 @@ export async function onRequestPost({ request, env }) {
       { ok: true, message: "First admin account created successfully" },
       { status: 201 }
     );
-  } catch {
+   } catch (error) {
+    console.error("Admin setup failed:", error);
+
     return Response.json(
       { ok: false, message: "Unable to create admin account" },
       { status: 500 }
     );
   }
-}
