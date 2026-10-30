@@ -199,15 +199,20 @@ function validateSubmission(data) {
 
   const cover = data.cover || "";
 
-  if (
-    typeof cover !== "string" ||
-    (
-      cover !== "" &&
-      !/^\/src\/assets\/covers\/editorial-[a-f0-9-]+\.(jpg|png|webp)$/i.test(cover)
-    )
-  ) {
-    throw new Error("Invalid cover image path.");
-  }
+const isLegacyCover =
+  typeof cover === "string" &&
+  /^\/src\/assets\/covers\/editorial-[a-f0-9-]+\.(jpg|png|webp)$/i.test(cover);
+
+const isGithubCover =
+  typeof cover === "string" &&
+  /^https:\/\/raw\.githubusercontent\.com\/draftlaw-research\/draftlaw-research\.github\.io\/(?:editorial-portal-development|refs\/heads\/editorial-portal-development)\/public\/uploads\/editorial-[a-f0-9-]+\.(jpg|png|webp)$/i.test(cover);
+
+if (
+  typeof cover !== "string" ||
+  (cover !== "" && !isLegacyCover && !isGithubCover)
+) {
+  throw new Error("Invalid cover image path.");
+}
 
   if (
     data.featured !== undefined &&
