@@ -883,44 +883,28 @@ turndown.addRule('formattedText', {
   }
 
   async function insertInlineImage(file: File) {
-    if (inlineImageProcessing) return;
+  try {
+    const imagePath = await uploadInlineImage(file);
 
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    editor
+      .chain()
+      .focus()
+      .setImage({
+  src: new URL(imagePath, window.location.origin).href,
+  alt: ''
+})
+      .run();
 
-    if (!allowedTypes.includes(file.type)) {
-      showMessage('Please choose a JPEG, PNG or WebP image.', 'error');
-      return;
-    }
+  } catch (error) {
+    console.error('Inline image upload failed:', error);
 
-    const description = window.prompt(
-      'Write a short image description for screen readers:'
+    alert(
+      error instanceof Error
+        ? error.message
+        : 'Unable to upload the image. Please try again.'
     );
-
-    if (description === null) return;
-
-    inlineImageProcessing = true;
-
-    try {
-      showMessage('Preparing and uploading your inline image...', 'success');
-
-      const imagePath = await uploadInlineImage(file);
-
-      editor.chain().focus().setImage({
-        src: imagePath,
-        alt: description.trim()
-      }).run();
-
-      showMessage('Image inserted into your article.', 'success');
-    } catch (error) {
-      showMessage(
-        error instanceof Error ? error.message : 'Image upload failed.',
-        'error'
-      );
-    } finally {
-      inlineImageProcessing = false;
-      inlineImageInput.value = '';
-    }
   }
+}
 
   function addLink() {
     const previous = editor.getAttributes('link').href || '';
