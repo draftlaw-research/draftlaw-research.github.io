@@ -1,4 +1,3 @@
-
 ---
 export const prerender = true;
 
@@ -241,6 +240,8 @@ import Editorial from '../../../layouts/Editorial.astro';
   import Superscript from '@tiptap/extension-superscript';
   import Placeholder from '@tiptap/extension-placeholder';
   import CharacterCount from '@tiptap/extension-character-count';
+  import Underline from '@tiptap/extension-underline';
+  import Link from '@tiptap/extension-link';
   import TurndownService from 'turndown';
   import { gfm } from 'turndown-plugin-gfm';
 
@@ -347,6 +348,12 @@ import Editorial from '../../../layouts/Editorial.astro';
       StarterKit.configure({
         heading: { levels: [1, 2, 3] }
       }),
+      Underline,
+      Link.configure({
+        openOnClick: false,
+        autolink: true,
+        linkOnPaste: true
+      }),
       Image.configure({
         inline: false,
         allowBase64: false
@@ -388,8 +395,7 @@ import Editorial from '../../../layouts/Editorial.astro';
     const words = editor.storage.characterCount.words();
     const characters = editor.storage.characterCount.characters();
 
-    wordCount.textContent =
-      `${words} words · ${characters} characters`;
+    wordCount.textContent = `${words} words · ${characters} characters`;
   }
 
   function updateToolbarState() {
@@ -914,35 +920,6 @@ import Editorial from '../../../layouts/Editorial.astro';
     }
   });
 
-  async function loadSubmissionOptions() {
-    const response = await fetch('/api/submissions/options', {
-      credentials: 'same-origin',
-      cache: 'no-store'
-    });
-
-    const result = await response.json();
-
-    if (!response.ok || !result.ok) {
-      throw new Error(result.message || 'Could not load authors and topics.');
-    }
-
-    availableAuthors = Array.isArray(result.authors)
-      ? result.authors.filter((item: AuthorOption) => item.path && item.name)
-      : [];
-
-    availableTopics = Array.isArray(result.topics)
-      ? result.topics.filter((item: TopicOption) => item.path && item.name)
-      : [];
-
-    if (availableAuthors.length === 0) {
-      throw new Error('No authors are currently available.');
-    }
-
-    renderAuthors();
-    renderSelectedAuthors();
-    loadTopics();
-  }
-
   function getSubmissionData(status: 'draft' | 'pending', cover: string) {
     const keywords = (
       document.querySelector<HTMLInputElement>('#keywords')!.value
@@ -1038,6 +1015,7 @@ import Editorial from '../../../layouts/Editorial.astro';
       authorSearch.value = '';
       clearCover();
       editor.commands.clearContent();
+
       renderAuthors();
       renderSelectedAuthors();
       updateKindOptions();
@@ -1119,135 +1097,6 @@ import Editorial from '../../../layouts/Editorial.astro';
 
   saveButton.addEventListener('click', () => saveSubmission('draft'));
   submitButton.addEventListener('click', () => saveSubmission('pending'));
-
-  function renderSelectedAuthors() {
-    selectedAuthorsBox.replaceChildren();
-
-    const selected = availableAuthors.filter((author) =>
-      selectedAuthorPaths.has(author.path)
-    );
-
-    if (selected.length === 0) {
-      const empty = document.createElement('span');
-      empty.className = 'hint';
-      empty.textContent = 'No authors selected yet.';
-      selectedAuthorsBox.append(empty);
-      return;
-    }
-
-    selected.forEach((author) => {
-      const tag = document.createElement('span');
-      tag.className = 'author-tag';
-
-      const name = document.createElement('span');
-      name.textContent = author.name.trim();
-
-      const remove = document.createElement('button');
-      remove.type = 'button';
-      remove.textContent = '×';
-      remove.setAttribute('aria-label', `Remove ${author.name}`);
-
-      remove.addEventListener('click', () => {
-        selectedAuthorPaths.delete(author.path);
-        renderSelectedAuthors();
-        renderAuthors();
-        updateAuthorCount();
-      });
-
-      tag.append(name, remove);
-      selectedAuthorsBox.append(tag);
-    });
-  }
-
-  function renderAuthors() {
-    const searchTerm = authorSearch.value.trim().toLowerCase();
-    authorOptions.replaceChildren();
-
-    const filteredAuthors = availableAuthors.filter((author) =>
-      author.name.toLowerCase().includes(searchTerm)
-    );
-
-    if (filteredAuthors.length === 0) {
-      const empty = document.createElement('p');
-      empty.className = 'hint';
-      empty.textContent = 'No matching authors found.';
-      authorOptions.append(empty);
-      return;
-    }
-
-    filteredAuthors.forEach((author) => {
-      const label = document.createElement('label');
-      label.className = 'author-option';
-
-      const checkbox = document.createElement('input');
-      checkbox.type = 'checkbox';
-      checkbox.name = 'authors';
-      checkbox.value = author.path;
-      checkbox.checked = selectedAuthorPaths.has(author.path);
-
-      checkbox.addEventListener('change', () => {
-        if (checkbox.checked) selectedAuthorPaths.add(author.path);
-        else selectedAuthorPaths.delete(author.path);
-
-        renderSelectedAuthors();
-        updateAuthorCount();
-      });
-
-      const name = document.createElement('span');
-      name.textContent = author.name.trim();
-
-      label.append(checkbox, name);
-      authorOptions.append(label);
-    });
-  }
-
-  function loadTopics() {
-    topicSelect.replaceChildren();
-
-    const placeholder = document.createElement('option');
-    placeholder.value = '';
-    placeholder.textContent = 'Select a topic';
-    topicSelect.append(placeholder);
-
-    availableTopics.forEach((topic) => {
-      const option = document.createElement('option');
-      option.value = topic.path;
-      option.textContent = topic.name.trim();
-      topicSelect.append(option);
-    });
-  }
-
-  async function checkSession() {
-    try {
-      const response = await fetch('/api/auth/me', {
-        credentials: 'same-origin',
-        cache: 'no-store'
-      });
-
-      if (!response.ok) {
-        window.location.replace('/editorial');
-        return;
-      }
-
-      const result = await response.json();
-
-      if (!result.ok) {
-        window.location.replace('/editorial');
-        return;
-      }
-
-      await loadSubmissionOptions();
-
-      loading.hidden = true;
-      form.hidden = false;
-      updateAuthorCount();
-      updateWordCount();
-    } catch (error) {
-      loading.textContent = error instanceof Error
-        ? error.message
-        : 'Unable to load the submission form. Please refresh the page.';
-    }
-  }
 
   updateKindOptions();
 
