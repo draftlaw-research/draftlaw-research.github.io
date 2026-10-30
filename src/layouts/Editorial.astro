@@ -1,0 +1,254 @@
+---
+import '@fontsource-variable/gelasio';
+import '@fontsource-variable/gelasio/wght-italic.css';
+import '../styles/global.css';
+import { Image } from 'astro:assets';
+import logo from '../assets/logo/logo-full.png';
+import { SITE, SOCIALS } from '../config';
+
+interface Props {
+  title?: string;
+  description?: string;
+  indexed?: boolean;
+}
+
+const {
+  title = 'Editorial',
+  description = SITE.description,
+  indexed = false
+} = Astro.props;
+
+const fullTitle = `${title} | DraftLaw Research Editorial`;
+const canonical = new URL(Astro.url.pathname, Astro.site).href;
+const year = new Date().getFullYear();
+const socials = SOCIALS.filter((s) => s.url);
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#000000" />
+    <title>{fullTitle}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" href="/favicon-48.png" sizes="48x48" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="robots" content={indexed ? 'index,follow' : 'noindex,nofollow'} />
+    <slot name="head" />
+  </head>
+
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+
+    <header class="editorial-header">
+      <div class="wrap editorial-header-inner">
+        <a class="editorial-brand" href="/editorial/dashboard/" aria-label="DraftLaw Research Editorial Dashboard">
+          <img src="/logo.svg" alt="" width="40" height="40" />
+          <span>DRAFTLAW RESEARCH <span class="brand-divider">/</span> EDITORIAL</span>
+        </a>
+
+        <div class="editorial-account" id="editorial-account" hidden>
+          <div class="signed-in-label">SIGNED IN AS</div>
+          <div class="signed-in-user" id="editorial-user-name">Admin</div>
+          <a class="editorial-account-link" href="/">Visit public website ↗</a>
+          <button class="editorial-signout" id="editorial-signout" type="button">Sign out</button>
+          <p class="signout-message" id="signout-message" role="status" hidden></p>
+        </div>
+      </div>
+    </header>
+
+    <main id="main" data-pagefind-body={indexed ? '' : undefined}>
+      <slot />
+    </main>
+
+    <footer class="site-footer editorial-footer">
+      <div class="wrap footer-grid">
+        <div>
+          <a class="footer-logo" href="/" aria-label={`${SITE.name}, home`} style="display:block">
+            <Image src={logo} alt={SITE.name} width={300} />
+          </a>
+          <p>
+            A nonprofit initiative building the next generation of legal scholars and giving legal voices a place to be
+            heard. {SITE.location}.
+          </p>
+        </div>
+
+        <div>
+          <h2>Editorial shortcuts</h2>
+          <ul id="admin-shortcuts" hidden>
+            <li><a href="/editorial/dashboard/#content">Website content</a></li>
+            <li><a href="/editorial/dashboard/#submissions">Submissions and approvals</a></li>
+            <li><a href="/editorial/dashboard/#accounts">Editor accounts</a></li>
+            <li><a href="/editorial/dashboard/#activity">Activity log</a></li>
+          </ul>
+          <ul id="editor-shortcuts" hidden>
+            <li><a href="/editorial/dashboard/#content">My assigned content</a></li>
+            <li><a href="/editorial/dashboard/#submissions">My submissions</a></li>
+            <li><a href="/editorial/dashboard/#workspace">Editorial workspace</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <h2>Follow us</h2>
+          <ul>
+            {socials.map((s) => <li><a href={s.url} target="_blank" rel="noopener">{s.label}</a></li>)}
+          </ul>
+        </div>
+
+        <div>
+          <h2>Contact</h2>
+          <ul>
+            <li><a href={`mailto:${SITE.email}`}>{SITE.email}</a></li>
+            <li>WhatsApp: <a href="https://wa.me/46704251738" target="_blank" rel="noopener noreferrer">+46 70 425 17 38</a></li>
+            <li><a href="/submit/">How to submit</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="wrap footer-base">
+        © {year} {SITE.name}. {SITE.rights}
+      </div>
+    </footer>
+
+    <script>
+      const signOutButton = document.querySelector('#editorial-signout');
+      const signOutMessage = document.querySelector('#signout-message');
+
+      signOutButton?.addEventListener('click', async () => {
+        signOutButton.disabled = true;
+        signOutMessage.hidden = true;
+
+        try {
+          const response = await fetch('/api/auth/logout', {
+            method: 'POST',
+            credentials: 'same-origin',
+            cache: 'no-store'
+          });
+
+          const result = await response.json();
+
+          if (!response.ok || !result.ok) {
+            throw new Error(result.message || 'Sign out failed.');
+          }
+
+          window.location.replace('/editorial');
+        } catch {
+          signOutButton.disabled = false;
+          signOutMessage.textContent = 'Could not sign out. Please try again.';
+          signOutMessage.hidden = false;
+        }
+      });
+    </script>
+
+    <style>
+      .editorial-header {
+        background: var(--header-bg);
+        border-bottom: 1px solid var(--rule);
+      }
+
+      .editorial-header-inner {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 2rem;
+        padding-block: 1rem;
+      }
+
+      .editorial-brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.75rem;
+        color: var(--ink);
+        text-decoration: none;
+        font-family: var(--font-ui);
+        font-size: 0.78rem;
+        letter-spacing: 0.09em;
+        font-weight: 600;
+      }
+
+      .editorial-brand img {
+        display: block;
+        width: 40px;
+        height: 40px;
+        object-fit: contain;
+      }
+
+      .brand-divider {
+        color: var(--accent);
+        padding-inline: 0.2rem;
+      }
+
+      .editorial-account {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 0.22rem;
+        text-align: right;
+        font-family: var(--font-ui);
+        font-size: 0.72rem;
+      }
+
+      .signed-in-label {
+        color: var(--muted);
+        font-size: 0.61rem;
+        letter-spacing: 0.11em;
+      }
+
+      .signed-in-user {
+        color: var(--ink);
+        font-size: 0.78rem;
+        font-weight: 600;
+      }
+
+      .editorial-account-link,
+      .editorial-signout {
+        color: var(--muted);
+        font: inherit;
+        font-size: 0.7rem;
+        text-decoration: none;
+      }
+
+      .editorial-account-link:hover,
+      .editorial-signout:hover {
+        color: var(--accent);
+      }
+
+      .editorial-signout {
+        border: 0;
+        padding: 0;
+        background: transparent;
+        cursor: pointer;
+      }
+
+      .editorial-signout:disabled {
+        opacity: 0.55;
+        cursor: wait;
+      }
+
+      .signout-message {
+        margin: 0.2rem 0 0;
+        max-width: 24ch;
+        color: #d69b83;
+        font-size: 0.68rem;
+      }
+
+      @media (max-width: 600px) {
+        .editorial-header-inner {
+          flex-wrap: wrap;
+          gap: 1rem;
+        }
+
+        .editorial-brand {
+          font-size: 0.68rem;
+        }
+
+        .editorial-brand img {
+          width: 32px;
+          height: 32px;
+        }
+      }
+    </style>
+  </body>
+</html>
