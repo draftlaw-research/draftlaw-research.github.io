@@ -154,7 +154,7 @@ function validateSubmission(data) {
   const kind = data.kind || ALLOWED_TYPES[contentType][0];
 
   if (!ALLOWED_TYPES[contentType].includes(kind)) {
-    throw new Error("Invalid content category.");
+    throw new Error("Invalid content type.");
   }
 
   const date = data.date;
@@ -180,7 +180,7 @@ function validateSubmission(data) {
     throw new Error("Check the keywords.");
   }
 
-  for (const field of ["cover", "coverAlt", "coverCredit"]) {
+  for (const field of ["coverAlt", "coverCredit"]) {
     if (
       data[field] !== undefined &&
       data[field] !== null &&
@@ -197,6 +197,32 @@ function validateSubmission(data) {
     }
   }
 
+  const cover = data.cover || "";
+
+  if (
+    typeof cover !== "string" ||
+    (
+      cover !== "" &&
+      !/^\/src\/assets\/covers\/editorial-[a-f0-9-]+\.(jpg|png|webp)$/i.test(cover)
+    )
+  ) {
+    throw new Error("Invalid cover image path.");
+  }
+
+  if (
+    data.featured !== undefined &&
+    typeof data.featured !== "boolean"
+  ) {
+    throw new Error("Invalid Featured setting.");
+  }
+
+  if (
+    data.peerReviewed !== undefined &&
+    typeof data.peerReviewed !== "boolean"
+  ) {
+    throw new Error("Invalid peer review setting.");
+  }
+
   return {
     contentType,
     title: title.trim(),
@@ -205,12 +231,12 @@ function validateSubmission(data) {
     topic: data.topic || null,
     kind,
     date,
-    cover: data.cover || "",
+    cover,
     coverAlt: data.coverAlt || "",
     coverCredit: data.coverCredit || "",
-    featured: false,
+    featured: data.featured === true,
     keywords: keywords.map(item => item.trim()).filter(Boolean),
-    peerReviewed: true,
+    peerReviewed: data.peerReviewed !== false,
     body: body.trim()
   };
 }
@@ -240,7 +266,6 @@ export async function onRequestPost({ request, env }) {
     }
 
     const data = await request.json();
-
     const content = validateSubmission(data);
 
     const requestedStatus = data.status || "draft";
