@@ -15,7 +15,7 @@ async function hashPassword(password) {
     {
       name: "PBKDF2",
       salt,
-      iterations: 310000,
+      iterations: 100000,
       hash: "SHA-256"
     },
     key,
@@ -27,7 +27,7 @@ async function hashPassword(password) {
       .map((b) => b.toString(16).padStart(2, "0"))
       .join("");
 
-  return `pbkdf2$310000$${toHex(salt)}$${toHex(
+  return `pbkdf2$100000$${toHex(salt)}$${toHex(
     new Uint8Array(hash)
   )}`;
 }
