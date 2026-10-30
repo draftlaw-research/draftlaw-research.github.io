@@ -193,13 +193,99 @@ export async function onRequestPost({ request, env }) {
       return jsonError("Administrator login required.", 403);
     }
 
-    let data;
+    
+    // Update an editor or moderator profile.
+    // This route is administrator-only because getAdmin()
+    // rejects moderators and editors.
+    if (data.action === "update_profile") {
+      const userId = data.userId;
 
-    try {
-      data = await request.json();
-    } catch {
-      return jsonError("Invalid request data.");
+      if (
+        typeof userId !== "string" ||
+        !userId.trim() ||
+        typeof data.displayName !== "string" ||
+        (
+          data.profileImageUrl !== null &&
+          typeof data.profileImageUrl !== "string"
+        )
+      ) {
+        return jsonError("Invalid profile details.");
+      }
+
+      const displayName = data.displayName.trim();
+      const profileImageUrl = data.profileImageUrl
+        ? data.profileImageUrl.trim()
+        : null;
+
+      if (displayName.length > 80) {
+        return jsonError("Name must not exceed 80 characters.");
+      }
+
+      if (
+        profileImageUrl &&
+        (
+          profileImageUrl.length > 1000 ||
+          !/^https:\/\/[^\s]+$/i.test(profileImageUrl)
+        )
+      ) {
+        return jsonError("Invalid profile image address.");
+      }
+
+      const target = await env.EDITORIAL_DB
+        .prepare(`
+          SELECT id, username, role
+          FROM users
+          WHERE id = ?
+            AND role IN ('editor', 'moderator')
+          LIMIT 1
+        `)
+        .bind(userId)
+        .first();
+
+      if (!target) {
+        return jsonError("Account not found.", 404);
+      }
+
+      const now = new Date().toISOString();
+
+      await env.EDITORIAL_DB
+        .prepare(`
+          UPDATE users
+          SET display_name = ?,
+              profile_image_url = ?,
+              updated_at = ?
+          WHERE id = ?
+        `)
+        .bind(
+          displayName || null,
+          profileImageUrl,
+          now,
+          userId
+        )
+        .run();
+
+      await recordActivity(
+        env,
+        admin.id,
+        "profile_updated",
+        userId,
+        {
+          username: target.username,
+          role: target.role
+        }
+      );
+
+      return Response.json(
+        {
+          ok: true,
+          message: "Profile updated successfully."
+        },
+        {
+          headers: { "Cache-Control": "no-store" }
+        }
+      );
     }
+
 
     const username = String(data.username || "").trim();
     const password = String(data.password || "");
