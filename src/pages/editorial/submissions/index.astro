@@ -20,14 +20,12 @@ import Editorial from '../../../layouts/Editorial.astro';
 
     <div id="admin-options" class="options-grid" hidden>
       <a class="option-card create-card" href="/editorial/submissions/new/">
-        <span class="option-number">01</span>
         <h2>Create a submission</h2>
         <p>Prepare a new article or guidelines submission.</p>
         <span class="option-action">Create submission →</span>
       </a>
 
       <article class="option-card">
-        <span class="option-number">02</span>
         <h2>Review submissions</h2>
         <p>Review submissions sent by editors and decide whether to approve or reject them.</p>
         <span class="coming-soon">Review workspace coming next</span>
@@ -36,21 +34,18 @@ import Editorial from '../../../layouts/Editorial.astro';
 
     <div id="editor-options" class="options-grid" hidden>
       <a class="option-card create-card" href="/editorial/submissions/new/">
-        <span class="option-number">01</span>
         <h2>Create a submission</h2>
         <p>Prepare a new article or guidelines submission.</p>
         <span class="option-action">Create submission →</span>
       </a>
 
       <article class="option-card">
-        <span class="option-number">02</span>
         <h2>My drafts</h2>
         <p>Find and continue working on submissions you have saved as drafts.</p>
         <span class="coming-soon">Drafts section coming next</span>
       </article>
 
       <article class="option-card">
-        <span class="option-number">03</span>
         <h2>Rejected submissions</h2>
         <p>Review rejected work, read the administrator's reasons, and prepare it for resubmission.</p>
         <span class="coming-soon">Resubmission section coming next</span>
@@ -162,15 +157,8 @@ import Editorial from '../../../layouts/Editorial.astro';
       text-decoration: none;
     }
 
-    .option-number {
-      color: var(--accent);
-      font-size: 0.8rem;
-      font-family: var(--font-ui);
-      letter-spacing: 0.08em;
-    }
-
     .option-card h2 {
-      margin: 1.2rem 0 0.6rem;
+      margin: 0.5rem 0 0.6rem;
       font-size: 1.35rem;
     }
 
