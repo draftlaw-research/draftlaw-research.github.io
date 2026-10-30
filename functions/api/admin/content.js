@@ -1,10 +1,11 @@
 
 const REPOSITORY = "draftlaw-research/draftlaw-research.github.io";
 const BRANCH = "editorial-portal-development";
+const API = `https://api.github.com/repos/${REPOSITORY}`;
 
 const COLLECTIONS = {
   articles: "Articles",
-  guides: "Guidelines and Guidance",
+  guides: "Guides",
   authors: "Authors",
   topics: "Topics",
   team: "Team Members",
@@ -25,18 +26,64 @@ async function sha256(value) {
     .join("");
 }
 
-function getCookie(request, name) {
+function getCookie(request) {
   const cookies = (request.headers.get("Cookie") || "").split(";");
 
   const item = cookies
     .map(cookie => cookie.trim())
-    .find(cookie => cookie.startsWith(`${name}=`));
+    .find(cookie => cookie.startsWith("editorial_session="));
 
-  return item ? item.substring(name.length + 1) : null;
+  return item ? item.substring("editorial_session=".length) : null;
+}
+
+function headers(token) {
+  return {
+    "Accept": "application/vnd.github+json",
+    "Authorization": `Bearer ${token}`,
+    "X-GitHub-Api-Version": "2022-11-28",
+    "User-Agent": "DraftLaw-Editorial-Portal"
+  };
+}
+
+async function githubGet(url, token) {
+  const response = await fetch(url, {
+    headers: headers(token)
+  });
+
+  if (!response.ok) {
+    throw new Error(`GitHub request failed: ${response.status}`);
+  }
+
+  return response.json();
+}
+
+function decodeBlob(base64) {
+  const binary = atob(base64.replace(/\s/g, ""));
+  const bytes = Uint8Array.from(
+    binary,
+    character => character.charCodeAt(0)
+  );
+
+  return new TextDecoder().decode(bytes);
+}
+
+async function readBlob(sha, token) {
+  const blob = await githubGet(
+    `${API}/git/blobs/${sha}`,
+    token
+  );
+
+  if (blob.encoding !== "base64") {
+    throw new Error("Unexpected GitHub file encoding.");
+  }
+
+  return decodeBlob(blob.content);
 }
 
 function readField(content, field) {
-  const frontmatter = content.match(/^---\s*\r?\n([\s\S]*?)\r?\n---/);
+  const frontmatter = content.match(
+    /^---\s*\r?\n([\s\S]*?)\r?\n---/
+  );
 
   if (!frontmatter) return null;
 
@@ -72,129 +119,98 @@ function parseRecord(content, path, collection) {
 
   return {
     collection,
-    collectionLabel: COLLECTIONS[collection],
+    collectionLabel: COLLECTIONS[collection] || "Pages",
     slug,
     path,
     title,
     date: readField(content, "date"),
-    kind: readField(content, "kind") ||
-          readField(content, "type") ||
-          readField(content, "category"),
+    kind:
+      readField(content, "kind") ||
+      readField(content, "type") ||
+      readField(content, "category"),
     status: readField(content, "status"),
     featured: readField(content, "featured")
   };
 }
 
-function githubHeaders(token) {
-  return {
-    "Accept": "application/vnd.github+json",
-    "Authorization": `Bearer ${token}`,
-    "X-GitHub-Api-Version": "2022-11-28",
-    "User-Agent": "DraftLaw-Editorial-Portal"
-  };
-}
+async function checkAdmin(request, env) {
+  const token = getCookie(request);
 
-async function fetchRawFile(path, token) {
-  const encodedPath = path
-    .split("/")
-    .map(part => encodeURIComponent(part))
-    .join("/");
-
-  const url =
-    `https://raw.githubusercontent.com/${REPOSITORY}/` +
-    `${BRANCH}/${encodedPath}`;
-
-  const response = await fetch(url, {
-    headers: {
-      "Authorization": `Bearer ${token}`
-    }
-  });
-
-  if (!response.ok) {
-    throw new Error(`Could not read repository file: ${path}`);
+  if (!token || !/^[A-Za-z0-9_-]{43}$/.test(token)) {
+    return false;
   }
 
-  return response.text();
+  const tokenHash = await sha256(token);
+
+  const session = await env.EDITORIAL_DB
+    .prepare(`
+      SELECT
+        sessions.expires_at,
+        users.role,
+        users.is_active
+      FROM sessions
+      JOIN users ON users.id = sessions.user_id
+      WHERE sessions.token_hash = ?
+      LIMIT 1
+    `)
+    .bind(tokenHash)
+    .first();
+
+  return Boolean(
+    session &&
+    Number(session.is_active) === 1 &&
+    new Date(session.expires_at).getTime() > Date.now() &&
+    session.role === "admin"
+  );
 }
 
 export async function onRequestGet({ request, env }) {
+  let stage = "initialisation";
+
   try {
     if (!env.EDITORIAL_DB || !env.GITHUB_TOKEN) {
       return Response.json(
         { ok: false, message: "Required server settings are missing." },
-        { status: 500 }
+        { status: 500, headers: { "Cache-Control": "no-store" } }
       );
     }
 
-    const token = getCookie(request, "editorial_session");
+    stage = "admin authentication";
 
-    if (!token || !/^[A-Za-z0-9_-]{43}$/.test(token)) {
+    if (!(await checkAdmin(request, env))) {
       return Response.json(
-        { ok: false, message: "Please log in first." },
-        { status: 401 }
+        { ok: false, message: "Administrator login required." },
+        { status: 401, headers: { "Cache-Control": "no-store" } }
       );
     }
 
-    const tokenHash = await sha256(token);
+    stage = "reading branch information";
 
-    const session = await env.EDITORIAL_DB
-      .prepare(`
-        SELECT
-          sessions.expires_at,
-          users.role,
-          users.is_active
-        FROM sessions
-        JOIN users ON users.id = sessions.user_id
-        WHERE sessions.token_hash = ?
-        LIMIT 1
-      `)
-      .bind(tokenHash)
-      .first();
-
-    if (
-      !session ||
-      Number(session.is_active) !== 1 ||
-      new Date(session.expires_at).getTime() <= Date.now()
-    ) {
-      return Response.json(
-        { ok: false, message: "Your login session has expired." },
-        { status: 401 }
-      );
-    }
-
-    if (session.role !== "admin") {
-      return Response.json(
-        { ok: false, message: "Administrator access required." },
-        { status: 403 }
-      );
-    }
-
-    const treeResponse = await fetch(
-      `https://api.github.com/repos/${REPOSITORY}/git/trees/${BRANCH}?recursive=1`,
-      {
-        headers: githubHeaders(env.GITHUB_TOKEN)
-      }
+    const branch = await githubGet(
+      `${API}/branches/${BRANCH}`,
+      env.GITHUB_TOKEN
     );
 
-    if (!treeResponse.ok) {
-      console.error("GitHub tree request failed:", treeResponse.status);
+    const commitSha = branch.commit.sha;
 
-      return Response.json(
-        { ok: false, message: "Could not retrieve the website content." },
-        { status: 502 }
-      );
-    }
+    stage = "reading commit information";
 
-    const treeData = await treeResponse.json();
+    const commit = await githubGet(
+      `${API}/git/commits/${commitSha}`,
+      env.GITHUB_TOKEN
+    );
+
+    const treeSha = commit.tree.sha;
+
+    stage = "reading repository file list";
+
+    const treeData = await githubGet(
+      `${API}/git/trees/${treeSha}?recursive=1`,
+      env.GITHUB_TOKEN
+    );
 
     if (treeData.truncated) {
-      return Response.json(
-        {
-          ok: false,
-          message: "The repository file list was incomplete."
-        },
-        { status: 502 }
-      );
+      throw new Error("Repository file list was incomplete.");
     }
 
     const files = treeData.tree.filter(item =>
@@ -207,14 +223,15 @@ export async function onRequestGet({ request, env }) {
 
     const records = [];
 
-    // Read a small number of files at a time.
-    for (let i = 0; i < files.length; i += 8) {
-      const batch = files.slice(i, i + 8);
+    stage = "reading content files";
+
+    for (let i = 0; i < files.length; i += 5) {
+      const batch = files.slice(i, i + 5);
 
       const results = await Promise.all(
         batch.map(async file => {
-          const content = await fetchRawFile(
-            file.path,
+          const content = await readBlob(
+            file.sha,
             env.GITHUB_TOKEN
           );
 
@@ -232,34 +249,29 @@ export async function onRequestGet({ request, env }) {
       a.title.localeCompare(b.title)
     );
 
+    stage = "reading special website files";
+
     const specialPaths = [
       "src/content/pages/submit.md",
-      "src/content/pages/guidelines.md",
       "src/data/most-read.json"
     ];
 
     const specialFiles = {};
 
     for (const path of specialPaths) {
-      const exists = treeData.tree.some(
+      const file = treeData.tree.find(
         item => item.type === "blob" && item.path === path
       );
 
-      if (exists) {
-        const content = await fetchRawFile(
-          path,
+      if (file) {
+        const content = await readBlob(
+          file.sha,
           env.GITHUB_TOKEN
         );
 
-        if (path.endsWith(".json")) {
-          specialFiles[path] = JSON.parse(content);
-        } else {
-          specialFiles[path] = parseRecord(
-            content,
-            path,
-            "pages"
-          );
-        }
+        specialFiles[path] = path.endsWith(".json")
+          ? JSON.parse(content)
+          : parseRecord(content, path, "pages");
       }
     }
 
@@ -273,25 +285,22 @@ export async function onRequestGet({ request, env }) {
         specialFiles
       },
       {
-        headers: {
-          "Cache-Control": "no-store"
-        }
+        headers: { "Cache-Control": "no-store" }
       }
     );
 
   } catch (error) {
-    console.error("Content listing failed:", error);
+    console.error("Content listing failed at:", stage, error);
 
     return Response.json(
       {
         ok: false,
-        message: "Unable to load website content."
+        message: "Unable to load website content.",
+        stage
       },
       {
         status: 500,
-        headers: {
-          "Cache-Control": "no-store"
-        }
+        headers: { "Cache-Control": "no-store" }
       }
     );
   }
