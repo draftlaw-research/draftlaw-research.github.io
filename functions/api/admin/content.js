@@ -33,10 +33,12 @@ function getCookie(request) {
     .map(cookie => cookie.trim())
     .find(cookie => cookie.startsWith("editorial_session="));
 
-  return item ? item.substring("editorial_session=".length) : null;
+  return item
+    ? item.substring("editorial_session=".length)
+    : null;
 }
 
-function headers(token) {
+function githubHeaders(token) {
   return {
     "Accept": "application/vnd.github+json",
     "Authorization": `Bearer ${token}`,
@@ -45,39 +47,86 @@ function headers(token) {
   };
 }
 
-async function githubGet(url, token) {
-  const response = await fetch(url, {
-    headers: headers(token)
-  });
+async function checkAdmin(request, env) {
+  const token = getCookie(request);
 
-  if (!response.ok) {
-    throw new Error(`GitHub request failed: ${response.status}`);
+  if (!token || !/^[A-Za-z0-9_-]{43}$/.test(token)) {
+    return false;
   }
 
-  return response.json();
+  const tokenHash = await sha256(token);
+
+  const session = await env.EDITORIAL_DB
+    .prepare(`
+      SELECT
+        sessions.expires_at,
+        users.role,
+        users.is_active
+      FROM sessions
+      JOIN users ON users.id = sessions.user_id
+      WHERE sessions.token_hash = ?
+      LIMIT 1
+    `)
+    .bind(tokenHash)
+    .first();
+
+  return Boolean(
+    session &&
+    Number(session.is_active) === 1 &&
+    new Date(session.expires_at).getTime() > Date.now() &&
+    session.role === "admin"
+  );
 }
 
-function decodeBlob(base64) {
-  const binary = atob(base64.replace(/\s/g, ""));
-  const bytes = Uint8Array.from(
-    binary,
-    character => character.charCodeAt(0)
-  );
-
-  return new TextDecoder().decode(bytes);
+function readTarString(bytes, start, length) {
+  return new TextDecoder().decode(
+    bytes.subarray(start, start + length)
+  ).replace(/\0.*$/, "");
 }
 
-async function readBlob(sha, token) {
-  const blob = await githubGet(
-    `${API}/git/blobs/${sha}`,
-    token
-  );
+function readTarOctal(bytes, start, length) {
+  const value = readTarString(bytes, start, length).trim();
 
-  if (blob.encoding !== "base64") {
-    throw new Error("Unexpected GitHub file encoding.");
+  return value ? parseInt(value, 8) : 0;
+}
+
+function extractTarFiles(bytes) {
+  const files = new Map();
+  let offset = 0;
+
+  while (offset + 512 <= bytes.length) {
+    const header = bytes.subarray(offset, offset + 512);
+
+    if (header.every(byte => byte === 0)) {
+      break;
+    }
+
+    const name = readTarString(header, 0, 100);
+    const prefix = readTarString(header, 345, 155);
+    const path = prefix ? `${prefix}/${name}` : name;
+
+    const size = readTarOctal(header, 124, 12);
+    const type = readTarString(header, 156, 1);
+
+    const contentStart = offset + 512;
+    const contentEnd = contentStart + size;
+
+    if (
+      (type === "" || type === "0") &&
+      size >= 0 &&
+      contentEnd <= bytes.length
+    ) {
+      const content = new TextDecoder().decode(
+        bytes.subarray(contentStart, contentEnd)
+      );
+
+      files.set(path, content);
+    }
+
+    offset = contentStart + Math.ceil(size / 512) * 512;
   }
 
-  return decodeBlob(blob.content);
+  return files;
 }
 
 function readField(content, field) {
@@ -133,45 +182,17 @@ function parseRecord(content, path, collection) {
   };
 }
 
-async function checkAdmin(request, env) {
-  const token = getCookie(request);
-
-  if (!token || !/^[A-Za-z0-9_-]{43}$/.test(token)) {
-    return false;
-  }
-
-  const tokenHash = await sha256(token);
-
-  const session = await env.EDITORIAL_DB
-    .prepare(`
-      SELECT
-        sessions.expires_at,
-        users.role,
-        users.is_active
-      FROM sessions
-      JOIN users ON users.id = sessions.user_id
-      WHERE sessions.token_hash = ?
-      LIMIT 1
-    `)
-    .bind(tokenHash)
-    .first();
-
-  return Boolean(
-    session &&
-    Number(session.is_active) === 1 &&
-    new Date(session.expires_at).getTime() > Date.now() &&
-    session.role === "admin"
-  );
-}
-
 export async function onRequestGet({ request, env }) {
   let stage = "initialisation";
 
   try {
     if (!env.EDITORIAL_DB || !env.GITHUB_TOKEN) {
       return Response.json(
-        { ok: false, message: "Required server settings are missing." },
-        { status: 500, headers: { "Cache-Control": "no-store" } }
+        {
+          ok: false,
+          message: "Required server settings are missing."
+        },
+        { status: 500 }
       );
     }
 
@@ -179,69 +200,66 @@ export async function onRequestGet({ request, env }) {
 
     if (!(await checkAdmin(request, env))) {
       return Response.json(
-        { ok: false, message: "Administrator login required." },
-        { status: 401, headers: { "Cache-Control": "no-store" } }
+        {
+          ok: false,
+          message: "Administrator login required."
+        },
+        { status: 401 }
       );
     }
 
-    stage = "reading branch information";
+    stage = "downloading repository archive";
 
-    const branch = await githubGet(
-      `${API}/branches/${BRANCH}`,
-      env.GITHUB_TOKEN
+    const archiveResponse = await fetch(
+      `${API}/tarball/${BRANCH}`,
+      {
+        headers: githubHeaders(env.GITHUB_TOKEN)
+      }
     );
 
-    const commitSha = branch.commit.sha;
-
-    stage = "reading commit information";
-
-    const commit = await githubGet(
-      `${API}/git/commits/${commitSha}`,
-      env.GITHUB_TOKEN
-    );
-
-    const treeSha = commit.tree.sha;
-
-    stage = "reading repository file list";
-
-    const treeData = await githubGet(
-      `${API}/git/trees/${treeSha}?recursive=1`,
-      env.GITHUB_TOKEN
-    );
-
-    if (treeData.truncated) {
-      throw new Error("Repository file list was incomplete.");
+    if (!archiveResponse.ok) {
+      throw new Error(
+        `GitHub archive request failed: ${archiveResponse.status}`
+      );
     }
 
-    const files = treeData.tree.filter(item =>
-      item.type === "blob" &&
-      item.path.endsWith(".md") &&
-      Object.keys(COLLECTIONS).some(collection =>
-        item.path.startsWith(`src/content/${collection}/`)
-      )
+    stage = "extracting repository archive";
+
+    const decompressed = archiveResponse.body.pipeThrough(
+      new DecompressionStream("gzip")
     );
 
-    const records = [];
+    const tarBytes = new Uint8Array(
+      await new Response(decompressed).arrayBuffer()
+    );
+
+    const archiveFiles = extractTarFiles(tarBytes);
+
+    if (archiveFiles.size === 0) {
+      throw new Error("The repository archive contained no readable files.");
+    }
 
     stage = "reading content files";
 
-    for (let i = 0; i < files.length; i += 5) {
-      const batch = files.slice(i, i + 5);
+    const records = [];
 
-      const results = await Promise.all(
-        batch.map(async file => {
-          const content = await readBlob(
-            file.sha,
-            env.GITHUB_TOKEN
-          );
+    for (const [archivePath, content] of archiveFiles) {
+      const path = archivePath
+        .split("/")
+        .slice(1)
+        .join("/");
 
-          const collection = file.path.split("/")[2];
+      if (!path.endsWith(".md")) continue;
 
-          return parseRecord(content, file.path, collection);
-        })
+      const collection = Object.keys(COLLECTIONS).find(
+        name => path.startsWith(`src/content/${name}/`)
       );
 
-      records.push(...results);
+      if (!collection) continue;
+
+      records.push(
+        parseRecord(content, path, collection)
+      );
     }
 
     records.sort((a, b) =>
@@ -251,28 +269,30 @@ export async function onRequestGet({ request, env }) {
 
     stage = "reading special website files";
 
-    const specialPaths = [
-      "src/content/pages/submit.md",
-      "src/data/most-read.json"
-    ];
-
     const specialFiles = {};
 
-    for (const path of specialPaths) {
-      const file = treeData.tree.find(
-        item => item.type === "blob" && item.path === path
-      );
+    const submitPage = archiveFiles.get(
+      Object.keys(
+        Object.fromEntries(archiveFiles)
+      ).find(path => path.endsWith("/src/content/pages/submit.md"))
+    );
 
-      if (file) {
-        const content = await readBlob(
-          file.sha,
-          env.GITHUB_TOKEN
+    if (submitPage !== undefined) {
+      specialFiles["src/content/pages/submit.md"] =
+        parseRecord(
+          submitPage,
+          "src/content/pages/submit.md",
+          "pages"
         );
+    }
 
-        specialFiles[path] = path.endsWith(".json")
-          ? JSON.parse(content)
-          : parseRecord(content, path, "pages");
-      }
+    const mostReadEntry = [...archiveFiles.entries()].find(
+      ([path]) => path.endsWith("/src/data/most-read.json")
+    );
+
+    if (mostReadEntry) {
+      specialFiles["src/data/most-read.json"] =
+        JSON.parse(mostReadEntry[1]);
     }
 
     return Response.json(
@@ -285,23 +305,27 @@ export async function onRequestGet({ request, env }) {
         specialFiles
       },
       {
-        headers: { "Cache-Control": "no-store" }
+        headers: {
+          "Cache-Control": "no-store"
+        }
       }
     );
 
   } catch (error) {
     console.error("Content listing failed at:", stage, error);
 
-   return Response.json(
-  {
-    ok: false,
-    message: "Unable to load website content.",
-    stage,
-    error: error.message
-  },
+    return Response.json(
+      {
+        ok: false,
+        message: "Unable to load website content.",
+        stage,
+        error: error.message
+      },
       {
         status: 500,
-        headers: { "Cache-Control": "no-store" }
+        headers: {
+          "Cache-Control": "no-store"
+        }
       }
     );
   }
