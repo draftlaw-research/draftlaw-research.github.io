@@ -41,7 +41,7 @@ const socials = SOCIALS.filter((s) => s.url);
     <slot name="head" />
   </head>
 
-  <body>
+  <body class="editorial-shell">
     <a class="skip" href="#main">Skip to content</a>
 
     <header class="editorial-header">
@@ -427,6 +427,101 @@ const socials = SOCIALS.filter((s) => s.url);
           font-size: 0.55rem;
         }
       }
+/* =========================================
+   SHARED EDITORIAL PORTAL BACKGROUND
+   ========================================= */
+
+:global(body.editorial-shell) {
+  position: relative;
+  isolation: isolate;
+  min-height: 100vh;
+  background:
+    radial-gradient(
+      ellipse at 15% 15%,
+      rgba(128, 102, 62, 0.18),
+      transparent 38%
+    ),
+    radial-gradient(
+      ellipse at 90% 80%,
+      rgba(75, 48, 41, 0.22),
+      transparent 40%
+    ),
+    radial-gradient(
+      ellipse at 50% 50%,
+      #28231b 0%,
+      #141311 42%,
+      #080808 100%
+    );
+  background-attachment: fixed;
+}
+
+/* Blurred ambient background lighting */
+
+:global(body.editorial-shell::before) {
+  content: "";
+  position: fixed;
+  z-index: -1;
+  inset: -10%;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      circle at 15% 20%,
+      rgba(182, 157, 115, 0.15),
+      transparent 25%
+    ),
+    radial-gradient(
+      circle at 85% 75%,
+      rgba(112, 67, 54, 0.16),
+      transparent 28%
+    );
+  filter: blur(75px);
+}
+
+/* Shared frosted-glass header */
+
+:global(.editorial-header) {
+  position: relative;
+  z-index: 10;
+  background: rgba(5, 5, 5, 0.72);
+  -webkit-backdrop-filter: blur(22px);
+  backdrop-filter: blur(22px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+/* Shared frosted-glass footer */
+
+:global(.editorial-footer) {
+  background: rgba(5, 5, 5, 0.72);
+  -webkit-backdrop-filter: blur(22px);
+  backdrop-filter: blur(22px);
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+/* Shared floating surfaces across editorial pages */
+
+:global(body.editorial-shell .card),
+:global(body.editorial-shell .aside-box),
+:global(body.editorial-shell .program-card),
+:global(body.editorial-shell .team-card),
+:global(body.editorial-shell .form-card),
+:global(body.editorial-shell .panel) {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  background: rgba(5, 5, 5, 0.82);
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+  box-shadow:
+    0 25px 65px rgba(0, 0, 0, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.045);
+}
+
+/* Respect users who prefer reduced motion */
+
+@media (prefers-reduced-motion: reduce) {
+  :global(body.editorial-shell::before) {
+    filter: blur(35px);
+  }
+}
     </style>
   </body>
 </html>
