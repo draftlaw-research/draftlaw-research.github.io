@@ -67,7 +67,9 @@ const socials = SOCIALS.filter((s) => s.url);
 
         <div class="editorial-account" id="editorial-account" hidden>
           <div class="signed-in-label">SIGNED IN AS</div>
-          <div class="signed-in-user" id="editorial-user-name">Admin</div>
+          <div class="signed-in-user" id="editorial-user-name">
+            Checking session...
+          </div>
 
           <a class="editorial-account-link" href="/">
             Visit public website ↗
@@ -192,11 +194,81 @@ const socials = SOCIALS.filter((s) => s.url);
 
     <script>
       const signOutButton =
-        document.querySelector<HTMLButtonElement>('#editorial-signout');
+        document.querySelector<HTMLButtonElement>(
+          '#editorial-signout'
+        );
 
       const signOutMessage =
-        document.querySelector<HTMLParagraphElement>('#signout-message');
+        document.querySelector<HTMLParagraphElement>(
+          '#signout-message'
+        );
 
+      const account =
+        document.querySelector<HTMLElement>(
+          '#editorial-account'
+        );
+
+      const userName =
+        document.querySelector<HTMLElement>(
+          '#editorial-user-name'
+        );
+
+      // Load the actual identity from the authenticated session.
+      async function loadEditorialIdentity() {
+        try {
+          const response = await fetch('/api/auth/me', {
+            method: 'GET',
+            credentials: 'same-origin',
+            cache: 'no-store',
+            headers: {
+              Accept: 'application/json'
+            }
+          });
+
+          const result = await response.json();
+
+          if (
+            !response.ok ||
+            !result.ok ||
+            !result.user ||
+            !['admin', 'editor', 'moderator'].includes(
+              result.user.role
+            )
+          ) {
+            if (account) {
+              account.hidden = true;
+            }
+
+            return;
+          }
+
+          if (userName) {
+            userName.textContent =
+              result.user.role === 'admin'
+                ? 'Admin'
+                : result.user.username || 'Editorial user';
+          }
+
+          if (account) {
+            account.hidden = false;
+          }
+
+        } catch (error) {
+          console.error(
+            'Editorial identity verification failed:',
+            error
+          );
+
+          if (account) {
+            account.hidden = true;
+          }
+        }
+      }
+
+      // Run on every page using this layout.
+      loadEditorialIdentity();
+
+      // Sign out.
       signOutButton?.addEventListener('click', async () => {
         signOutButton.disabled = true;
 
@@ -214,16 +286,22 @@ const socials = SOCIALS.filter((s) => s.url);
           const result = await response.json();
 
           if (!response.ok || !result.ok) {
-            throw new Error(result.message || 'Sign out failed.');
+            throw new Error(
+              result.message || 'Sign out failed.'
+            );
           }
 
           window.location.replace('/editorial');
-        } catch {
+
+        } catch (error) {
+          console.error('Sign out failed:', error);
+
           signOutButton.disabled = false;
 
           if (signOutMessage) {
             signOutMessage.textContent =
               'Could not sign out. Please try again.';
+
             signOutMessage.hidden = false;
           }
         }
@@ -427,101 +505,102 @@ const socials = SOCIALS.filter((s) => s.url);
           font-size: 0.55rem;
         }
       }
-/* =========================================
-   SHARED EDITORIAL PORTAL BACKGROUND
-   ========================================= */
 
-:global(body.editorial-shell) {
-  position: relative;
-  isolation: isolate;
-  min-height: 100vh;
-  background:
-    radial-gradient(
-      ellipse at 15% 15%,
-      rgba(128, 102, 62, 0.18),
-      transparent 38%
-    ),
-    radial-gradient(
-      ellipse at 90% 80%,
-      rgba(75, 48, 41, 0.22),
-      transparent 40%
-    ),
-    radial-gradient(
-      ellipse at 50% 50%,
-      #28231b 0%,
-      #141311 42%,
-      #080808 100%
-    );
-  background-attachment: fixed;
-}
+      /* =========================================
+         SHARED EDITORIAL PORTAL BACKGROUND
+         ========================================= */
 
-/* Blurred ambient background lighting */
+      :global(body.editorial-shell) {
+        position: relative;
+        isolation: isolate;
+        min-height: 100vh;
+        background:
+          radial-gradient(
+            ellipse at 15% 15%,
+            rgba(128, 102, 62, 0.18),
+            transparent 38%
+          ),
+          radial-gradient(
+            ellipse at 90% 80%,
+            rgba(75, 48, 41, 0.22),
+            transparent 40%
+          ),
+          radial-gradient(
+            ellipse at 50% 50%,
+            #28231b 0%,
+            #141311 42%,
+            #080808 100%
+          );
+        background-attachment: fixed;
+      }
 
-:global(body.editorial-shell::before) {
-  content: "";
-  position: fixed;
-  z-index: -1;
-  inset: -10%;
-  pointer-events: none;
-  background:
-    radial-gradient(
-      circle at 15% 20%,
-      rgba(182, 157, 115, 0.15),
-      transparent 25%
-    ),
-    radial-gradient(
-      circle at 85% 75%,
-      rgba(112, 67, 54, 0.16),
-      transparent 28%
-    );
-  filter: blur(75px);
-}
+      /* Blurred ambient background lighting */
 
-/* Shared frosted-glass header */
+      :global(body.editorial-shell::before) {
+        content: "";
+        position: fixed;
+        z-index: -1;
+        inset: -10%;
+        pointer-events: none;
+        background:
+          radial-gradient(
+            circle at 15% 20%,
+            rgba(182, 157, 115, 0.15),
+            transparent 25%
+          ),
+          radial-gradient(
+            circle at 85% 75%,
+            rgba(112, 67, 54, 0.16),
+            transparent 28%
+          );
+        filter: blur(75px);
+      }
 
-:global(.editorial-header) {
-  position: relative;
-  z-index: 10;
-  background: rgba(5, 5, 5, 0.72);
-  -webkit-backdrop-filter: blur(22px);
-  backdrop-filter: blur(22px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-}
+      /* Shared frosted-glass header */
 
-/* Shared frosted-glass footer */
+      :global(.editorial-header) {
+        position: relative;
+        z-index: 10;
+        background: rgba(5, 5, 5, 0.72);
+        -webkit-backdrop-filter: blur(22px);
+        backdrop-filter: blur(22px);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+      }
 
-:global(.editorial-footer) {
-  background: rgba(5, 5, 5, 0.72);
-  -webkit-backdrop-filter: blur(22px);
-  backdrop-filter: blur(22px);
-  border-top: 1px solid rgba(255, 255, 255, 0.12);
-}
+      /* Shared frosted-glass footer */
 
-/* Shared floating surfaces across editorial pages */
+      :global(.editorial-footer) {
+        background: rgba(5, 5, 5, 0.72);
+        -webkit-backdrop-filter: blur(22px);
+        backdrop-filter: blur(22px);
+        border-top: 1px solid rgba(255, 255, 255, 0.12);
+      }
 
-:global(body.editorial-shell .card),
-:global(body.editorial-shell .aside-box),
-:global(body.editorial-shell .program-card),
-:global(body.editorial-shell .team-card),
-:global(body.editorial-shell .form-card),
-:global(body.editorial-shell .panel) {
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 14px;
-  background: rgba(5, 5, 5, 0.82);
-  -webkit-backdrop-filter: blur(20px);
-  backdrop-filter: blur(20px);
-  box-shadow:
-    0 25px 65px rgba(0, 0, 0, 0.42),
-    inset 0 1px 0 rgba(255, 255, 255, 0.045);
-}
+      /* Shared floating surfaces across editorial pages */
 
-/* Respect users who prefer reduced motion */
+      :global(body.editorial-shell .card),
+      :global(body.editorial-shell .aside-box),
+      :global(body.editorial-shell .program-card),
+      :global(body.editorial-shell .team-card),
+      :global(body.editorial-shell .form-card),
+      :global(body.editorial-shell .panel) {
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 14px;
+        background: rgba(5, 5, 5, 0.82);
+        -webkit-backdrop-filter: blur(20px);
+        backdrop-filter: blur(20px);
+        box-shadow:
+          0 25px 65px rgba(0, 0, 0, 0.42),
+          inset 0 1px 0 rgba(255, 255, 255, 0.045);
+      }
 
-@media (prefers-reduced-motion: reduce) {
-  :global(body.editorial-shell::before) {
-    filter: blur(35px);
-  }
-}
+      /* Respect users who prefer reduced motion */
+
+      @media (prefers-reduced-motion: reduce) {
+        :global(body.editorial-shell::before) {
+          filter: blur(35px);
+        }
+      }
     </style>
   </body>
 </html>
