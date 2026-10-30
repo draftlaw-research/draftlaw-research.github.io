@@ -1489,21 +1489,29 @@ turndown.addRule('formattedText', {
   }
 
   .editor-shell {
-    overflow: hidden;
-    border: 1px solid var(--rule);
-    border-radius: 3px;
-    background: #080808;
-  }
+  overflow: visible;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: #080808;
+}
 
-  .editor-toolbar {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.35rem;
-    padding: 0.65rem;
-    border-bottom: 1px solid var(--rule);
-    background: #151515;
-  }
+.editor-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--accent);
+  border-radius: 3px 3px 0 0;
+
+  background: #151515;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+}
 
   .editor-toolbar button,
   .editor-toolbar select {
