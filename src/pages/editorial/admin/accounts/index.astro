@@ -1,0 +1,761 @@
+
+---
+import Editorial from "../../../../layouts/Editorial.astro";
+
+const description = "Manage DraftLaw Research editorial accounts and permissions.";
+---
+
+<Editorial title="Editor Accounts" description={description}>
+  <div class="wrap accounts-page">
+    <header class="page-heading">
+      <div>
+        <p class="eyebrow">03 / TEAM</p>
+        <h1>Editor Accounts</h1>
+        <p class="intro">
+          Create accounts and manage access to the editorial portal.
+        </p>
+      </div>
+      <a class="back-button" href="/editorial/dashboard/">
+        ← Dashboard
+      </a>
+    </header>
+
+    <p id="page-status" class="status" role="status">
+      Verifying your access...
+    </p>
+
+    <div id="accounts-workspace" hidden>
+      <section id="create-section" class="panel" hidden>
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">NEW ACCOUNT</p>
+            <h2>Create an account</h2>
+            <p>Create an editor or moderator account.</p>
+          </div>
+        </div>
+
+        <form id="create-form">
+          <div class="form-grid">
+            <label>
+              Username
+              <input
+                id="new-username"
+                name="username"
+                type="text"
+                minlength="4"
+                maxlength="30"
+                pattern="[A-Za-z0-9._-]{4,30}"
+                autocomplete="off"
+                required
+              />
+              <small>4–30 characters. Letters, numbers, dots, underscores and hyphens.</small>
+            </label>
+
+            <label>
+              Temporary password
+              <input
+                id="new-password"
+                name="password"
+                type="password"
+                minlength="12"
+                maxlength="128"
+                autocomplete="new-password"
+                required
+              />
+              <small>At least 12 characters. Share it securely with the account holder.</small>
+            </label>
+
+            <label>
+              Account type
+              <select id="new-role" name="role" required>
+                <option value="editor">Editor</option>
+                <option value="moderator">Moderator</option>
+              </select>
+            </label>
+          </div>
+
+          <p id="create-message" class="form-message" role="status"></p>
+
+          <button type="submit" id="create-button" class="primary-button">
+            Create account
+          </button>
+        </form>
+      </section>
+
+      <section class="panel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">TEAM DIRECTORY</p>
+            <h2>Accounts and access</h2>
+            <p id="access-description">
+              Review accounts and manage their content permissions.
+            </p>
+          </div>
+          <button type="button" id="refresh-button" class="secondary-button">
+            Refresh
+          </button>
+        </div>
+
+        <div id="account-list" class="account-list"></div>
+      </section>
+
+      <p class="security-note">
+        Permission changes take effect when saved. Administrators retain
+        access to all content sections. Moderators can manage only the
+        sections specifically delegated to them.
+      </p>
+    </div>
+  </div>
+</Editorial>
+
+<script>
+  const SECTION_LABELS = {
+    articles: "Articles",
+    guides: "Guidelines and Guidance",
+    authors: "Authors",
+    topics: "Topics",
+    team: "Team Members",
+    "student-collaborators": "Student Collaborators",
+    newsletter: "Newsletter Items",
+    programs: "Programs",
+    announcements: "Program Announcements",
+    submit: "Write with Us Rules",
+    "most-read": "Most Read List"
+  };
+
+  const $ = (selector) => document.querySelector(selector);
+
+  let currentUser = null;
+  let currentRole = null;
+  let sections = [];
+  let managedSections = [];
+  let users = [];
+  let permissions = [];
+
+  async function requestJson(url, options = {}) {
+    const response = await fetch(url, {
+      credentials: "same-origin",
+      cache: "no-store",
+      ...options
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.ok) {
+      throw new Error(result.message || "The request could not be completed.");
+    }
+
+    return result;
+  }
+
+  function showStatus(message, isError = false) {
+    const status = $("#page-status");
+    status.textContent = message;
+    status.hidden = false;
+    status.classList.toggle("error", isError);
+  }
+
+  function hasPermission(userId, sectionKey) {
+    return permissions.some(permission =>
+      permission.user_id === userId &&
+      permission.section_key === sectionKey
+    );
+  }
+
+  async function loadPage() {
+    try {
+      const auth = await requestJson("/api/auth/me");
+
+      currentUser = auth.user;
+      currentRole = currentUser.role;
+
+      if (!["admin", "moderator"].includes(currentRole)) {
+        window.location.replace("/editorial/dashboard/");
+        return;
+      }
+
+      const result = await requestJson("/api/admin/permissions");
+
+      sections = result.sections || [];
+      managedSections = result.managedSections || [];
+      users = result.users || [];
+      permissions = result.permissions || [];
+
+      if (currentRole === "admin") {
+        $("#create-section").hidden = false;
+        $("#access-description").textContent =
+          "Manage editor and moderator accounts, content access and delegated authority.";
+      } else {
+        $("#access-description").textContent =
+          "Manage editor access to the sections delegated to you.";
+      }
+
+      $("#accounts-workspace").hidden = false;
+      $("#page-status").hidden = true;
+
+      renderAccounts();
+
+    } catch (error) {
+      showStatus(error.message, true);
+    }
+  }
+
+  function createElement(tag, className, text) {
+    const element = document.createElement(tag);
+
+    if (className) element.className = className;
+    if (text !== undefined) element.textContent = text;
+
+    return element;
+  }
+
+  function renderAccounts() {
+    const list = $("#account-list");
+    list.replaceChildren();
+
+    if (users.length === 0) {
+      list.append(
+        createElement(
+          "p",
+          "empty-state",
+          "No editor or moderator accounts have been created yet."
+        )
+      );
+      return;
+    }
+
+    const sortedUsers = [...users].sort((a, b) => {
+      if (a.role !== b.role) {
+        return a.role === "moderator" ? -1 : 1;
+      }
+
+      return a.username.localeCompare(b.username);
+    });
+
+    for (const user of sortedUsers) {
+      list.append(renderAccount(user));
+    }
+  }
+
+  function renderAccount(user) {
+    const card = createElement("article", "account-card");
+
+    const heading = createElement("div", "account-heading");
+    const identity = createElement("div", "account-identity");
+
+    const name = createElement("h3", "", user.username);
+    const role = createElement(
+      "span",
+      "role-label",
+      user.role === "moderator" ? "Moderator" : "Editor"
+    );
+
+    identity.append(name, role);
+
+    const status = createElement(
+      "span",
+      Number(user.is_active) === 1
+        ? "account-status active"
+        : "account-status inactive",
+      Number(user.is_active) === 1 ? "Active" : "Inactive"
+    );
+
+    heading.append(identity, status);
+    card.append(heading);
+
+    const visibleSections = currentRole === "admin"
+      ? sections
+      : managedSections;
+
+    const permissionHeading = createElement(
+      "p",
+      "permission-heading",
+      "Content access"
+    );
+
+    card.append(permissionHeading);
+
+    if (visibleSections.length === 0) {
+      card.append(
+        createElement(
+          "p",
+          "empty-state",
+          "No content sections have been delegated to you."
+        )
+      );
+    }
+
+    const grid = createElement("div", "permission-grid");
+
+    for (const section of visibleSections) {
+      grid.append(
+        createPermissionControl(
+          user,
+          section,
+          section,
+          SECTION_LABELS[section] || section,
+          false
+        )
+      );
+    }
+
+    card.append(grid);
+
+    if (currentRole === "admin" && user.role === "moderator") {
+      card.append(
+        createElement(
+          "p",
+          "permission-heading management-heading",
+          "Permission-management authority"
+        )
+      );
+
+      const managementGrid = createElement("div", "permission-grid");
+
+      for (const section of sections) {
+        managementGrid.append(
+          createPermissionControl(
+            user,
+            `manage:${section}`,
+            `manage:${section}`,
+            `Manage ${SECTION_LABELS[section] || section} access`,
+            true
+          )
+        );
+      }
+
+      card.append(managementGrid);
+    }
+
+    if (currentRole === "admin") {
+      const actions = createElement("div", "account-actions");
+      const toggle = createElement(
+        "button",
+        "secondary-button",
+        Number(user.is_active) === 1
+          ? "Deactivate account"
+          : "Activate account"
+      );
+
+      toggle.type = "button";
+      toggle.addEventListener("click", () => {
+        updateAccountStatus(user);
+      });
+
+      actions.append(toggle);
+      card.append(actions);
+    }
+
+    return card;
+  }
+
+  function createPermissionControl(
+    user,
+    sectionKey,
+    permissionKey,
+    label,
+    managementPermission
+  ) {
+    const wrapper = createElement(
+      "label",
+      "permission-control"
+    );
+
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.checked = hasPermission(user.id, permissionKey);
+    checkbox.disabled = Number(user.is_active) !== 1;
+
+    const labelText = createElement("span", "", label);
+
+    checkbox.addEventListener("change", async () => {
+      checkbox.disabled = true;
+
+      try {
+        await requestJson("/api/admin/permissions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            userId: user.id,
+            sectionKey: permissionKey,
+            enabled: checkbox.checked
+          })
+        });
+
+        showStatus(
+          `${label} permission ${checkbox.checked ? "granted" : "revoked"} for ${user.username}.`
+        );
+
+        await refreshPermissions();
+      } catch (error) {
+        checkbox.checked = !checkbox.checked;
+        showStatus(error.message, true);
+        checkbox.disabled = false;
+      }
+    });
+
+    wrapper.append(checkbox, labelText);
+
+    if (managementPermission) {
+      wrapper.classList.add("management-control");
+    }
+
+    return wrapper;
+  }
+
+  async function refreshPermissions() {
+    const result = await requestJson("/api/admin/permissions");
+
+    sections = result.sections || [];
+    managedSections = result.managedSections || [];
+    users = result.users || [];
+    permissions = result.permissions || [];
+
+    renderAccounts();
+  }
+
+  async function updateAccountStatus(user) {
+    const currentlyActive = Number(user.is_active) === 1;
+
+    const confirmed = window.confirm(
+      currentlyActive
+        ? `Deactivate the account "${user.username}"? They will be signed out.`
+        : `Activate the account "${user.username}"?`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      await requestJson("/api/admin/accounts", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          userId: user.id,
+          active: !currentlyActive
+        })
+      });
+
+      showStatus(
+        `Account ${currentlyActive ? "deactivated" : "activated"} successfully.`
+      );
+
+      await refreshPermissions();
+
+    } catch (error) {
+      showStatus(error.message, true);
+    }
+  }
+
+  $("#create-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const button = $("#create-button");
+    const message = $("#create-message");
+
+    button.disabled = true;
+    button.textContent = "Creating account...";
+    message.textContent = "";
+
+    const username = $("#new-username").value.trim();
+    const password = $("#new-password").value;
+    const role = $("#new-role").value;
+
+    try {
+      await requestJson("/api/admin/accounts", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ username, password, role })
+      });
+
+      message.textContent = "Account created successfully.";
+      message.className = "form-message success";
+
+      $("#create-form").reset();
+
+      await refreshPermissions();
+
+    } catch (error) {
+      message.textContent = error.message;
+      message.className = "form-message error";
+    } finally {
+      button.disabled = false;
+      button.textContent = "Create account";
+    }
+  });
+
+  $("#refresh-button").addEventListener("click", async () => {
+    const button = $("#refresh-button");
+    button.disabled = true;
+
+    try {
+      await refreshPermissions();
+      showStatus("Account list refreshed.");
+    } catch (error) {
+      showStatus(error.message, true);
+    } finally {
+      button.disabled = false;
+    }
+  });
+
+  loadPage();
+</script>
+
+<style>
+  .accounts-page {
+    padding-block: 2.5rem 4rem;
+  }
+
+  .page-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+  }
+
+  .page-heading h1 {
+    margin: 0.5rem 0;
+    font-size: clamp(2rem, 5vw, 3rem);
+  }
+
+  .intro,
+  .panel-heading p:not(.eyebrow) {
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  .back-button,
+  .secondary-button,
+  .primary-button {
+    display: inline-block;
+    border: 1px solid var(--accent);
+    padding: 0.7rem 1rem;
+    background: transparent;
+    color: var(--accent);
+    font: inherit;
+    font-size: 0.88rem;
+    text-decoration: none;
+    cursor: pointer;
+  }
+
+  .primary-button {
+    background: var(--accent);
+    color: white;
+  }
+
+  .back-button:hover,
+  .secondary-button:hover {
+    background: var(--accent-soft);
+  }
+
+  button:disabled {
+    opacity: 0.55;
+    cursor: wait;
+  }
+
+  .status {
+    padding: 1rem;
+    border: 1px solid var(--rule);
+    color: var(--muted);
+  }
+
+  .status.error,
+  .form-message.error {
+    color: #b42318;
+  }
+
+  .panel {
+    margin-top: 1.5rem;
+    padding: 1.5rem;
+    border: 1px solid var(--rule);
+    background: var(--surface);
+  }
+
+  .panel-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .panel-heading h2 {
+    margin: 0.4rem 0;
+  }
+
+  .panel-heading p {
+    margin-bottom: 0;
+  }
+
+  .form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.2rem;
+  }
+
+  .form-grid label {
+    display: grid;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+  }
+
+  .form-grid input,
+  .form-grid select {
+    width: 100%;
+    min-height: 44px;
+    padding: 0.7rem;
+    border: 1px solid var(--rule);
+    background: var(--surface);
+    color: var(--ink);
+    font: inherit;
+  }
+
+  .form-grid small {
+    color: var(--muted);
+    font-size: 0.76rem;
+    font-weight: 400;
+    line-height: 1.5;
+  }
+
+  .form-message {
+    min-height: 1.3rem;
+    font-size: 0.88rem;
+  }
+
+  .form-message.success {
+    color: #18794e;
+  }
+
+  .account-list {
+    display: grid;
+    gap: 1rem;
+  }
+
+  .account-card {
+    padding: 1.2rem;
+    border: 1px solid var(--rule);
+  }
+
+  .account-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .account-identity {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.65rem;
+  }
+
+  .account-identity h3 {
+    margin: 0;
+    font-size: 1.1rem;
+  }
+
+  .role-label,
+  .account-status {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.72rem;
+    border: 1px solid var(--rule);
+  }
+
+  .account-status.active {
+    color: #18794e;
+  }
+
+  .account-status.inactive {
+    color: #b42318;
+  }
+
+  .permission-heading {
+    margin: 1.2rem 0 0.7rem;
+    font-size: 0.86rem;
+    font-weight: 700;
+  }
+
+  .management-heading {
+    padding-top: 1rem;
+    border-top: 1px solid var(--rule);
+  }
+
+  .permission-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.55rem;
+  }
+
+  .permission-control {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.65rem;
+    padding: 0.65rem;
+    border: 1px solid var(--rule);
+    font-size: 0.82rem;
+    line-height: 1.45;
+    cursor: pointer;
+  }
+
+  .permission-control input {
+    margin-top: 0.15rem;
+    accent-color: var(--accent);
+  }
+
+  .permission-control:has(input:disabled) {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  .management-control {
+    background: var(--accent-soft);
+  }
+
+  .account-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--rule);
+  }
+
+  .empty-state {
+    padding: 1rem 0;
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+
+  .security-note {
+    margin-top: 1.5rem;
+    color: var(--muted);
+    font-size: 0.82rem;
+    line-height: 1.6;
+  }
+
+  @media (max-width: 650px) {
+    .page-heading,
+    .panel-heading {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+
+    .form-grid,
+    .permission-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .panel {
+      padding: 1rem;
+    }
+  }
+</style>
