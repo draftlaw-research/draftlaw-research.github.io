@@ -183,17 +183,25 @@ export async function onRequestPost({ request, env }) {
     );
 
     if (!githubResponse.ok) {
-      const errorText = await githubResponse.text();
-      console.error("GitHub inline image upload failed:", errorText);
+  const errorText = await githubResponse.text();
+  console.error("GitHub inline image upload failed:", errorText);
 
-      return Response.json(
-        {
-          ok: false,
-          message: "GitHub could not store the image. Please try again."
-        },
-        { status: 502 }
-      );
-    }
+  let githubMessage = "Unknown GitHub error.";
+
+  try {
+    githubMessage = JSON.parse(errorText).message || githubMessage;
+  } catch {
+    // Keep the fallback message.
+  }
+
+  return Response.json(
+    {
+      ok: false,
+      message: `GitHub returned error ${githubResponse.status}: ${githubMessage}`
+    },
+    { status: 502 }
+  );
+}
 
     return Response.json(
       {
