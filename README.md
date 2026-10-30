@@ -83,3 +83,5 @@ Change it in three places: `astro.config.mjs` (`site`), `src/config.ts` (`url`) 
 - Each article page carries scholarly metadata (`citation_*` tags and JSON-LD) so reference tools can read it.
 - Pages print cleanly: menu and footer are hidden when printing.
 - Built on Astro 7. Markdown is handled by Astro's built-in Sätteri processor; `src/plugins/asset-paths.mjs` lets editors insert images with the path Pages CMS writes.
+
+Editorial portal development is in progress.
