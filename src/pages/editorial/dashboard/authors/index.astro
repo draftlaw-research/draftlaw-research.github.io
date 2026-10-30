@@ -1,0 +1,208 @@
+---
+import Editorial from "../../../../layouts/Editorial.astro";
+
+const description = "Create and publish an author profile for DraftLaw Research.";
+---
+
+<Editorial title="Create author profile" description={description}>
+  <div class="wrap author-wrap">
+    <header class="page-title">
+      <p class="eyebrow">EDITORIAL WORKSPACE / AUTHORS</p>
+      <h1>Create an author profile</h1>
+      <p>Add a contributor to the website. Author profiles are published directly without an approval step.</p>
+    </header>
+
+    <p id="access-status" class="notice" role="status">Checking your account...</p>
+
+    <form id="author-form" hidden>
+      <section class="form-section">
+        <h2>Basic information</h2>
+        <div class="field">
+          <label for="name">Full name <span>*</span></label>
+          <input id="name" name="name" type="text" maxlength="160" required />
+        </div>
+        <div class="field">
+          <label for="role">Role or occupation</label>
+          <input id="role" name="role" type="text" maxlength="180" placeholder="e.g. Legal researcher, lecturer, student" />
+        </div>
+        <div class="field">
+          <label for="affiliation">University or organisation</label>
+          <input id="affiliation" name="affiliation" type="text" maxlength="180" />
+        </div>
+        <div class="field">
+          <label for="country">Country</label>
+          <input id="country" name="country" type="text" maxlength="100" />
+        </div>
+      </section>
+
+      <section class="form-section">
+        <h2>Profile photo</h2>
+        <p class="help">A square image works best. JPEG, PNG and WebP are accepted. Images larger than 200 KB will be compressed automatically before upload.</p>
+        <div class="field">
+          <label for="photo">Photo</label>
+          <input id="photo" name="photo" type="file" accept="image/jpeg,image/png,image/webp" />
+          <p id="photo-status" class="help" aria-live="polite"></p>
+          <img id="photo-preview" alt="Selected author photo preview" hidden />
+        </div>
+      </section>
+
+      <section class="form-section">
+        <h2>Professional links</h2>
+        <div class="field"><label for="orcid">ORCID (optional)</label><input id="orcid" name="orcid" type="text" placeholder="0000-0000-0000-0000" /></div>
+        <div class="field"><label for="linkedin">LinkedIn link (optional)</label><input id="linkedin" name="linkedin" type="url" placeholder="https://..." /></div>
+        <div class="field"><label for="facebook">Facebook link (optional)</label><input id="facebook" name="facebook" type="url" placeholder="https://..." /></div>
+        <div class="field"><label for="instagram">Instagram link (optional)</label><input id="instagram" name="instagram" type="url" placeholder="https://..." /></div>
+        <div class="field"><label for="website">Website link (optional)</label><input id="website" name="website" type="url" placeholder="https://..." /></div>
+      </section>
+
+      <section class="form-section">
+        <h2>Short biography</h2>
+        <div class="field">
+          <label for="body">Bio</label>
+          <textarea id="body" name="body" rows="7" placeholder="Write a short biography. Basic Markdown formatting is supported."></textarea>
+          <p class="help">This field is optional. You can use basic Markdown, such as **bold** and *italic*.</p>
+        </div>
+      </section>
+
+      <div class="form-actions">
+        <a class="back-link" href="/editorial/dashboard/">← Back to workspace</a>
+        <button id="publish-button" type="submit">Save and publish</button>
+      </div>
+      <p id="form-message" class="notice" role="status" aria-live="polite"></p>
+    </form>
+  </div>
+
+  <script>
+    const form = document.querySelector<HTMLFormElement>("#author-form")!;
+    const accessStatus = document.querySelector<HTMLElement>("#access-status")!;
+    const photoInput = document.querySelector<HTMLInputElement>("#photo")!;
+    const photoStatus = document.querySelector<HTMLElement>("#photo-status")!;
+    const preview = document.querySelector<HTMLImageElement>("#photo-preview")!;
+    const publishButton = document.querySelector<HTMLButtonElement>("#publish-button")!;
+    const message = document.querySelector<HTMLElement>("#form-message")!;
+    const MAX_IMAGE_SIZE = 200 * 1024;
+    let uploadedPhoto = "";
+    let previewUrl = "";
+
+    async function checkSession() {
+      try {
+        const response = await fetch("/api/auth/me", { credentials: "same-origin", cache: "no-store" });
+        const result = await response.json();
+        if (!response.ok || !result.ok || !["admin", "editor"].includes(result.user?.role)) {
+          window.location.replace("/editorial/");
+          return;
+        }
+        accessStatus.hidden = true;
+        form.hidden = false;
+      } catch {
+        accessStatus.textContent = "Unable to verify your account. Please refresh the page.";
+      }
+    }
+
+    function fileSize(bytes: number) { return `${(bytes / 1024).toFixed(1)} KB`; }
+
+    async function compressPhoto(file: File): Promise<File> {
+      if (file.size <= MAX_IMAGE_SIZE) return file;
+      if (!("createImageBitmap" in window)) throw new Error("Your browser cannot compress this image. Please use a newer browser.");
+      const image = await createImageBitmap(file);
+      try {
+        const canvas = document.createElement("canvas");
+        canvas.width = image.width;
+        canvas.height = image.height;
+        const context = canvas.getContext("2d");
+        if (!context) throw new Error("Image compression could not be started.");
+        context.drawImage(image, 0, 0);
+        for (const quality of [0.92, 0.88, 0.84, 0.8, 0.76, 0.72, 0.68, 0.64, 0.6, 0.56, 0.52, 0.48, 0.44, 0.4]) {
+          const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, "image/webp", quality));
+          if (blob && blob.size <= MAX_IMAGE_SIZE) {
+            const base = file.name.replace(/\.[^.]+$/, "") || "author-photo";
+            return new File([blob], `${base}.webp`, { type: "image/webp", lastModified: Date.now() });
+          }
+        }
+        throw new Error("This photo is still over 200 KB after compression. Please choose a smaller image.");
+      } finally {
+        image.close();
+      }
+    }
+
+    async function uploadPhoto(file: File): Promise<string> {
+      const compressed = await compressPhoto(file);
+      photoStatus.textContent = file.size > compressed.size
+        ? `Compressed from ${fileSize(file.size)} to ${fileSize(compressed.size)}. Uploading...`
+        : `Image size: ${fileSize(compressed.size)}. Uploading...`;
+      const data = new FormData();
+      data.append("photo", compressed);
+      const response = await fetch("/api/uploads/author-photo", { method: "POST", credentials: "same-origin", cache: "no-store", body: data });
+      const result = await response.json();
+      if (!response.ok || !result.ok || !result.photo) throw new Error(result.message || "The photo could not be uploaded.");
+      photoStatus.textContent = `Photo uploaded (${fileSize(compressed.size)}).`;
+      return result.photo;
+    }
+
+    photoInput.addEventListener("change", async () => {
+      uploadedPhoto = "";
+      const file = photoInput.files?.[0];
+      if (!file) { preview.hidden = true; photoStatus.textContent = ""; return; }
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      previewUrl = URL.createObjectURL(file);
+      preview.src = previewUrl;
+      preview.hidden = false;
+      photoStatus.textContent = file.size > MAX_IMAGE_SIZE ? `Selected ${fileSize(file.size)}. It will be compressed before upload.` : `Selected ${fileSize(file.size)}.`;
+    });
+
+    form.addEventListener("submit", async event => {
+      event.preventDefault();
+      message.textContent = "";
+      publishButton.disabled = true;
+      publishButton.textContent = "Publishing...";
+      try {
+        const data = new FormData(form);
+        const photo = photoInput.files?.[0];
+        if (photo) uploadedPhoto = await uploadPhoto(photo);
+        const payload = Object.fromEntries(["name", "role", "affiliation", "country", "orcid", "linkedin", "facebook", "instagram", "website", "body"].map(key => [key, String(data.get(key) || "").trim()]));
+        payload.photo = uploadedPhoto;
+        const response = await fetch("/api/authors/create", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+        const result = await response.json();
+        if (!response.ok || !result.ok) throw new Error(result.message || "The author profile could not be published.");
+        message.textContent = `${result.message} Profile: ${result.path}`;
+        message.classList.add("success");
+        form.reset();
+        uploadedPhoto = "";
+        preview.hidden = true;
+        photoStatus.textContent = "";
+        window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+      } catch (error) {
+        message.textContent = error instanceof Error ? error.message : "Something went wrong. Please try again.";
+        message.classList.remove("success");
+      } finally {
+        publishButton.disabled = false;
+        publishButton.textContent = "Save and publish";
+      }
+    });
+
+    checkSession();
+  </script>
+
+  <style>
+    .author-wrap { max-width: 900px; padding-bottom: 4rem; }
+    .page-title { padding: 2.5rem 0 1.5rem; }
+    .page-title h1 { margin: .4rem 0; }
+    .page-title > p:last-child, .help { color: var(--muted, #666); line-height: 1.6; }
+    .form-section { border-top: 1px solid var(--rule); padding: 1.8rem 0; }
+    .form-section h2 { font-size: 1.25rem; margin: 0 0 1.2rem; }
+    .field { margin: 1rem 0; }
+    .field label { display: block; margin-bottom: .45rem; font-weight: 600; }
+    .field label span { color: #b42318; }
+    .field input:not([type="file"]), .field textarea { width: 100%; padding: .8rem .9rem; border: 1px solid var(--rule); border-radius: 4px; background: var(--surface); color: var(--text); font: inherit; }
+    .field textarea { resize: vertical; }
+    .help { font-size: .9rem; margin: .5rem 0; }
+    #photo-preview { display: block; width: 150px; height: 150px; object-fit: cover; border-radius: 50%; margin-top: 1rem; border: 1px solid var(--rule); }
+    .form-actions { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 1.5rem 0; }
+    .back-link { color: inherit; }
+    button[type="submit"] { border: 0; padding: .9rem 1.3rem; background: var(--text); color: var(--surface); font: inherit; font-weight: 600; cursor: pointer; border-radius: 4px; }
+    button:disabled { opacity: .6; cursor: wait; }
+    .notice { padding: .9rem 1rem; background: var(--surface); border: 1px solid var(--rule); line-height: 1.5; }
+    .notice.success { border-color: #32845a; }
+    @media (max-width: 600px) { .form-actions { align-items: stretch; flex-direction: column; } button[type="submit"] { width: 100%; } }
+  </style>
+</Editorial>
