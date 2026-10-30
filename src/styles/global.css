@@ -1580,3 +1580,44 @@ details.past summary {
 .submission-email {
   font-size: 12px !important;
 }
+/* ---------- Formatting preserved from the editorial editor ---------- */
+
+.prose u {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.prose s,
+.prose del {
+  text-decoration: line-through;
+}
+
+.prose mark {
+  padding: 0.05em 0.2em;
+  border-radius: 2px;
+  color: #17130c;
+  background: #e8c878;
+}
+
+.prose sub,
+.prose sup {
+  font-size: 0.75em;
+  line-height: 0;
+}
+
+.prose img {
+  max-width: 100%;
+  height: auto;
+  margin: 1.5em auto;
+}
+
+.prose figure {
+  margin: 1.8em 0;
+}
+
+.prose figcaption {
+  margin-top: 0.5em;
+  color: var(--muted);
+  font-size: 0.8rem;
+  text-align: center;
+}
