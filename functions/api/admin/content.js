@@ -292,12 +292,13 @@ export async function onRequestGet({ request, env }) {
   } catch (error) {
     console.error("Content listing failed at:", stage, error);
 
-    return Response.json(
-      {
-        ok: false,
-        message: "Unable to load website content.",
-        stage
-      },
+   return Response.json(
+  {
+    ok: false,
+    message: "Unable to load website content.",
+    stage,
+    error: error.message
+  },
       {
         status: 500,
         headers: { "Cache-Control": "no-store" }
