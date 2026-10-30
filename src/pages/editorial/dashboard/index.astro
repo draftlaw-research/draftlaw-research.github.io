@@ -1,64 +1,46 @@
-
 ---
-import Base from '../../../layouts/Base.astro';
+import Editorial from '../../../../layouts/Editorial.astro';
 
 const description = 'The DraftLaw Research editorial workspace.';
 ---
 
-<Base title="Editorial Dashboard" description={description} indexed={false}>
+<Editorial title="Editorial Dashboard" description={description}>
   <div class="wrap">
-
-    <div class="dashboard-topline">
-      <div class="editorial-brand">
-        <img src="/logo.svg" alt="DraftLaw Research logo" />
-        <p class="eyebrow">DRAFTLAW RESEARCH / EDITORIAL</p>
-      </div>
-
-      <div id="account-info" class="account-info" hidden>
-        <div class="account-details">
-          <span class="account-label">SIGNED IN AS</span>
-          <strong id="user-name"></strong>
-          <span class="account-role" id="user-role"></span>
-        </div>
-        <a href="/" class="public-link">Visit public website ↗</a>
-      </div>
-    </div>
-
     <header class="page-title dashboard-heading">
+      <p class="eyebrow">EDITORIAL WORKSPACE</p>
       <h1>Editorial Dashboard</h1>
       <p>Manage editorial work and website content from one place.</p>
     </header>
 
     <div id="workspace" hidden>
-
       <section class="section">
         <div class="section-head">
           <h2>Your workspace</h2>
         </div>
 
         <div class="dashboard-grid">
-          <article class="dashboard-card">
+          <article class="dashboard-card" id="content">
             <p class="eyebrow">01 / CONTENT</p>
             <h3>Website content</h3>
             <p>Create and manage articles, guides, authors, topics and other website content.</p>
             <span class="coming-soon">Management tools coming soon</span>
           </article>
 
-          <article class="dashboard-card">
+          <article class="dashboard-card" id="submissions">
             <p class="eyebrow">02 / REVIEW</p>
             <h3>Submissions and approvals</h3>
             <p>Review proposed content and changes before they appear on the public website.</p>
             <span class="coming-soon">Review tools coming soon</span>
           </article>
 
-          <article class="dashboard-card admin-only" hidden>
+          <article class="dashboard-card admin-only" id="accounts" hidden>
             <p class="eyebrow">03 / TEAM</p>
             <h3>Editor accounts</h3>
             <p>Create editor accounts and manage their access to the portal.</p>
             <span class="coming-soon">Account management coming soon</span>
           </article>
 
-          <article class="dashboard-card admin-only" hidden>
+          <article class="dashboard-card admin-only" id="activity" hidden>
             <p class="eyebrow">04 / RECORDS</p>
             <h3>Activity log</h3>
             <p>Review the actions performed by administrators and editors.</p>
@@ -67,7 +49,7 @@ const description = 'The DraftLaw Research editorial workspace.';
         </div>
       </section>
 
-      <section class="section">
+      <section class="section" id="process">
         <div class="section-head">
           <h2>Editorial process</h2>
         </div>
@@ -76,7 +58,6 @@ const description = 'The DraftLaw Research editorial workspace.';
           before they can be published on the public website.
         </p>
       </section>
-
     </div>
 
     <p id="status-message" role="status" class="status-message">
@@ -88,7 +69,7 @@ const description = 'The DraftLaw Research editorial workspace.';
     async function loadDashboard() {
       const status = document.querySelector('#status-message');
       const workspace = document.querySelector('#workspace');
-      const accountInfo = document.querySelector('#account-info');
+      const accountInfo = document.querySelector('#editorial-account');
 
       try {
         const response = await fetch('/api/auth/me', {
@@ -109,22 +90,21 @@ const description = 'The DraftLaw Research editorial workspace.';
           return;
         }
 
-        document.querySelector('#user-name').textContent =
-          result.user.username;
-
-        document.querySelector('#user-role').textContent =
-          result.user.role === 'admin' ? 'Administrator' : 'Editor';
+        document.querySelector('#editorial-user-name').textContent =
+          result.user.role === 'admin' ? 'Admin' : result.user.username;
 
         if (result.user.role === 'admin') {
+          document.querySelector('#admin-shortcuts').hidden = false;
           document.querySelectorAll('.admin-only').forEach((item) => {
             item.hidden = false;
           });
+        } else {
+          document.querySelector('#editor-shortcuts').hidden = false;
         }
 
         accountInfo.hidden = false;
         workspace.hidden = false;
         status.hidden = true;
-
       } catch {
         status.textContent =
           'We could not verify your session. Please refresh or log in again.';
@@ -135,80 +115,6 @@ const description = 'The DraftLaw Research editorial workspace.';
   </script>
 
   <style>
-    .dashboard-topline {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 1.5rem;
-      padding-top: 1.2rem;
-      padding-bottom: 1rem;
-      border-bottom: 1px solid var(--rule);
-    }
-
-    .editorial-brand {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      min-width: 0;
-    }
-
-    .editorial-brand img {
-      width: 38px;
-      height: 38px;
-      object-fit: contain;
-    }
-
-    .editorial-brand .eyebrow {
-      margin: 0;
-    }
-
-    .account-info {
-      display: flex;
-      align-items: center;
-      justify-content: flex-end;
-      flex-wrap: wrap;
-      gap: 0.75rem;
-      text-align: right;
-      font-family: var(--font-ui);
-    }
-
-    .account-details {
-      display: flex;
-      align-items: baseline;
-      justify-content: flex-end;
-      flex-wrap: wrap;
-      gap: 0.4rem;
-      font-size: 0.72rem;
-    }
-
-    .account-label {
-      color: var(--muted);
-      font-size: 0.61rem;
-      letter-spacing: 0.1em;
-    }
-
-    .account-details strong {
-      color: var(--ink);
-      font-size: 0.75rem;
-      font-weight: 600;
-    }
-
-    .account-role {
-      color: var(--accent);
-      font-size: 0.7rem;
-    }
-
-    .public-link {
-      color: var(--muted);
-      font-size: 0.7rem;
-      text-decoration: none;
-      white-space: nowrap;
-    }
-
-    .public-link:hover {
-      color: var(--accent);
-    }
-
     .dashboard-heading {
       padding-top: 2rem;
     }
@@ -225,6 +131,7 @@ const description = 'The DraftLaw Research editorial workspace.';
       padding: 1.7rem;
       background: var(--surface);
       min-width: 0;
+      scroll-margin-top: 1rem;
     }
 
     .dashboard-card h3 {
@@ -259,26 +166,10 @@ const description = 'The DraftLaw Research editorial workspace.';
       color: var(--muted);
     }
 
-    @media (max-width: 700px) {
-      .dashboard-topline {
-        flex-direction: column;
-        align-items: flex-start;
-      }
-
-      .account-info {
-        justify-content: flex-start;
-        text-align: left;
-      }
-
-      .account-details {
-        justify-content: flex-start;
-      }
-    }
-
     @media (max-width: 650px) {
       .dashboard-grid {
         grid-template-columns: 1fr;
       }
     }
   </style>
-</Base>
+</Editorial>
