@@ -1492,7 +1492,7 @@ turndown.addRule('formattedText', {
   overflow: visible;
   border: 1px solid var(--rule);
   border-radius: 3px;
-  background: #080808;
+  background: #ffffff;
 }
 
 .editor-toolbar {
@@ -1543,14 +1543,15 @@ turndown.addRule('formattedText', {
   }
 
   .rich-editor {
-    min-height: 480px;
-    padding: 1.5rem;
-    color: var(--ink);
-    font-family: Georgia, "Times New Roman", serif;
-    font-size: 1.05rem;
-    line-height: 1.8;
-    outline: none;
-  }
+  min-height: 480px;
+  padding: 1.5rem;
+  background: #ffffff;
+  color: #222222;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.05rem;
+  line-height: 1.8;
+  outline: none;
+}
 
   .rich-editor .tiptap {
   min-height: 440px;
@@ -1559,6 +1560,15 @@ turndown.addRule('formattedText', {
   color: #222222;
   padding: 1rem;
   border-radius: 2px;
+}
+
+/* Default text colour inside the white writing area */
+.rich-editor .tiptap p,
+.rich-editor .tiptap li,
+.rich-editor .tiptap h1,
+.rich-editor .tiptap h2,
+.rich-editor .tiptap h3 {
+  color: #222222;
 }
 
   .rich-editor .tiptap > * + * { margin-top: 0.85em; }
