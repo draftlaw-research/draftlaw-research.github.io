@@ -162,7 +162,7 @@ export async function onRequestPost({ request, env }) {
     }
 
     const filename = `editorial-inline-${crypto.randomUUID()}.${extension}`;
-    const githubPath = `src/assets/images/${filename}`;
+    const githubPath = `public/uploads/${filename}`;
 
     const githubResponse = await fetch(
       `https://api.github.com/repos/${REPOSITORY}/contents/${githubPath}`,
@@ -205,7 +205,7 @@ export async function onRequestPost({ request, env }) {
     return Response.json(
       {
         ok: true,
-        image: `/src/assets/images/${filename}`,
+        image: `/uploads/${filename}`,
         message: "Image uploaded successfully."
       },
       {
