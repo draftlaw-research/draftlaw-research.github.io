@@ -87,16 +87,17 @@ import Editorial from '../../../../layouts/Editorial.astro';
     const type = document.createElement('span');
     type.className = 'draft-type';
     type.textContent =
-      draft.content_type === 'guide' ? 'Guide' : 'Article';
+      draft.contentType === 'guide' ? 'Guide' : 'Article';
 
     const updated = document.createElement('p');
     updated.className = 'draft-date';
     updated.textContent =
-      `Last updated: ${formatDate(draft.updated_at || draft.created_at)}`;
+      `Last updated: ${formatDate(draft.updatedAt || draft.createdAt)}`;
 
     const created = document.createElement('p');
     created.className = 'draft-date';
-    created.textContent = `Created: ${formatDate(draft.created_at)}`;
+    created.textContent =
+      `Created: ${formatDate(draft.createdAt)}`;
 
     details.append(title, type, updated, created);
 
@@ -107,7 +108,7 @@ import Editorial from '../../../../layouts/Editorial.astro';
     editLink.className = 'edit-link';
     editLink.textContent = 'Open draft';
 
-    // The editing connection will be added in the next step.
+    // Draft editing will be connected in the next development step.
     editLink.href =
       `/editorial/submissions/new/?id=${encodeURIComponent(draft.id)}`;
 
@@ -154,13 +155,13 @@ import Editorial from '../../../../layouts/Editorial.astro';
 
       message.hidden = true;
       draftList.replaceChildren();
+      draftList.hidden = true;
+      emptyState.hidden = true;
 
       if (drafts.length === 0) {
         emptyState.hidden = false;
         return;
       }
-
-      emptyState.hidden = true;
 
       drafts.forEach((draft) => {
         draftList.append(createDraftCard(draft));
