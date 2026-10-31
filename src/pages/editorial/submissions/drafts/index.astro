@@ -74,13 +74,11 @@ import Editorial from '../../../../layouts/Editorial.astro';
 
     const type = document.createElement('span');
     type.className = 'draft-type';
-    type.textContent = draft.contentType === 'guide' ? 'GUIDE' : 'ARTICLE';
+    type.textContent = draft.contentType === 'guide'
+      ? 'Guide Draft'
+      : 'Article Draft';
 
-    const status = document.createElement('span');
-    status.className = 'draft-status';
-    status.textContent = 'DRAFT';
-
-    meta.append(type, status);
+    meta.append(type);
 
     const title = document.createElement('h2');
     title.textContent = draft.title || 'Untitled submission';
@@ -102,7 +100,10 @@ import Editorial from '../../../../layouts/Editorial.astro';
     editLink.className = 'open-draft-link';
     editLink.textContent = 'Open draft';
     editLink.href = `/editorial/submissions/new/?id=${encodeURIComponent(draft.id)}`;
-    editLink.setAttribute('aria-label', `Open draft: ${draft.title || 'Untitled submission'}`);
+    editLink.setAttribute(
+      'aria-label',
+      `Open draft: ${draft.title || 'Untitled submission'}`
+    );
 
     actions.append(editLink);
     card.append(details, actions);
@@ -173,15 +174,13 @@ import Editorial from '../../../../layouts/Editorial.astro';
 
 <style>
   .drafts-page {
-    width: min(100% - 2.5rem, 920px);
+    max-width: 1100px;
     margin: 0 auto;
-    padding: clamp(2rem, 5vw, 3.5rem) 0 5rem;
+    padding: 2rem 1.5rem 4rem;
   }
 
   .page-heading {
-    margin-bottom: 2rem;
-    padding-bottom: 1.6rem;
-    border-bottom: 1px solid var(--rule);
+    margin-bottom: 2.5rem;
   }
 
   .back-link {
@@ -221,45 +220,41 @@ import Editorial from '../../../../layouts/Editorial.astro';
   }
 
   .message {
-    padding: 1rem 1.15rem;
-    margin: 1.5rem 0;
-    border: 1px solid var(--rule);
-    border-left: 3px solid var(--accent);
-    background: var(--surface);
+    padding: 1.5rem 0;
     color: var(--muted);
     line-height: 1.6;
   }
 
   .message.error {
-    border-left-color: #b65b5b;
-    color: #d99b9b;
+    color: #b65b5b;
   }
 
-  /* Dashboard-style grid: shared divider lines between cards. */
+  /* Same grid and individual card treatment as Submission Centre. */
   .draft-list {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 1px;
+    gap: 1rem;
     margin-top: 1.75rem;
-    border: 1px solid var(--rule);
-    background: var(--rule);
   }
 
   .draft-card {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: 0.8rem;
     min-width: 0;
     min-height: 230px;
     padding: 1.7rem;
-    border: 0;
+    border: 1px solid var(--rule);
     background: var(--surface);
-    transition: background 160ms ease;
+    color: inherit;
+    transition:
+      background 160ms ease,
+      border-color 160ms ease;
   }
 
   .draft-card:hover {
     background: var(--accent-soft);
+    border-color: var(--accent);
   }
 
   .draft-details {
@@ -267,26 +262,16 @@ import Editorial from '../../../../layouts/Editorial.astro';
   }
 
   .draft-meta {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.55rem;
     margin-bottom: 0.8rem;
     font-family: var(--font-ui);
-    font-size: 0.68rem;
+    font-size: 0.72rem;
     font-weight: 700;
     letter-spacing: 0.1em;
+    text-transform: uppercase;
   }
 
   .draft-type {
     color: var(--accent);
-  }
-
-  .draft-status {
-    padding: 0.18rem 0.48rem;
-    border: 1px solid var(--rule);
-    color: var(--muted);
-    font-size: 0.62rem;
   }
 
   .draft-card h2 {
@@ -309,10 +294,9 @@ import Editorial from '../../../../layouts/Editorial.astro';
 
   .draft-actions {
     margin-top: auto;
-    padding-top: 0.8rem;
+    padding-top: 1.5rem;
   }
 
-  /* Outlined button matching the Dashboard action-button. */
   .open-draft-link {
     display: inline-flex;
     align-items: center;
@@ -323,7 +307,7 @@ import Editorial from '../../../../layouts/Editorial.astro';
     color: var(--accent);
     cursor: pointer;
     font-family: inherit;
-    font-size: 0.88rem;
+    font-size: 0.9rem;
     text-decoration: none;
     transition: background 160ms ease;
   }
@@ -333,11 +317,8 @@ import Editorial from '../../../../layouts/Editorial.astro';
   }
 
   .empty-state {
-    margin-top: 1.75rem;
-    padding: 2.5rem 1.5rem;
-    border: 1px dashed var(--rule);
-    background: var(--surface);
-    text-align: center;
+    padding: 1.5rem 0;
+    color: var(--muted);
   }
 
   .empty-state h2 {
@@ -348,7 +329,6 @@ import Editorial from '../../../../layouts/Editorial.astro';
 
   .empty-state p:last-child {
     margin: 0;
-    color: var(--muted);
   }
 
   @media (max-width: 650px) {
@@ -357,11 +337,10 @@ import Editorial from '../../../../layouts/Editorial.astro';
     }
 
     .draft-card {
-      min-height: 0;
+      min-height: 230px;
       padding: 1.4rem;
     }
 
-    .draft-actions,
     .open-draft-link {
       width: 100%;
     }
