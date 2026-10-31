@@ -76,6 +76,31 @@ async function getLoggedInUser(request, env) {
   return session;
 }
 
+// Check whether an Editor has permission for the requested section.
+// Administrators automatically have access.
+async function hasSectionPermission(user, env, section) {
+  if (user.role === "admin") {
+    return true;
+  }
+
+  if (user.role !== "editor") {
+    return false;
+  }
+
+  const permission = await env.EDITORIAL_DB
+    .prepare(`
+      SELECT 1
+      FROM editor_section_permissions
+      WHERE user_id = ?
+        AND section_key = ?
+      LIMIT 1
+    `)
+    .bind(user.id, section)
+    .first();
+
+  return Boolean(permission);
+}
+
 function validReference(value, prefix) {
   return (
     typeof value === "string" &&
@@ -199,20 +224,20 @@ function validateSubmission(data) {
 
   const cover = data.cover || "";
 
-const isLegacyCover =
-  typeof cover === "string" &&
-  /^\/src\/assets\/covers\/editorial-[a-f0-9-]+\.(jpg|png|webp)$/i.test(cover);
+  const isLegacyCover =
+    typeof cover === "string" &&
+    /^\/src\/assets\/covers\/editorial-[a-f0-9-]+\.(jpg|png|webp)$/i.test(cover);
 
-const isGithubCover =
-  typeof cover === "string" &&
-  /^https:\/\/raw\.githubusercontent\.com\/draftlaw-research\/draftlaw-research\.github\.io\/(?:editorial-portal-development|refs\/heads\/editorial-portal-development)\/public\/uploads\/editorial-[a-f0-9-]+\.(jpg|png|webp)$/i.test(cover);
+  const isGithubCover =
+    typeof cover === "string" &&
+    /^https:\/\/raw\.githubusercontent\.com\/draftlaw-research\/draftlaw-research\.github\.io\/(?:editorial-portal-development|refs\/heads\/editorial-portal-development)\/public\/uploads\/editorial-[a-f0-9-]+\.(jpg|png|webp)$/i.test(cover);
 
-if (
-  typeof cover !== "string" ||
-  (cover !== "" && !isLegacyCover && !isGithubCover)
-) {
-  throw new Error("Invalid cover image path.");
-}
+  if (
+    typeof cover !== "string" ||
+    (cover !== "" && !isLegacyCover && !isGithubCover)
+  ) {
+    throw new Error("Invalid cover image path.");
+  }
 
   if (
     data.featured !== undefined &&
@@ -254,7 +279,10 @@ export async function onRequestPost({ request, env }) {
           ok: false,
           message: "Submission storage is not configured."
         },
-        { status: 500 }
+        {
+          status: 500,
+          headers: { "Cache-Control": "no-store" }
+        }
       );
     }
 
@@ -266,12 +294,38 @@ export async function onRequestPost({ request, env }) {
           ok: false,
           message: "Please log in to continue."
         },
-        { status: 401 }
+        {
+          status: 401,
+          headers: { "Cache-Control": "no-store" }
+        }
       );
     }
 
     const data = await request.json();
     const content = validateSubmission(data);
+
+    // Match the requested submission type to its permission section.
+    const requiredSection =
+      content.contentType === "article" ? "articles" : "guides";
+
+    const authorized = await hasSectionPermission(
+      user,
+      env,
+      requiredSection
+    );
+
+    if (!authorized) {
+      return Response.json(
+        {
+          ok: false,
+          message: `You do not have permission to create ${content.contentType} submissions. Please contact an administrator.`
+        },
+        {
+          status: 403,
+          headers: { "Cache-Control": "no-store" }
+        }
+      );
+    }
 
     const requestedStatus = data.status || "draft";
 
@@ -281,7 +335,10 @@ export async function onRequestPost({ request, env }) {
           ok: false,
           message: "Invalid submission status."
         },
-        { status: 400 }
+        {
+          status: 400,
+          headers: { "Cache-Control": "no-store" }
+        }
       );
     }
 
@@ -421,7 +478,10 @@ export async function onRequestPost({ request, env }) {
         ok: false,
         message: error.message || "Unable to save your submission."
       },
-      { status: 400 }
+      {
+        status: 400,
+        headers: { "Cache-Control": "no-store" }
+      }
     );
   }
 }
