@@ -19,27 +19,51 @@ function getCookie(request) {
   return item ? item.slice("editorial_session=".length) : null;
 }
 
-async function isEditor(request, env) {
+async function getLoggedInUser(request, env) {
   const token = getCookie(request);
 
-  if (!token || !/^[A-Za-z0-9_-]{43}$/.test(token)) return false;
+  if (!token || !/^[A-Za-z0-9_-]{43}$/.test(token)) return null;
 
   const hash = await sha256(token);
 
-  const session = await env.EDITORIAL_DB.prepare(`
-    SELECT users.role, users.is_active, sessions.expires_at
+  const user = await env.EDITORIAL_DB.prepare(`
+    SELECT
+      users.id AS user_id,
+      users.role,
+      users.is_active,
+      sessions.expires_at
     FROM sessions
     JOIN users ON users.id = sessions.user_id
     WHERE sessions.token_hash = ?
     LIMIT 1
   `).bind(hash).first();
 
-  return Boolean(
-    session &&
-    Number(session.is_active) === 1 &&
-    new Date(session.expires_at).getTime() > Date.now() &&
-    ["admin", "editor"].includes(session.role)
-  );
+  if (
+    !user ||
+    Number(user.is_active) !== 1 ||
+    new Date(user.expires_at).getTime() <= Date.now() ||
+    !["admin", "editor"].includes(user.role)
+  ) {
+    return null;
+  }
+
+  return user;
+}
+
+async function hasStudentCollaboratorsPermission(user, env) {
+  // Administrators automatically have permission.
+  if (user.role === "admin") return true;
+
+  // Editors must have the specific section permission.
+  const permission = await env.EDITORIAL_DB.prepare(`
+    SELECT 1
+    FROM editor_section_permissions
+    WHERE user_id = ?
+      AND section_key = 'student-collaborators'
+    LIMIT 1
+  `).bind(user.user_id).first();
+
+  return Boolean(permission);
 }
 
 function imageExtension(bytes) {
@@ -81,10 +105,30 @@ export async function onRequestPost({ request, env }) {
       );
     }
 
-    if (!(await isEditor(request, env))) {
+    const user = await getLoggedInUser(request, env);
+
+    if (!user) {
       return Response.json(
         { ok: false, message: "Please log in with an editor or administrator account." },
-        { status: 401 }
+        {
+          status: 401,
+          headers: { "Cache-Control": "no-store" }
+        }
+      );
+    }
+
+    const allowed = await hasStudentCollaboratorsPermission(user, env);
+
+    if (!allowed) {
+      return Response.json(
+        {
+          ok: false,
+          message: "You do not have permission to upload Student Collaborator photos."
+        },
+        {
+          status: 403,
+          headers: { "Cache-Control": "no-store" }
+        }
       );
     }
 
@@ -97,7 +141,10 @@ export async function onRequestPost({ request, env }) {
 
     if (file.size > MAX_FILE_SIZE) {
       return Response.json(
-        { ok: false, message: "The photo is still larger than 200 KB after compression. Please choose another image." },
+        {
+          ok: false,
+          message: "The photo is still larger than 200 KB after compression. Please choose another image."
+        },
         { status: 400 }
       );
     }
@@ -106,7 +153,10 @@ export async function onRequestPost({ request, env }) {
     const extension = imageExtension(bytes);
 
     if (!extension) {
-      return Response.json({ ok: false, message: "Use a JPEG, PNG or WebP image." }, { status: 400 });
+      return Response.json(
+        { ok: false, message: "Use a JPEG, PNG or WebP image." },
+        { status: 400 }
+      );
     }
 
     const filename = `student-${crypto.randomUUID()}.${extension}`;
