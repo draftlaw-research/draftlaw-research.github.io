@@ -37,8 +37,12 @@ async function getLoggedInUser(request, env) {
 
   const tokenHash = await sha256(token);
 
-  const session = await env.EDITORIAL_DB.prepare(`
-    SELECT users.role, users.is_active, sessions.expires_at
+  const user = await env.EDITORIAL_DB.prepare(`
+    SELECT
+      users.id AS user_id,
+      users.role,
+      users.is_active,
+      sessions.expires_at
     FROM sessions
     JOIN users ON users.id = sessions.user_id
     WHERE sessions.token_hash = ?
@@ -46,13 +50,29 @@ async function getLoggedInUser(request, env) {
   `).bind(tokenHash).first();
 
   if (
-    !session ||
-    Number(session.is_active) !== 1 ||
-    new Date(session.expires_at).getTime() <= Date.now() ||
-    !["admin", "editor"].includes(session.role)
+    !user ||
+    Number(user.is_active) !== 1 ||
+    new Date(user.expires_at).getTime() <= Date.now() ||
+    !["admin", "editor"].includes(user.role)
   ) return null;
 
-  return session;
+  return user;
+}
+
+async function hasNewsletterPermission(user, env) {
+  // Administrators automatically have permission.
+  if (user.role === "admin") return true;
+
+  // Editors must have the Newsletter section permission.
+  const permission = await env.EDITORIAL_DB.prepare(`
+    SELECT 1
+    FROM editor_section_permissions
+    WHERE user_id = ?
+      AND section_key = 'newsletter'
+    LIMIT 1
+  `).bind(user.user_id).first();
+
+  return Boolean(permission);
 }
 
 function slugify(value) {
@@ -91,7 +111,7 @@ export async function onRequestPost({ request, env }) {
       );
     }
 
-    // Editors and administrators can publish directly.
+    // Verify the logged-in user.
     const user = await getLoggedInUser(request, env);
 
     if (!user) {
@@ -100,7 +120,26 @@ export async function onRequestPost({ request, env }) {
           ok: false,
           message: "Please log in with an editor or administrator account."
         },
-        { status: 401 }
+        {
+          status: 401,
+          headers: { "Cache-Control": "no-store" }
+        }
+      );
+    }
+
+    // Check Newsletter permission before accepting publishing data.
+    const allowed = await hasNewsletterPermission(user, env);
+
+    if (!allowed) {
+      return Response.json(
+        {
+          ok: false,
+          message: "You do not have permission to publish Newsletter items."
+        },
+        {
+          status: 403,
+          headers: { "Cache-Control": "no-store" }
+        }
       );
     }
 
