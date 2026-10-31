@@ -45,56 +45,56 @@ const description = "The DraftLaw Research editorial workspace.";
 
         <div class="dashboard-grid">
 
-          <article class="dashboard-card active-card" id="submissions">
+          <article class="dashboard-card active-card" id="submissions" hidden>
             <p class="eyebrow">01 / REVIEW</p>
             <h3>Submissions</h3>
             <p>Review and manage submitted Articles and Guidelines.</p>
             <a class="action-button" href="/editorial/submissions/">Open submissions →</a>
           </article>
 
-          <article class="dashboard-card" id="authors">
+          <article class="dashboard-card" id="authors" hidden>
             <p class="eyebrow">02 / CONTRIBUTORS</p>
             <h3>Authors</h3>
             <p>Create and publish author profiles for the website.</p>
             <a class="action-button" href="/editorial/dashboard/authors/">Create author profile →</a>
           </article>
 
-          <article class="dashboard-card" id="topics">
+          <article class="dashboard-card" id="topics" hidden>
             <p class="eyebrow">03 / WEBSITE SECTION</p>
             <h3>Topics</h3>
             <p>Create and publish topics and categories used across the website.</p>
             <a class="action-button" href="/editorial/dashboard/topics/">Create topic →</a>
           </article>
 
-          <article class="dashboard-card" id="team-members">
+          <article class="dashboard-card" id="team-members" hidden>
             <p class="eyebrow">04 / WEBSITE SECTION</p>
             <h3>Team Members</h3>
             <p>Add and publish members of the DraftLaw Research team.</p>
             <a class="action-button" href="/editorial/dashboard/team/">Add team member →</a>
           </article>
 
-          <article class="dashboard-card" id="student-collaborators">
+          <article class="dashboard-card" id="student-collaborators" hidden>
             <p class="eyebrow">05 / WEBSITE SECTION</p>
             <h3>Student Collaborators</h3>
             <p>Add and publish Student Collaborator profiles.</p>
             <a class="action-button" href="/editorial/dashboard/student-collaborators/">Add Student Collaborator →</a>
           </article>
 
-          <article class="dashboard-card" id="newsletter-items">
+          <article class="dashboard-card" id="newsletter-items" hidden>
             <p class="eyebrow">06 / WEBSITE SECTION</p>
             <h3>Newsletter Items</h3>
             <p>Publish calls for papers, events, competitions and opportunities.</p>
             <a class="action-button" href="/editorial/dashboard/newsletter/">Add newsletter item →</a>
           </article>
 
-          <article class="dashboard-card" id="programs">
+          <article class="dashboard-card" id="programs" hidden>
             <p class="eyebrow">07 / INITIATIVES</p>
             <h3>Programs</h3>
             <p>Create and manage DraftLaw Research programs.</p>
             <a class="action-button" href="/editorial/dashboard/programs/">Add a program →</a>
           </article>
 
-          <article class="dashboard-card" id="announcements">
+          <article class="dashboard-card" id="announcements" hidden>
             <p class="eyebrow">08 / INITIATIVES</p>
             <h3>Program Announcements</h3>
             <p>Publish open calls, program updates and results.</p>
@@ -150,11 +150,25 @@ const description = "The DraftLaw Research editorial workspace.";
       notificationToggle.setAttribute("aria-expanded", String(opening));
     });
 
+    // Connect each permission to its corresponding dashboard card.
+    const sectionCards = {
+      articles: ["submissions"],
+      guides: ["submissions"],
+      authors: ["authors"],
+      topics: ["topics"],
+      team: ["team-members"],
+      "student-collaborators": ["student-collaborators"],
+      newsletter: ["newsletter-items"],
+      programs: ["programs"],
+      announcements: ["announcements"]
+    };
+
     async function loadDashboard() {
       const status = $("#status-message");
       const workspace = $("#workspace");
 
       try {
+        // First, verify the user's login session.
         const response = await fetch("/api/auth/me", {
           credentials: "same-origin",
           cache: "no-store"
@@ -178,61 +192,110 @@ const description = "The DraftLaw Research editorial workspace.";
 
         const currentRole = result.user.role;
 
-        $("#editorial-user-name").textContent =
-          currentRole === "admin" ? "Admin" : result.user.username;
+        // Update the name displayed in the editorial header.
+        const userName = $("#editorial-user-name");
 
+        if (userName) {
+          userName.textContent =
+            currentRole === "admin" ? "Admin" : result.user.username;
+        }
+
+        // Update the dashboard heading.
         $("#workspace-heading").textContent =
           currentRole === "admin" ? "Admin Workspace" : "Editor Workspace";
 
         if (currentRole === "admin") {
-  // Admins always have access to Submissions.
-  $("#submissions").hidden = false;
 
-  $("#admin-shortcuts").hidden = false;
+          // Admins can see every content section.
+          Object.values(sectionCards).flat().forEach((cardId) => {
+            const card = document.getElementById(cardId);
 
-  document.querySelectorAll(".admin-only").forEach((item) => {
-    item.hidden = false;
-  });
+            if (card) {
+              card.hidden = false;
+            }
+          });
 
-} else {
-  // Check the Editor's Article and Guidelines permissions.
-  const permissionResponse = await fetch("/api/auth/section-permissions", {
-    credentials: "same-origin",
-    cache: "no-store"
-  });
+          // Show administrator-only cards.
+          document.querySelectorAll(".admin-only").forEach((item) => {
+            item.hidden = false;
+          });
 
-  if (!permissionResponse.ok) {
-    throw new Error("Could not verify section permissions.");
-  }
+        } else {
 
-  const permissionResult = await permissionResponse.json();
+          // Retrieve the Editor's assigned section permissions.
+          const permissionResponse = await fetch(
+            "/api/auth/section-permissions",
+            {
+              credentials: "same-origin",
+              cache: "no-store"
+            }
+          );
 
-  if (
-    !permissionResult.ok ||
-    permissionResult.role !== "editor" ||
-    !Array.isArray(permissionResult.permissions)
-  ) {
-    throw new Error("Invalid section permission response.");
-  }
+          if (!permissionResponse.ok) {
+            throw new Error("Could not verify section permissions.");
+          }
 
-  const canAccessSubmissions =
-    permissionResult.permissions.includes("articles") ||
-    permissionResult.permissions.includes("guides");
+          const permissionResult = await permissionResponse.json();
 
-  // Hide Submissions if the Editor has neither permission.
-  $("#submissions").hidden = !canAccessSubmissions;
+          if (
+            !permissionResult.ok ||
+            permissionResult.role !== "editor" ||
+            !Array.isArray(permissionResult.permissions)
+          ) {
+            throw new Error("Invalid section permission response.");
+          }
 
-  $("#editor-shortcuts").hidden = false;
-}
+          const permissions = permissionResult.permissions;
 
-        $("#editorial-account").hidden = false;
+          // Hide every content card before checking permissions.
+          Object.values(sectionCards).flat().forEach((cardId) => {
+            const card = document.getElementById(cardId);
+
+            if (card) {
+              card.hidden = true;
+            }
+          });
+
+          // Show only cards assigned to this Editor.
+          permissions.forEach((permission) => {
+            const cardIds = sectionCards[permission] || [];
+
+            cardIds.forEach((cardId) => {
+              const card = document.getElementById(cardId);
+
+              if (card) {
+                card.hidden = false;
+              }
+            });
+          });
+
+          // Editors cannot see administrator-only cards.
+          document.querySelectorAll(".admin-only").forEach((item) => {
+            item.hidden = true;
+          });
+        }
+
+        // Show account and notification controls after verification.
+        const editorialAccount = $("#editorial-account");
+
+        if (editorialAccount) {
+          editorialAccount.hidden = false;
+        }
+
         $("#notification-area").hidden = false;
+
+        // Reveal the dashboard only after permission checks succeed.
         workspace.hidden = false;
         status.hidden = true;
 
-      } catch {
+      } catch (error) {
+        console.error("Dashboard loading failed:", error);
+
+        // Keep the dashboard hidden if permission verification fails.
+        workspace.hidden = true;
+        status.hidden = false;
         status.textContent =
-          "We could not verify your session. Please refresh or log in again.";
+          "We could not verify your permissions. Please refresh or log in again.";
       }
     }
 
