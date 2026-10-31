@@ -93,25 +93,24 @@ const description = "Create and publish a Newsletter item.";
     const message = document.querySelector<HTMLElement>("#form-message")!;
 
     async function checkSession() {
-      try {
-        const response = await fetch("/api/auth/me", {
-          credentials: "same-origin",
-          cache: "no-store"
-        });
-        const result = await response.json();
+  try {
+    const response = await fetch("/api/auth/me", {
+      credentials: "same-origin",
+      cache: "no-store"
+    });
+    const result = await response.json();
 
-        if (!response.ok || !result.ok || !["admin", "editor"].includes(result.user?.role)) {
-          window.location.replace("/editorial/");
-          return;
-        }
-
-        accessStatus.hidden = true;
-        form.hidden = false;
-      } catch {
-        accessStatus.textContent = "Unable to verify your account. Please refresh the page.";
-      }
+    if (!response.ok || !result.ok || !["admin", "editor"].includes(result.user?.role)) {
+      window.location.replace("/editorial/");
+      return;
     }
 
+    accessStatus.hidden = true;
+    form.hidden = false;
+  } catch {
+    accessStatus.textContent = "Unable to verify your account. Please refresh the page.";
+  }
+}
     form.addEventListener("submit", async event => {
       event.preventDefault();
 
