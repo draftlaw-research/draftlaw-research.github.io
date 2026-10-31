@@ -4,7 +4,11 @@ const BRANCH = "editorial-portal-development";
 const MAX_FILE_SIZE = 200 * 1024;
 
 async function sha256(value) {
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(value)
+  );
+
   return Array.from(new Uint8Array(digest))
     .map(byte => byte.toString(16).padStart(2, "0"))
     .join("");
@@ -19,31 +23,50 @@ function getCookie(request) {
   return item ? item.slice("editorial_session=".length) : null;
 }
 
-async function isEditor(request, env) {
+async function getLoggedInUser(request, env) {
   const token = getCookie(request);
 
-  if (!token || !/^[A-Za-z0-9_-]{43}$/.test(token)) return false;
+  if (!token || !/^[A-Za-z0-9_-]{43}$/.test(token)) return null;
 
   const hash = await sha256(token);
 
   const session = await env.EDITORIAL_DB.prepare(`
-    SELECT users.role, users.is_active, sessions.expires_at
+    SELECT users.id AS user_id, users.role, users.is_active, sessions.expires_at
     FROM sessions
     JOIN users ON users.id = sessions.user_id
     WHERE sessions.token_hash = ?
     LIMIT 1
   `).bind(hash).first();
 
-  return Boolean(
-    session &&
-    Number(session.is_active) === 1 &&
-    new Date(session.expires_at).getTime() > Date.now() &&
-    ["admin", "editor"].includes(session.role)
-  );
+  if (
+    !session ||
+    Number(session.is_active) !== 1 ||
+    new Date(session.expires_at).getTime() <= Date.now() ||
+    !["admin", "editor"].includes(session.role)
+  ) return null;
+
+  return session;
+}
+
+async function hasTeamPermission(user, env) {
+  // Administrators have access to every section.
+  if (user.role === "admin") return true;
+
+  const permission = await env.EDITORIAL_DB.prepare(`
+    SELECT 1
+    FROM editor_section_permissions
+    WHERE user_id = ?
+      AND section_key = 'team'
+    LIMIT 1
+  `).bind(user.user_id).first();
+
+  return Boolean(permission);
 }
 
 function imageExtension(bytes) {
-  if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return "jpg";
+  if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) {
+    return "jpg";
+  }
 
   if (
     bytes.length >= 8 &&
@@ -51,13 +74,17 @@ function imageExtension(bytes) {
     bytes[1] === 0x50 &&
     bytes[2] === 0x4e &&
     bytes[3] === 0x47
-  ) return "png";
+  ) {
+    return "png";
+  }
 
   if (
     bytes.length >= 12 &&
     String.fromCharCode(...bytes.slice(0, 4)) === "RIFF" &&
     String.fromCharCode(...bytes.slice(8, 12)) === "WEBP"
-  ) return "webp";
+  ) {
+    return "webp";
+  }
 
   return null;
 }
@@ -75,13 +102,34 @@ function toBase64(bytes) {
 export async function onRequestPost({ request, env }) {
   try {
     if (!env.EDITORIAL_DB || !env.GITHUB_TOKEN) {
-      return Response.json({ ok: false, message: "Photo upload is not configured." }, { status: 500 });
+      return Response.json(
+        { ok: false, message: "Photo upload is not configured." },
+        { status: 500 }
+      );
     }
 
-    if (!(await isEditor(request, env))) {
+    const user = await getLoggedInUser(request, env);
+
+    if (!user) {
       return Response.json(
         { ok: false, message: "Please log in with an editor or administrator account." },
-        { status: 401 }
+        {
+          status: 401,
+          headers: { "Cache-Control": "no-store" }
+        }
+      );
+    }
+
+    // Only Admins and Editors with Team Members permission can upload.
+    const authorized = await hasTeamPermission(user, env);
+
+    if (!authorized) {
+      return Response.json(
+        { ok: false, message: "You are not authorized to upload Team Members photos." },
+        {
+          status: 403,
+          headers: { "Cache-Control": "no-store" }
+        }
       );
     }
 
@@ -89,12 +137,18 @@ export async function onRequestPost({ request, env }) {
     const file = form.get("photo");
 
     if (!file || typeof file.arrayBuffer !== "function" || file.size === 0) {
-      return Response.json({ ok: false, message: "Choose a photo first." }, { status: 400 });
+      return Response.json(
+        { ok: false, message: "Choose a photo first." },
+        { status: 400 }
+      );
     }
 
     if (file.size > MAX_FILE_SIZE) {
       return Response.json(
-        { ok: false, message: "The photo is still larger than 200 KB after compression. Please choose another image." },
+        {
+          ok: false,
+          message: "The photo is still larger than 200 KB after compression. Please choose another image."
+        },
         { status: 400 }
       );
     }
@@ -103,7 +157,10 @@ export async function onRequestPost({ request, env }) {
     const extension = imageExtension(bytes);
 
     if (!extension) {
-      return Response.json({ ok: false, message: "Use a JPEG, PNG or WebP image." }, { status: 400 });
+      return Response.json(
+        { ok: false, message: "Use a JPEG, PNG or WebP image." },
+        { status: 400 }
+      );
     }
 
     const filename = `team-${crypto.randomUUID()}.${extension}`;
@@ -152,7 +209,9 @@ export async function onRequestPost({ request, env }) {
     return Response.json(
       {
         ok: false,
-        message: error instanceof Error ? error.message : "Unable to upload the photo."
+        message: error instanceof Error
+          ? error.message
+          : "Unable to upload the photo."
       },
       {
         status: 500,
