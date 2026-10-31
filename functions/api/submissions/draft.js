@@ -241,7 +241,8 @@ function validateSubmission(data) {
   };
 }
 
-async function getOwnedDraft(env, id, userId) {
+// Find a draft or rejected submission belonging to this Editor.
+async function getOwnedEditableSubmission(env, id, userId) {
   return await env.EDITORIAL_DB
     .prepare(`
       SELECT
@@ -254,14 +255,14 @@ async function getOwnedDraft(env, id, userId) {
       FROM content_submissions
       WHERE id = ?
         AND created_by = ?
-        AND status = 'draft'
+        AND status IN ('draft', 'rejected')
       LIMIT 1
     `)
     .bind(id, userId)
     .first();
 }
 
-// GET: List drafts or load one specific draft.
+// GET: List drafts or load one specific draft/rejected submission.
 export async function onRequestGet({ request, env }) {
   try {
     const user = await getLoggedInEditor(request, env);
@@ -278,7 +279,7 @@ export async function onRequestGet({ request, env }) {
 
     const id = new URL(request.url).searchParams.get("id");
 
-    // No ID: return this Editor's draft list.
+    // No ID: return only this Editor's draft list.
     if (!id) {
       const result = await env.EDITORIAL_DB
         .prepare(`
@@ -313,14 +314,14 @@ export async function onRequestGet({ request, env }) {
       );
     }
 
-    // With an ID: load one draft belonging to this Editor.
-    const draft = await getOwnedDraft(env, id, user.id);
+    // With an ID: load an owned draft or rejected submission.
+    const draft = await getOwnedEditableSubmission(env, id, user.id);
 
     if (!draft) {
       return Response.json(
         {
           ok: false,
-          message: "Draft not found or you are not allowed to access it."
+          message: "Submission not found or you are not allowed to access it."
         },
         { status: 404 }
       );
@@ -334,7 +335,7 @@ export async function onRequestGet({ request, env }) {
       return Response.json(
         {
           ok: false,
-          message: "The saved draft could not be read."
+          message: "The saved submission could not be read."
         },
         { status: 500 }
       );
@@ -347,7 +348,8 @@ export async function onRequestGet({ request, env }) {
           id: draft.id,
           contentType: draft.content_type,
           title: draft.title,
-          content
+          content,
+          status: draft.status
         }
       },
       {
@@ -356,19 +358,19 @@ export async function onRequestGet({ request, env }) {
     );
 
   } catch (error) {
-    console.error("Loading drafts failed:", error);
+    console.error("Loading submissions failed:", error);
 
     return Response.json(
       {
         ok: false,
-        message: "Unable to load your drafts."
+        message: "Unable to load your submissions."
       },
       { status: 500 }
     );
   }
 }
 
-// PUT: Update a draft or submit it for Admin approval.
+// PUT: Update a draft/rejected submission or submit it for Admin approval.
 export async function onRequestPut({ request, env }) {
   try {
     const user = await getLoggedInEditor(request, env);
@@ -385,17 +387,18 @@ export async function onRequestPut({ request, env }) {
 
     const data = await request.json();
 
-const urlId = new URL(request.url).searchParams.get("id");
+    const urlId = new URL(request.url).searchParams.get("id");
 
-const id =
-  typeof data.id === "string" && data.id.trim()
-    ? data.id.trim()
-    : urlId || "";
+    const id =
+      typeof data.id === "string" && data.id.trim()
+        ? data.id.trim()
+        : urlId || "";
 
-const requestedStatus = data.status || "draft";
+    const requestedStatus = data.status || "draft";
+
     if (!id) {
       return Response.json(
-        { ok: false, message: "A draft ID is required." },
+        { ok: false, message: "A submission ID is required." },
         { status: 400 }
       );
     }
@@ -407,13 +410,13 @@ const requestedStatus = data.status || "draft";
       );
     }
 
-    const existing = await getOwnedDraft(env, id, user.id);
+    const existing = await getOwnedEditableSubmission(env, id, user.id);
 
     if (!existing) {
       return Response.json(
         {
           ok: false,
-          message: "Draft not found or it is no longer editable."
+          message: "Submission not found or it is no longer editable."
         },
         { status: 404 }
       );
@@ -425,7 +428,7 @@ const requestedStatus = data.status || "draft";
       return Response.json(
         {
           ok: false,
-          message: "The content type of an existing draft cannot be changed."
+          message: "The content type of an existing submission cannot be changed."
         },
         { status: 400 }
       );
@@ -435,6 +438,13 @@ const requestedStatus = data.status || "draft";
     const contentJson = JSON.stringify(content);
     const typeLabel = content.contentType === "article" ? "Article" : "Guide";
 
+    // Saving a rejected submission keeps it rejected.
+    // Only resubmitting changes its status to pending.
+    const finalStatus =
+      requestedStatus === "pending"
+        ? "pending"
+        : existing.status;
+
     const update = await env.EDITORIAL_DB
       .prepare(`
         UPDATE content_submissions
@@ -442,20 +452,26 @@ const requestedStatus = data.status || "draft";
           title = ?,
           content_json = ?,
           status = ?,
-          submitted_at = ?,
+          submitted_at = CASE
+            WHEN ? = 'pending' THEN ?
+            WHEN status = 'draft' THEN NULL
+            ELSE submitted_at
+          END,
           updated_at = ?
         WHERE id = ?
           AND created_by = ?
-          AND status = 'draft'
+          AND status = ?
       `)
       .bind(
         content.title,
         contentJson,
+        finalStatus,
         requestedStatus,
-        requestedStatus === "pending" ? now : null,
+        now,
         now,
         id,
-        user.id
+        user.id,
+        existing.status
       )
       .run();
 
@@ -463,10 +479,22 @@ const requestedStatus = data.status || "draft";
       return Response.json(
         {
           ok: false,
-          message: "This draft has changed or is no longer editable. Please reload it."
+          message: "This submission has changed or is no longer editable. Please reload it."
         },
         { status: 409 }
       );
+    }
+
+    let activityAction;
+
+    if (requestedStatus === "pending" && existing.status === "rejected") {
+      activityAction = "submission_rejected_updated_and_resubmitted";
+    } else if (requestedStatus === "pending") {
+      activityAction = "submission_draft_updated_and_submitted";
+    } else if (existing.status === "rejected") {
+      activityAction = "submission_rejected_updated";
+    } else {
+      activityAction = "submission_draft_updated";
     }
 
     const statements = [
@@ -484,21 +512,20 @@ const requestedStatus = data.status || "draft";
       `).bind(
         crypto.randomUUID(),
         user.id,
-        requestedStatus === "pending"
-          ? "submission_draft_updated_and_submitted"
-          : "submission_draft_updated",
+        activityAction,
         content.contentType,
         id,
         JSON.stringify({
           title: content.title,
           contentType: content.contentType,
-          status: requestedStatus
+          status: finalStatus,
+          previousStatus: existing.status
         }),
         now
       )
     ];
 
-    // Notify active Admins when the Editor submits the updated draft.
+    // Notify active Admins when the Editor submits for review.
     if (requestedStatus === "pending") {
       const admins = await env.EDITORIAL_DB
         .prepare(`
@@ -536,16 +563,26 @@ const requestedStatus = data.status || "draft";
 
     await env.EDITORIAL_DB.batch(statements);
 
+    let responseMessage;
+
+    if (requestedStatus === "pending" && existing.status === "rejected") {
+      responseMessage = "Your revised submission has been sent to the Admin for review.";
+    } else if (requestedStatus === "pending") {
+      responseMessage = "Your updated submission has been sent for approval.";
+    } else if (existing.status === "rejected") {
+      responseMessage = "Your changes have been saved. The submission remains rejected until you resubmit it.";
+    } else {
+      responseMessage = "Your draft has been updated.";
+    }
+
     return Response.json(
       {
         ok: true,
-        message: requestedStatus === "pending"
-          ? "Your updated submission has been sent for approval."
-          : "Your draft has been updated.",
+        message: responseMessage,
         submission: {
           id,
           title: content.title,
-          status: requestedStatus,
+          status: finalStatus,
           updatedAt: now
         }
       },
@@ -555,12 +592,12 @@ const requestedStatus = data.status || "draft";
     );
 
   } catch (error) {
-    console.error("Updating draft failed:", error);
+    console.error("Updating submission failed:", error);
 
     return Response.json(
       {
         ok: false,
-        message: error.message || "Unable to update this draft."
+        message: error.message || "Unable to update this submission."
       },
       { status: 400 }
     );
