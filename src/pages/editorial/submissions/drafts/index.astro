@@ -1,3 +1,4 @@
+
 ---
 export const prerender = true;
 
@@ -5,32 +6,34 @@ import Editorial from '../../../../layouts/Editorial.astro';
 ---
 
 <Editorial title="My Drafts">
-  <section class="drafts-page">
-    <div class="page-heading">
-      <a href="/editorial/submissions/" class="back-link">
-        ← Back to Submission Centre
-      </a>
-
+  <main class="drafts-page">
+    <header class="page-heading">
+      <a href="/editorial/submissions/" class="back-link">← Back to Submission Centre</a>
       <p class="eyebrow">EDITORIAL WORKSPACE</p>
       <h1>My drafts</h1>
       <p class="intro">
-        Find and continue working on submissions you have saved as drafts.
-        Only your own drafts are shown here.
+        Find the submissions you have saved as drafts. Only your own drafts
+        are shown here.
       </p>
-    </div>
+    </header>
 
-    <div id="page-message" class="message" role="status" aria-live="polite">
+    <div id="page-message" class="status-message" role="status">
       Checking your login and loading your drafts...
     </div>
 
-    <div id="draft-list" class="draft-list" hidden></div>
+    <section
+      id="draft-list"
+      class="draft-list"
+      aria-label="Your saved drafts"
+      hidden
+    ></section>
 
-    <div id="empty-state" class="empty-state" hidden>
-      <p class="empty-eyebrow">YOUR WORKSPACE</p>
+    <section id="empty-state" class="empty-state" hidden>
+      <p class="eyebrow">NO SAVED WORK</p>
       <h2>No drafts yet</h2>
       <p>You have not saved any article or guide drafts.</p>
-    </div>
-  </section>
+    </section>
+  </main>
 </Editorial>
 
 <script>
@@ -40,7 +43,7 @@ import Editorial from '../../../../layouts/Editorial.astro';
 
   function showMessage(text, type = '') {
     message.textContent = text;
-    message.className = `message ${type}`;
+    message.className = `status-message ${type}`;
     message.hidden = false;
   }
 
@@ -69,42 +72,43 @@ import Editorial from '../../../../layouts/Editorial.astro';
     const details = document.createElement('div');
     details.className = 'draft-details';
 
-    const meta = document.createElement('div');
-    meta.className = 'draft-meta';
-
-    const type = document.createElement('span');
-    type.className = 'draft-type';
-    type.textContent = draft.contentType === 'guide' ? 'GUIDE' : 'ARTICLE';
-
-    const status = document.createElement('span');
-    status.className = 'draft-status';
-    status.textContent = 'DRAFT';
-
-    meta.append(type, status);
-
     const title = document.createElement('h2');
     title.textContent = draft.title || 'Untitled submission';
 
+    const type = document.createElement('span');
+    type.className = 'draft-type';
+    type.textContent =
+      draft.contentType === 'guide' ? 'Guide' : 'Article';
+
+    const dates = document.createElement('div');
+    dates.className = 'draft-dates';
+
     const updated = document.createElement('p');
-    updated.className = 'draft-date';
-    updated.textContent = `Last updated ${formatDate(draft.updatedAt || draft.createdAt)}`;
+    updated.textContent =
+      `Last updated: ${formatDate(draft.updatedAt || draft.createdAt)}`;
 
     const created = document.createElement('p');
-    created.className = 'draft-date draft-created';
-    created.textContent = `Created ${formatDate(draft.createdAt)}`;
+    created.textContent =
+      `Created: ${formatDate(draft.createdAt)}`;
 
-    details.append(meta, title, updated, created);
+    dates.append(updated, created);
+    details.append(title, type, dates);
 
     const actions = document.createElement('div');
     actions.className = 'draft-actions';
 
-    const editLink = document.createElement('a');
-    editLink.className = 'open-draft-link';
-    editLink.textContent = 'Open draft';
-    editLink.href = `/editorial/submissions/new/?id=${encodeURIComponent(draft.id)}`;
-    editLink.setAttribute('aria-label', `Open draft: ${draft.title || 'Untitled submission'}`);
+    const openLink = document.createElement('a');
+    openLink.className = 'open-draft-link';
+    openLink.textContent = 'Open draft →';
+    openLink.href =
+      `/editorial/submissions/new/?id=${encodeURIComponent(draft.id)}`;
 
-    actions.append(editLink);
+    openLink.setAttribute(
+      'aria-label',
+      `Open draft: ${draft.title || 'Untitled submission'}`
+    );
+
+    actions.append(openLink);
     card.append(details, actions);
 
     return card;
@@ -127,7 +131,7 @@ import Editorial from '../../../../layouts/Editorial.astro';
       if (!sessionData.ok || sessionData.user?.role !== 'editor') {
         showMessage(
           'Access denied. This page is available to Editors only.',
-          'error'
+          'error-message'
         );
         return;
       }
@@ -160,10 +164,11 @@ import Editorial from '../../../../layouts/Editorial.astro';
       });
 
       draftList.hidden = false;
+
     } catch (error) {
       showMessage(
         error.message || 'Something went wrong while loading your drafts.',
-        'error'
+        'error-message'
       );
     }
   }
@@ -173,15 +178,13 @@ import Editorial from '../../../../layouts/Editorial.astro';
 
 <style>
   .drafts-page {
-    width: min(100% - 2.5rem, 920px);
+    max-width: 1100px;
     margin: 0 auto;
-    padding: clamp(2rem, 5vw, 3.5rem) 0 5rem;
+    padding: 2rem 1.5rem 4rem;
   }
 
   .page-heading {
-    margin-bottom: 2rem;
-    padding-bottom: 1.6rem;
-    border-bottom: 1px solid var(--rule);
+    margin-bottom: 2.5rem;
   }
 
   .back-link {
@@ -196,170 +199,139 @@ import Editorial from '../../../../layouts/Editorial.astro';
     color: var(--accent);
   }
 
-  .eyebrow,
-  .empty-eyebrow {
+  .eyebrow {
     margin: 0 0 0.65rem;
     color: var(--accent);
-    font-family: var(--font-ui);
-    font-size: 0.72rem;
+    font-size: 0.75rem;
+    letter-spacing: 0.14em;
     font-weight: 700;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
   }
 
   .page-heading h1 {
-    margin: 0 0 0.75rem;
-    color: var(--ink);
-    font-size: clamp(2.1rem, 5vw, 3rem);
+    margin: 0.5rem 0;
   }
 
   .intro {
-    max-width: 650px;
-    margin: 0;
+    max-width: 65ch;
     color: var(--muted);
-    line-height: 1.75;
+    line-height: 1.7;
   }
 
-  .message {
-    padding: 1rem 1.15rem;
-    margin: 1.5rem 0;
-    border: 1px solid var(--rule);
-    border-left: 3px solid var(--accent);
-    background: var(--surface);
+  .status-message {
+    padding: 1.5rem 0;
     color: var(--muted);
-    line-height: 1.6;
+    line-height: 1.7;
   }
 
-  .message.error {
-    border-left-color: #b65b5b;
-    color: #d99b9b;
+  .error-message {
+    color: #b42318;
   }
 
   .draft-list {
     display: grid;
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 1rem;
-    margin-top: 1.75rem;
   }
 
   .draft-card {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1.5rem;
-    min-width: 0;
-    padding: 1.5rem;
+    flex-direction: column;
+    align-items: flex-start;
+    min-height: 220px;
+    padding: 1.7rem;
     border: 1px solid var(--rule);
-    border-top: 2px solid var(--accent);
     background: var(--surface);
-    transition: border-color 160ms ease, transform 160ms ease;
+    color: inherit;
+    transition: background 0.2s ease, border-color 0.2s ease;
   }
 
   .draft-card:hover {
+    background: var(--accent-soft);
     border-color: var(--accent);
-    transform: translateY(-2px);
   }
 
   .draft-details {
+    width: 100%;
     min-width: 0;
   }
 
-  .draft-meta {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.55rem;
-    margin-bottom: 0.8rem;
-    font-family: var(--font-ui);
-    font-size: 0.68rem;
-    font-weight: 700;
-    letter-spacing: 0.1em;
-  }
-
-  .draft-type {
-    color: var(--accent);
-  }
-
-  .draft-status {
-    padding: 0.18rem 0.48rem;
-    border: 1px solid var(--rule);
-    color: var(--muted);
-    font-size: 0.62rem;
-  }
-
   .draft-card h2 {
-    margin: 0 0 0.65rem;
-    color: var(--ink);
-    font-size: clamp(1.15rem, 2.5vw, 1.35rem);
+    margin: 0 0 0.9rem;
+    font-size: 1.3rem;
+    line-height: 1.35;
     overflow-wrap: anywhere;
   }
 
-  .draft-date {
-    margin: 0.25rem 0 0;
-    color: var(--muted);
-    font-size: 0.85rem;
-    line-height: 1.5;
+  .draft-type {
+    display: inline-block;
+    padding: 0.3rem 0.55rem;
+    border: 1px solid var(--rule);
+    color: var(--accent);
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
   }
 
-  .draft-created {
-    opacity: 0.8;
+  .draft-dates {
+    margin-top: 1.1rem;
+    color: var(--muted);
+    font-size: 0.82rem;
+    line-height: 1.6;
+  }
+
+  .draft-dates p {
+    margin: 0.25rem 0;
   }
 
   .draft-actions {
-    flex: 0 0 auto;
+    margin-top: auto;
+    padding-top: 1.5rem;
   }
 
   .open-draft-link {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 125px;
-    padding: 0.75rem 1.1rem;
-    border: 1px solid var(--accent);
-    background: var(--accent);
-    color: var(--accent-ink);
-    font-family: var(--font-ui);
-    font-size: 0.88rem;
-    font-weight: 700;
+    display: inline-block;
+    color: var(--accent);
+    font-size: 0.9rem;
+    font-weight: 600;
     text-decoration: none;
-    transition: background 160ms ease, color 160ms ease;
   }
 
   .open-draft-link:hover {
-    background: transparent;
-    color: var(--accent);
+    text-decoration: underline;
+    text-underline-offset: 4px;
   }
 
   .empty-state {
-    margin-top: 1.75rem;
     padding: 2.5rem 1.5rem;
-    border: 1px dashed var(--rule);
+    border: 1px solid var(--rule);
     background: var(--surface);
-    text-align: center;
   }
 
   .empty-state h2 {
-    margin: 0 0 0.5rem;
-    color: var(--ink);
-    font-size: 1.4rem;
+    margin: 0.5rem 0;
   }
 
-  .empty-state p:last-child {
-    margin: 0;
+  .empty-state > p:last-child {
+    margin-bottom: 0;
     color: var(--muted);
+    line-height: 1.7;
   }
 
-  @media (max-width: 620px) {
-    .draft-card {
-      align-items: stretch;
-      flex-direction: column;
-      gap: 1.25rem;
-      padding: 1.25rem;
+  [hidden] {
+    display: none !important;
+  }
+
+  @media (max-width: 750px) {
+    .drafts-page {
+      padding-inline: 1rem;
     }
 
-    .draft-actions,
-    .open-draft-link {
-      width: 100%;
+    .draft-list {
+      grid-template-columns: 1fr;
+    }
+
+    .draft-card {
+      min-height: 190px;
     }
   }
 </style>
