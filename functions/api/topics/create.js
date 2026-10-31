@@ -32,7 +32,11 @@ async function getLoggedInUser(request, env) {
   const tokenHash = await sha256(token);
 
   const session = await env.EDITORIAL_DB.prepare(`
-    SELECT users.role, users.is_active, sessions.expires_at
+    SELECT
+      users.id AS user_id,
+      users.role,
+      users.is_active,
+      sessions.expires_at
     FROM sessions
     JOIN users ON users.id = sessions.user_id
     WHERE sessions.token_hash = ?
@@ -49,6 +53,23 @@ async function getLoggedInUser(request, env) {
   }
 
   return session;
+}
+
+async function hasTopicsPermission(user, env) {
+  // Admins automatically have access to every section.
+  if (user.role === "admin") {
+    return true;
+  }
+
+  const permission = await env.EDITORIAL_DB.prepare(`
+    SELECT 1
+    FROM editor_section_permissions
+    WHERE user_id = ?
+      AND section_key = 'topics'
+    LIMIT 1
+  `).bind(user.user_id).first();
+
+  return Boolean(permission);
 }
 
 function slugify(value) {
@@ -78,7 +99,7 @@ export async function onRequestPost({ request, env }) {
       );
     }
 
-    // Editors and administrators can publish directly.
+    // Verify the logged-in account.
     const user = await getLoggedInUser(request, env);
 
     if (!user) {
@@ -88,6 +109,19 @@ export async function onRequestPost({ request, env }) {
           message: "Please log in with an editor or administrator account."
         },
         { status: 401, headers: { "Cache-Control": "no-store" } }
+      );
+    }
+
+    // Verify permission before allowing topic publication.
+    const authorized = await hasTopicsPermission(user, env);
+
+    if (!authorized) {
+      return Response.json(
+        {
+          ok: false,
+          message: "You do not have permission to publish topics."
+        },
+        { status: 403, headers: { "Cache-Control": "no-store" } }
       );
     }
 
