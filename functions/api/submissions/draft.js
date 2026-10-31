@@ -244,7 +244,13 @@ function validateSubmission(data) {
 async function getOwnedDraft(env, id, userId) {
   return await env.EDITORIAL_DB
     .prepare(`
-      SELECT id, created_by, content_type, title, content_json, status
+      SELECT
+        id,
+        created_by,
+        content_type,
+        title,
+        content_json,
+        status
       FROM content_submissions
       WHERE id = ?
         AND created_by = ?
@@ -255,31 +261,67 @@ async function getOwnedDraft(env, id, userId) {
     .first();
 }
 
+// GET: List drafts or load one specific draft.
 export async function onRequestGet({ request, env }) {
   try {
     const user = await getLoggedInEditor(request, env);
 
     if (!user) {
       return Response.json(
-        { ok: false, message: "Please log in with an authorized Editor account." },
+        {
+          ok: false,
+          message: "Please log in with an authorized Editor account."
+        },
         { status: 401 }
       );
     }
 
     const id = new URL(request.url).searchParams.get("id");
 
+    // No ID: return this Editor's draft list.
     if (!id) {
+      const result = await env.EDITORIAL_DB
+        .prepare(`
+          SELECT
+            id,
+            title,
+            content_type,
+            created_at,
+            updated_at
+          FROM content_submissions
+          WHERE created_by = ?
+            AND status = 'draft'
+          ORDER BY updated_at DESC
+        `)
+        .bind(user.id)
+        .all();
+
       return Response.json(
-        { ok: false, message: "A draft ID is required." },
-        { status: 400 }
+        {
+          ok: true,
+          drafts: (result.results || []).map(draft => ({
+            id: draft.id,
+            title: draft.title,
+            contentType: draft.content_type,
+            createdAt: draft.created_at,
+            updatedAt: draft.updated_at
+          }))
+        },
+        {
+          headers: { "Cache-Control": "no-store" }
+        }
       );
     }
 
+    // With an ID: load one draft belonging to this Editor.
     const draft = await getOwnedDraft(env, id, user.id);
 
     if (!draft) {
       return Response.json(
-        { ok: false, message: "Draft not found or you are not allowed to access it." },
+        {
+          ok: false,
+          message: "Draft not found or you are not allowed to access it."
+        },
         { status: 404 }
       );
     }
@@ -290,7 +332,10 @@ export async function onRequestGet({ request, env }) {
       content = JSON.parse(draft.content_json || "{}");
     } catch {
       return Response.json(
-        { ok: false, message: "The saved draft could not be read." },
+        {
+          ok: false,
+          message: "The saved draft could not be read."
+        },
         { status: 500 }
       );
     }
@@ -311,27 +356,35 @@ export async function onRequestGet({ request, env }) {
     );
 
   } catch (error) {
-    console.error("Loading draft failed:", error);
+    console.error("Loading drafts failed:", error);
 
     return Response.json(
-      { ok: false, message: "Unable to load this draft." },
+      {
+        ok: false,
+        message: "Unable to load your drafts."
+      },
       { status: 500 }
     );
   }
 }
 
+// PUT: Update a draft or submit it for Admin approval.
 export async function onRequestPut({ request, env }) {
   try {
     const user = await getLoggedInEditor(request, env);
 
     if (!user) {
       return Response.json(
-        { ok: false, message: "Please log in with an authorized Editor account." },
+        {
+          ok: false,
+          message: "Please log in with an authorized Editor account."
+        },
         { status: 401 }
       );
     }
 
     const data = await request.json();
+
     const id = typeof data.id === "string" ? data.id : "";
     const requestedStatus = data.status || "draft";
 
@@ -353,7 +406,10 @@ export async function onRequestPut({ request, env }) {
 
     if (!existing) {
       return Response.json(
-        { ok: false, message: "Draft not found or it is no longer editable." },
+        {
+          ok: false,
+          message: "Draft not found or it is no longer editable."
+        },
         { status: 404 }
       );
     }
@@ -362,7 +418,10 @@ export async function onRequestPut({ request, env }) {
 
     if (content.contentType !== existing.content_type) {
       return Response.json(
-        { ok: false, message: "The content type of an existing draft cannot be changed." },
+        {
+          ok: false,
+          message: "The content type of an existing draft cannot be changed."
+        },
         { status: 400 }
       );
     }
@@ -374,11 +433,12 @@ export async function onRequestPut({ request, env }) {
     const update = await env.EDITORIAL_DB
       .prepare(`
         UPDATE content_submissions
-        SET title = ?,
-            content_json = ?,
-            status = ?,
-            submitted_at = ?,
-            updated_at = ?
+        SET
+          title = ?,
+          content_json = ?,
+          status = ?,
+          submitted_at = ?,
+          updated_at = ?
         WHERE id = ?
           AND created_by = ?
           AND status = 'draft'
@@ -396,7 +456,10 @@ export async function onRequestPut({ request, env }) {
 
     if (!update.meta?.changes) {
       return Response.json(
-        { ok: false, message: "This draft has changed or is no longer editable. Please reload it." },
+        {
+          ok: false,
+          message: "This draft has changed or is no longer editable. Please reload it."
+        },
         { status: 409 }
       );
     }
@@ -404,7 +467,13 @@ export async function onRequestPut({ request, env }) {
     const statements = [
       env.EDITORIAL_DB.prepare(`
         INSERT INTO activity_log (
-          id, user_id, action, target_type, target_id, details_json, created_at
+          id,
+          user_id,
+          action,
+          target_type,
+          target_id,
+          details_json,
+          created_at
         )
         VALUES (?, ?, ?, ?, ?, ?, ?)
       `).bind(
@@ -424,6 +493,7 @@ export async function onRequestPut({ request, env }) {
       )
     ];
 
+    // Notify active Admins when the Editor submits the updated draft.
     if (requestedStatus === "pending") {
       const admins = await env.EDITORIAL_DB
         .prepare(`
