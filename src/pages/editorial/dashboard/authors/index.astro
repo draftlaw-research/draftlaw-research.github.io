@@ -85,19 +85,59 @@ const description = "Create and publish an author profile for DraftLaw Research.
     let previewUrl = "";
 
     async function checkSession() {
-      try {
-        const response = await fetch("/api/auth/me", { credentials: "same-origin", cache: "no-store" });
-        const result = await response.json();
-        if (!response.ok || !result.ok || !["admin", "editor"].includes(result.user?.role)) {
-          window.location.replace("/editorial/");
-          return;
-        }
-        accessStatus.hidden = true;
-        form.hidden = false;
-      } catch {
-        accessStatus.textContent = "Unable to verify your account. Please refresh the page.";
-      }
+  try {
+    const response = await fetch("/api/auth/me", {
+      credentials: "same-origin",
+      cache: "no-store"
+    });
+
+    const result = await response.json();
+
+    if (
+      !response.ok ||
+      !result.ok ||
+      !["admin", "editor"].includes(result.user?.role)
+    ) {
+      window.location.replace("/editorial/");
+      return;
     }
+
+    // Admins can access every section.
+    if (result.user.role === "admin") {
+      accessStatus.hidden = true;
+      form.hidden = false;
+      return;
+    }
+
+    // Editors must have permission for the Authors section.
+    const permissionResponse = await fetch("/api/auth/section-permissions", {
+      credentials: "same-origin",
+      cache: "no-store"
+    });
+
+    const permissionResult = await permissionResponse.json();
+
+    if (
+      !permissionResponse.ok ||
+      !permissionResult.ok ||
+      !Array.isArray(permissionResult.permissions)
+    ) {
+      throw new Error("Could not verify your section permissions.");
+    }
+
+    if (!permissionResult.permissions.includes("authors")) {
+      window.location.replace("/editorial/dashboard/");
+      return;
+    }
+
+    accessStatus.hidden = true;
+    form.hidden = false;
+
+  } catch {
+    accessStatus.textContent =
+      "Unable to verify your account permissions. Please refresh the page.";
+  }
+}
 
     function fileSize(bytes: number) { return `${(bytes / 1024).toFixed(1)} KB`; }
 
