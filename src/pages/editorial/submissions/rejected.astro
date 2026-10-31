@@ -1,0 +1,405 @@
+
+---
+export const prerender = true;
+
+import Editorial from '../../../layouts/Editorial.astro';
+---
+
+<Editorial title="Rejected Submissions">
+  <section class="rejected-page">
+    <div class="page-heading">
+      <a href="/editorial/submissions/" class="back-link">
+        ← Back to Submission Centre
+      </a>
+
+      <p class="eyebrow">EDITORIAL WORKSPACE</p>
+      <h1>Rejected submissions</h1>
+      <p class="intro">
+        Review submissions that were not approved by the Admin.
+        Read the feedback, revise your work, and submit it again for review.
+        Only your own rejected submissions are shown here.
+      </p>
+    </div>
+
+    <div id="page-message" class="message" role="status" aria-live="polite">
+      Checking your login and loading rejected submissions...
+    </div>
+
+    <div id="rejected-list" class="rejected-list" hidden></div>
+
+    <div id="empty-state" class="empty-state" hidden>
+      <p class="empty-eyebrow">YOUR WORKSPACE</p>
+      <h2>No rejected submissions</h2>
+      <p>You do not currently have any rejected articles or guides.</p>
+    </div>
+  </section>
+</Editorial>
+
+<script>
+  const message = document.querySelector('#page-message');
+  const rejectedList = document.querySelector('#rejected-list');
+  const emptyState = document.querySelector('#empty-state');
+
+  function showMessage(text, type = '') {
+    message.textContent = text;
+    message.className = `message ${type}`;
+    message.hidden = false;
+  }
+
+  function formatDate(value) {
+    if (!value) return 'Date unavailable';
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+      return 'Date unavailable';
+    }
+
+    return date.toLocaleString(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit'
+    });
+  }
+
+  function createRejectedCard(submission) {
+    const card = document.createElement('article');
+    card.className = 'rejected-card';
+
+    const details = document.createElement('div');
+    details.className = 'rejected-details';
+
+    const meta = document.createElement('div');
+    meta.className = 'rejected-meta';
+
+    const type = document.createElement('span');
+    type.className = 'rejected-type';
+    type.textContent = submission.contentType === 'guide' ? 'GUIDE' : 'ARTICLE';
+
+    const status = document.createElement('span');
+    status.className = 'rejected-status';
+    status.textContent = 'REJECTED';
+
+    meta.append(type, status);
+
+    const title = document.createElement('h2');
+    title.textContent = submission.title || 'Untitled submission';
+
+    const date = document.createElement('p');
+    date.className = 'rejected-date';
+    date.textContent = `Rejected ${formatDate(submission.rejectedAt)}`;
+
+    const reasonBox = document.createElement('div');
+    reasonBox.className = 'reason-box';
+
+    const reasonLabel = document.createElement('p');
+    reasonLabel.className = 'reason-label';
+    reasonLabel.textContent = 'ADMIN FEEDBACK';
+
+    const reasonText = document.createElement('p');
+    reasonText.className = 'reason-text';
+    reasonText.textContent = submission.rejectionReason || 'No rejection reason was recorded.';
+
+    reasonBox.append(reasonLabel, reasonText);
+    details.append(meta, title, date, reasonBox);
+
+    const actions = document.createElement('div');
+    actions.className = 'rejected-actions';
+
+    const editLink = document.createElement('a');
+    editLink.className = 'edit-rejected-link';
+    editLink.textContent = 'Revise submission';
+    editLink.href = `/editorial/submissions/new/?id=${encodeURIComponent(submission.id)}`;
+    editLink.setAttribute(
+      'aria-label',
+      `Revise rejected submission: ${submission.title || 'Untitled submission'}`
+    );
+
+    actions.append(editLink);
+    card.append(details, actions);
+
+    return card;
+  }
+
+  async function loadRejectedSubmissions() {
+    try {
+      const sessionResponse = await fetch('/api/auth/me', {
+        credentials: 'same-origin',
+        cache: 'no-store'
+      });
+
+      if (!sessionResponse.ok) {
+        window.location.replace('/editorial/');
+        return;
+      }
+
+      const sessionData = await sessionResponse.json();
+
+      if (!sessionData.ok || sessionData.user?.role !== 'editor') {
+        showMessage(
+          'Access denied. This page is available to Editors only.',
+          'error'
+        );
+        return;
+      }
+
+      const response = await fetch('/api/submissions/rejected', {
+        credentials: 'same-origin',
+        cache: 'no-store'
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.ok) {
+        throw new Error(
+          data.message || 'Could not load your rejected submissions.'
+        );
+      }
+
+      const submissions = Array.isArray(data.rejected)
+        ? data.rejected
+        : [];
+
+      message.hidden = true;
+      rejectedList.replaceChildren();
+      rejectedList.hidden = true;
+      emptyState.hidden = true;
+
+      if (submissions.length === 0) {
+        emptyState.hidden = false;
+        return;
+      }
+
+      submissions.forEach((submission) => {
+        rejectedList.append(createRejectedCard(submission));
+      });
+
+      rejectedList.hidden = false;
+
+    } catch (error) {
+      showMessage(
+        error.message || 'Something went wrong while loading your submissions.',
+        'error'
+      );
+    }
+  }
+
+  loadRejectedSubmissions();
+</script>
+
+<style>
+  .rejected-page {
+    width: min(100% - 2.5rem, 920px);
+    margin: 0 auto;
+    padding: clamp(2rem, 5vw, 3.5rem) 0 5rem;
+  }
+
+  .page-heading {
+    margin-bottom: 2rem;
+    padding-bottom: 1.6rem;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .back-link {
+    display: inline-block;
+    margin-bottom: 2rem;
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 0.9rem;
+  }
+
+  .back-link:hover {
+    color: var(--accent);
+  }
+
+  .eyebrow,
+  .empty-eyebrow {
+    margin: 0 0 0.65rem;
+    color: var(--accent);
+    font-family: var(--font-ui);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+
+  .page-heading h1 {
+    margin: 0 0 0.75rem;
+    color: var(--ink);
+    font-size: clamp(2.1rem, 5vw, 3rem);
+  }
+
+  .intro {
+    max-width: 650px;
+    margin: 0;
+    color: var(--muted);
+    line-height: 1.75;
+  }
+
+  .message {
+    padding: 1rem 1.15rem;
+    margin: 1.5rem 0;
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--accent);
+    background: var(--surface);
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  .message.error {
+    border-left-color: #b65b5b;
+    color: #d99b9b;
+  }
+
+  .rejected-list {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    margin-top: 1.75rem;
+  }
+
+  :global(.rejected-card) {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5rem;
+    min-width: 0;
+    padding: 1.5rem;
+    border: 1px solid var(--rule);
+    border-top: 2px solid #b65b5b;
+    background: var(--surface);
+    transition: border-color 160ms ease, transform 160ms ease;
+  }
+
+  :global(.rejected-card:hover) {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+  }
+
+  :global(.rejected-details) {
+    min-width: 0;
+    flex: 1;
+  }
+
+  :global(.rejected-meta) {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.55rem;
+    margin-bottom: 0.8rem;
+    font-family: var(--font-ui);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+  }
+
+  :global(.rejected-type) {
+    color: var(--accent);
+  }
+
+  :global(.rejected-status) {
+    padding: 0.18rem 0.48rem;
+    border: 1px solid #754343;
+    color: #d99b9b;
+    font-size: 0.62rem;
+  }
+
+  :global(.rejected-card h2) {
+    margin: 0 0 0.65rem;
+    color: var(--ink);
+    font-size: clamp(1.15rem, 2.5vw, 1.35rem);
+    overflow-wrap: anywhere;
+  }
+
+  :global(.rejected-date) {
+    margin: 0.25rem 0 0;
+    color: var(--muted);
+    font-size: 0.85rem;
+    line-height: 1.5;
+  }
+
+  :global(.reason-box) {
+    margin-top: 1.1rem;
+    padding: 1rem 1.1rem;
+    border-left: 2px solid #b65b5b;
+    background: rgba(182, 91, 91, 0.07);
+  }
+
+  :global(.reason-label) {
+    margin: 0 0 0.5rem;
+    color: #d99b9b;
+    font-family: var(--font-ui);
+    font-size: 0.67rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+  }
+
+  :global(.reason-text) {
+    margin: 0;
+    color: var(--ink);
+    font-size: 0.92rem;
+    line-height: 1.7;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+
+  :global(.rejected-actions) {
+    flex: 0 0 auto;
+  }
+
+  :global(.edit-rejected-link) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 145px;
+    padding: 0.75rem 1.1rem;
+    border: 1px solid var(--accent);
+    background: var(--accent);
+    color: var(--accent-ink);
+    font-family: var(--font-ui);
+    font-size: 0.88rem;
+    font-weight: 700;
+    text-decoration: none;
+    transition: background 160ms ease, color 160ms ease;
+  }
+
+  :global(.edit-rejected-link:hover) {
+    background: transparent;
+    color: var(--accent);
+  }
+
+  .empty-state {
+    margin-top: 1.75rem;
+    padding: 2.5rem 1.5rem;
+    border: 1px dashed var(--rule);
+    background: var(--surface);
+    text-align: center;
+  }
+
+  .empty-state h2 {
+    margin: 0 0 0.5rem;
+    color: var(--ink);
+    font-size: 1.4rem;
+  }
+
+  .empty-state p:last-child {
+    margin: 0;
+    color: var(--muted);
+  }
+
+  @media (max-width: 620px) {
+    :global(.rejected-card) {
+      align-items: stretch;
+      flex-direction: column;
+      gap: 1.25rem;
+      padding: 1.25rem;
+    }
+
+    :global(.rejected-actions),
+    :global(.edit-rejected-link) {
+      width: 100%;
+    }
+  }
+</style>
