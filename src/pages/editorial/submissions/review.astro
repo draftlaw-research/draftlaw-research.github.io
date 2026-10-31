@@ -1,0 +1,385 @@
+
+---
+import Editorial from '../../../layouts/Editorial.astro';
+---
+
+<Editorial title="Review Submissions">
+  <section class="wrap review-page">
+    <p class="eyebrow">ADMINISTRATION / CONTENT REVIEW</p>
+    <h1>Review Submissions</h1>
+    <p class="intro">
+      Review articles and guidelines submitted by editors before publication.
+    </p>
+
+    <div class="review-toolbar">
+      <div>
+        <span class="count-label">AWAITING REVIEW</span>
+        <strong id="pending-count">—</strong>
+      </div>
+      <button class="refresh-button" id="refresh-button" type="button">
+        Refresh queue
+      </button>
+    </div>
+
+    <p id="page-status" class="status-message" role="status">
+      Checking administrator access…
+    </p>
+
+    <div id="submission-list" class="submission-list" hidden></div>
+  </section>
+
+  <script>
+    const statusElement = document.querySelector("#page-status");
+    const listElement = document.querySelector("#submission-list");
+    const countElement = document.querySelector("#pending-count");
+    const refreshButton = document.querySelector("#refresh-button");
+
+    function showStatus(message, isError = false) {
+      statusElement.textContent = message;
+      statusElement.classList.toggle("error-message", isError);
+      statusElement.hidden = false;
+    }
+
+    function makeElement(tag, className, text) {
+      const element = document.createElement(tag);
+      if (className) element.className = className;
+      if (text !== undefined) element.textContent = text;
+      return element;
+    }
+
+    async function checkAdmin() {
+      const response = await fetch("/api/auth/me", {
+        credentials: "same-origin",
+        cache: "no-store"
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.ok || !result.user) {
+        window.location.replace("/editorial");
+        return false;
+      }
+
+      if (result.user.role !== "admin") {
+        document.querySelector(".review-page").hidden = true;
+        showStatus(
+          "Administrator access is required to review submissions.",
+          true
+        );
+        return false;
+      }
+
+      return true;
+    }
+
+    function renderSubmission(submission) {
+      const card = makeElement("article", "submission-card");
+
+      const heading = makeElement("div", "submission-heading");
+      const titleArea = makeElement("div", "submission-title-area");
+
+      titleArea.append(
+        makeElement("span", "type-label",
+          submission.contentType === "article" ? "ARTICLE" : "GUIDELINE"
+        ),
+        makeElement("h2", "", submission.title || "Untitled submission")
+      );
+
+      const submittedDate = submission.submittedAt
+        ? new Date(submission.submittedAt).toLocaleString()
+        : "Date unavailable";
+
+      const metadata = makeElement(
+        "p",
+        "submission-meta",
+        `Submitted by ${submission.editorUsername} · ${submittedDate}`
+      );
+
+      heading.append(titleArea, metadata);
+
+      const details = makeElement("details", "submission-details");
+      const summary = makeElement("summary", "", "Read submission");
+      const content = submission.content || {};
+
+      const preview = makeElement("div", "submission-preview");
+
+      function addField(label, value) {
+        if (value === undefined || value === null || value === "") return;
+
+        const group = makeElement("div", "preview-field");
+        group.append(
+          makeElement("h3", "", label),
+          makeElement("p", "", Array.isArray(value) ? value.join(", ") : String(value))
+        );
+        preview.append(group);
+      }
+
+      addField("Summary", content.summary);
+      addField("Content type", content.kind);
+      addField("Publication date", content.date);
+      addField("Authors", content.authors);
+      addField("Topic", content.topic);
+      addField("Keywords", content.keywords);
+
+      if (content.cover) {
+        const cover = makeElement("div", "preview-field");
+        cover.append(makeElement("h3", "", "Cover image"));
+
+        const image = document.createElement("img");
+        image.src = content.cover;
+        image.alt = content.coverAlt || "Submission cover image";
+        image.loading = "lazy";
+        image.className = "cover-preview";
+        cover.append(image);
+
+        if (content.coverCredit) {
+          cover.append(makeElement("p", "", content.coverCredit));
+        }
+
+        preview.append(cover);
+      }
+
+      const body = makeElement("div", "preview-field");
+      body.append(makeElement("h3", "", "Full content"));
+
+      const bodyText = makeElement(
+        "div",
+        "body-preview",
+        content.body || "No body content was supplied."
+      );
+
+      body.append(bodyText);
+      preview.append(body);
+
+      details.append(summary, preview);
+      card.append(heading, details);
+
+      return card;
+    }
+
+    async function loadSubmissions() {
+      refreshButton.disabled = true;
+      listElement.hidden = true;
+      listElement.replaceChildren();
+      showStatus("Loading pending submissions…");
+
+      try {
+        const response = await fetch("/api/submissions/review", {
+          credentials: "same-origin",
+          cache: "no-store"
+        });
+
+        const result = await response.json();
+
+        if (response.status === 401) {
+          window.location.replace("/editorial");
+          return;
+        }
+
+        if (response.status === 403) {
+          throw new Error("Administrator access is required.");
+        }
+
+        if (!response.ok || !result.ok) {
+          throw new Error(result.message || "Unable to load submissions.");
+        }
+
+        const submissions = result.submissions || [];
+        countElement.textContent = String(submissions.length);
+
+        if (submissions.length === 0) {
+          showStatus("There are no submissions waiting for review.");
+          return;
+        }
+
+        for (const submission of submissions) {
+          listElement.append(renderSubmission(submission));
+        }
+
+        statusElement.hidden = true;
+        listElement.hidden = false;
+
+      } catch (error) {
+        showStatus(error.message || "Unable to load submissions.", true);
+      } finally {
+        refreshButton.disabled = false;
+      }
+    }
+
+    refreshButton.addEventListener("click", loadSubmissions);
+
+    async function startPage() {
+      try {
+        const authorized = await checkAdmin();
+        if (authorized) await loadSubmissions();
+      } catch {
+        showStatus("Unable to verify administrator access.", true);
+      }
+    }
+
+    startPage();
+  </script>
+
+  <style>
+    .review-page {
+      padding-block: 3rem 5rem;
+      min-height: 55vh;
+    }
+
+    .review-page h1 {
+      margin-bottom: 0.6rem;
+    }
+
+    .intro {
+      color: var(--muted);
+      max-width: 65ch;
+      line-height: 1.7;
+    }
+
+    .review-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-block: 2rem;
+      padding: 1.2rem;
+      border: 1px solid var(--rule);
+      background: var(--surface);
+    }
+
+    .review-toolbar > div {
+      display: grid;
+      gap: 0.35rem;
+    }
+
+    .count-label,
+    .type-label {
+      font-family: var(--font-ui);
+      font-size: 0.7rem;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+    }
+
+    #pending-count {
+      font-size: 2rem;
+      color: var(--accent);
+    }
+
+    .refresh-button {
+      border: 1px solid var(--accent);
+      background: transparent;
+      color: var(--accent);
+      padding: 0.7rem 1rem;
+      cursor: pointer;
+      font: inherit;
+    }
+
+    .refresh-button:hover {
+      background: var(--accent-soft);
+    }
+
+    .refresh-button:disabled {
+      opacity: 0.5;
+      cursor: wait;
+    }
+
+    .status-message {
+      padding-block: 1.5rem;
+      color: var(--muted);
+    }
+
+    .error-message {
+      color: #c87563;
+    }
+
+    .submission-list {
+      display: grid;
+      gap: 1rem;
+    }
+
+    .submission-card {
+      border: 1px solid var(--rule);
+      background: var(--surface);
+      padding: 1.4rem;
+      min-width: 0;
+    }
+
+    .submission-heading {
+      display: grid;
+      gap: 0.7rem;
+    }
+
+    .submission-title-area h2 {
+      margin: 0.45rem 0;
+      font-size: 1.35rem;
+      overflow-wrap: anywhere;
+    }
+
+    .submission-meta {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+
+    .submission-details {
+      margin-top: 1.2rem;
+      border-top: 1px solid var(--rule);
+      padding-top: 1rem;
+    }
+
+    .submission-details summary {
+      color: var(--accent);
+      cursor: pointer;
+      font-family: var(--font-ui);
+      font-size: 0.85rem;
+    }
+
+    .submission-preview {
+      display: grid;
+      gap: 1.2rem;
+      padding-top: 1.2rem;
+    }
+
+    .preview-field h3 {
+      margin: 0 0 0.4rem;
+      font-size: 0.95rem;
+    }
+
+    .preview-field p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.6;
+      overflow-wrap: anywhere;
+    }
+
+    .body-preview {
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      line-height: 1.8;
+      max-height: 600px;
+      overflow-y: auto;
+      padding: 1rem;
+      border: 1px solid var(--rule);
+      background: var(--background);
+    }
+
+    .cover-preview {
+      display: block;
+      max-width: 100%;
+      max-height: 320px;
+      object-fit: contain;
+      margin-block: 0.7rem;
+    }
+
+    @media (max-width: 600px) {
+      .review-toolbar {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .submission-card {
+        padding: 1rem;
+      }
+    }
+  </style>
+</Editorial>
