@@ -76,12 +76,15 @@ export const prerender = true;
   const localToday = new Date(
     today.getTime() - today.getTimezoneOffset() * 60000
   ).toISOString().slice(0, 10);
+
   dateInput.value = localToday;
 
+  // Verify login and section permissions.
   async function checkLogin() {
     try {
       const response = await fetch('/api/auth/me', {
-        credentials: 'same-origin'
+        credentials: 'same-origin',
+        cache: 'no-store'
       });
 
       if (!response.ok) {
@@ -91,22 +94,55 @@ export const prerender = true;
 
       const result = await response.json();
 
-      if (!result.ok || !['admin', 'editor'].includes(result.user?.role)) {
+      if (
+        !result.ok ||
+        !['admin', 'editor'].includes(result.user?.role)
+      ) {
         window.location.href = '/editorial/';
         return false;
       }
 
+      // Administrators automatically have access.
+      if (result.user.role === 'admin') {
+        return true;
+      }
+
+      // Editors must have Program Announcements permission.
+      const permissionResponse = await fetch(
+        '/api/auth/section-permissions',
+        {
+          credentials: 'same-origin',
+          cache: 'no-store'
+        }
+      );
+
+      const permissionResult = await permissionResponse.json();
+
+      if (
+        !permissionResponse.ok ||
+        !permissionResult.ok ||
+        !permissionResult.permissions?.includes('announcements')
+      ) {
+        window.location.href = '/editorial/dashboard/';
+        return false;
+      }
+
       return true;
+
     } catch {
-      message.textContent = 'Unable to verify your login. Please refresh the page.';
+      message.textContent =
+        'Unable to verify your login. Please refresh the page.';
+
       return false;
     }
   }
 
+  // Load available programs for the related-program dropdown.
   async function loadPrograms() {
     try {
       const response = await fetch('/api/announcements', {
-        credentials: 'same-origin'
+        credentials: 'same-origin',
+        cache: 'no-store'
       });
 
       const result = await response.json();
@@ -121,12 +157,16 @@ export const prerender = true;
         option.textContent = item.title;
         programSelect.append(option);
       }
+
     } catch (error) {
       message.textContent =
-        error instanceof Error ? error.message : 'Could not load programs.';
+        error instanceof Error
+          ? error.message
+          : 'Could not load programs.';
     }
   }
 
+  // Submit and publish an announcement.
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
 
@@ -135,19 +175,37 @@ export const prerender = true;
     button.textContent = 'Publishing...';
 
     const data = {
-      title: (document.querySelector<HTMLInputElement>('#title')!).value.trim(),
+      title: (
+        document.querySelector<HTMLInputElement>('#title')!
+      ).value.trim(),
+
       date: dateInput.value,
-      type: (document.querySelector<HTMLSelectElement>('#type')!).value,
+
+      type: (
+        document.querySelector<HTMLSelectElement>('#type')!
+      ).value,
+
       program: programSelect.value,
-      deadline: (document.querySelector<HTMLInputElement>('#deadline')!).value,
-      link: (document.querySelector<HTMLInputElement>('#link')!).value.trim(),
-      body: (document.querySelector<HTMLTextAreaElement>('#body')!).value.trim()
+
+      deadline: (
+        document.querySelector<HTMLInputElement>('#deadline')!
+      ).value,
+
+      link: (
+        document.querySelector<HTMLInputElement>('#link')!
+      ).value.trim(),
+
+      body: (
+        document.querySelector<HTMLTextAreaElement>('#body')!
+      ).value.trim()
     };
 
     try {
       const response = await fetch('/api/announcements', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json'
+        },
         credentials: 'same-origin',
         body: JSON.stringify(data)
       });
@@ -155,24 +213,33 @@ export const prerender = true;
       const result = await response.json();
 
       if (!response.ok || !result.ok) {
-        throw new Error(result.message || 'The announcement could not be published.');
+        throw new Error(
+          result.message || 'The announcement could not be published.'
+        );
       }
 
       message.textContent = 'Announcement published successfully.';
+
       form.reset();
       dateInput.value = localToday;
       programSelect.value = '';
+
     } catch (error) {
       message.textContent =
-        error instanceof Error ? error.message : 'Something went wrong.';
+        error instanceof Error
+          ? error.message
+          : 'Something went wrong.';
+
     } finally {
       button.disabled = false;
       button.textContent = 'Publish announcement';
     }
   });
 
-  await checkLogin();
-  await loadPrograms();
+  // Load programs only after access has been verified.
+  if (await checkLogin()) {
+    await loadPrograms();
+  }
 </script>
 
 <style>
