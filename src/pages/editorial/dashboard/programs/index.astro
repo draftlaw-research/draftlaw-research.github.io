@@ -431,28 +431,63 @@ import Editorial from "../../../../layouts/Editorial.astro";
     summaryCount.textContent = String(summaryInput.value.length);
   });
 
-  async function checkSession() {
-    try {
-      const response = await fetch("/api/auth/me", {
-        credentials: "same-origin",
-        cache: "no-store"
-      });
+  
+async function checkSession() {
+  try {
+    const response = await fetch("/api/auth/me", {
+      credentials: "same-origin",
+      cache: "no-store"
+    });
 
-      const result = await response.json();
+    const result = await response.json();
 
-      if (!response.ok || !result.ok ||
-          !["admin", "editor"].includes(result.user?.role)) {
-        window.location.replace("/editorial/");
-        return;
-      }
+    if (
+      !response.ok ||
+      !result.ok ||
+      !["admin", "editor"].includes(result.user?.role)
+    ) {
+      window.location.replace("/editorial/");
+      return;
+    }
 
+    // Administrators automatically have access.
+    if (result.user.role === "admin") {
       loading.hidden = true;
       form.hidden = false;
       updateWordCount();
-    } catch {
-      loading.textContent = "Unable to verify your login. Please refresh the page.";
+      return;
     }
+
+    // Editors must have Programs permission.
+    const permissionResponse = await fetch(
+      "/api/auth/section-permissions",
+      {
+        credentials: "same-origin",
+        cache: "no-store"
+      }
+    );
+
+    const permissionResult = await permissionResponse.json();
+
+    if (
+      !permissionResponse.ok ||
+      !permissionResult.ok ||
+      !permissionResult.permissions?.includes("programs")
+    ) {
+      window.location.replace("/editorial/dashboard/");
+      return;
+    }
+
+    loading.hidden = true;
+    form.hidden = false;
+    updateWordCount();
+
+  } catch {
+    loading.textContent =
+      "Unable to verify your login. Please refresh the page.";
   }
+}
+
 
   form.addEventListener("submit", async event => {
     event.preventDefault();
