@@ -3,7 +3,11 @@ const REPOSITORY = "draftlaw-research/draftlaw-research.github.io";
 const BRANCH = "editorial-portal-development";
 
 async function sha256(value) {
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(value)
+  );
+
   return Array.from(new Uint8Array(digest))
     .map(byte => byte.toString(16).padStart(2, "0"))
     .join("");
@@ -26,7 +30,7 @@ async function getLoggedInUser(request, env) {
   const tokenHash = await sha256(token);
 
   const session = await env.EDITORIAL_DB.prepare(`
-    SELECT users.role, users.is_active, sessions.expires_at
+    SELECT users.id AS user_id, users.role, users.is_active, sessions.expires_at
     FROM sessions
     JOIN users ON users.id = sessions.user_id
     WHERE sessions.token_hash = ?
@@ -41,6 +45,21 @@ async function getLoggedInUser(request, env) {
   ) return null;
 
   return session;
+}
+
+async function hasTeamPermission(user, env) {
+  // Administrators can access every content section.
+  if (user.role === "admin") return true;
+
+  const permission = await env.EDITORIAL_DB.prepare(`
+    SELECT 1
+    FROM editor_section_permissions
+    WHERE user_id = ?
+      AND section_key = 'team'
+    LIMIT 1
+  `).bind(user.user_id).first();
+
+  return Boolean(permission);
 }
 
 function slugify(value) {
@@ -73,6 +92,19 @@ export async function onRequestPost({ request, env }) {
       return Response.json(
         { ok: false, message: "Please log in with an editor or administrator account." },
         { status: 401 }
+      );
+    }
+
+    // Check Team Members permission before allowing publication.
+    const authorized = await hasTeamPermission(user, env);
+
+    if (!authorized) {
+      return Response.json(
+        { ok: false, message: "You are not authorized to publish Team Members." },
+        {
+          status: 403,
+          headers: { "Cache-Control": "no-store" }
+        }
       );
     }
 
