@@ -72,6 +72,61 @@ import Editorial from '../../../layouts/Editorial.astro';
       return true;
     }
 
+    async function reviewSubmission(id, decision, reason = "") {
+      const buttons = listElement.querySelectorAll("button");
+      buttons.forEach(button => {
+        button.disabled = true;
+      });
+
+      showStatus(
+        decision === "approve"
+          ? "Publishing submission…"
+          : "Rejecting submission…"
+      );
+
+      try {
+        const response = await fetch("/api/submissions/decision", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            id,
+            decision,
+            reason
+          })
+        });
+
+        const result = await response.json();
+
+        if (response.status === 401) {
+          window.location.replace("/editorial");
+          return;
+        }
+
+        if (!response.ok || !result.ok) {
+          throw new Error(
+            result.message || "The review action could not be completed."
+          );
+        }
+
+        showStatus(result.message || "Review action completed successfully.");
+
+        await loadSubmissions();
+
+      } catch (error) {
+        showStatus(
+          error.message || "Something went wrong. Please try again.",
+          true
+        );
+
+        buttons.forEach(button => {
+          button.disabled = false;
+        });
+      }
+    }
+
     function renderSubmission(submission) {
       const card = makeElement("article", "submission-card");
 
@@ -79,7 +134,9 @@ import Editorial from '../../../layouts/Editorial.astro';
       const titleArea = makeElement("div", "submission-title-area");
 
       titleArea.append(
-        makeElement("span", "type-label",
+        makeElement(
+          "span",
+          "type-label",
           submission.contentType === "article" ? "ARTICLE" : "GUIDELINE"
         ),
         makeElement("h2", "", submission.title || "Untitled submission")
@@ -92,7 +149,7 @@ import Editorial from '../../../layouts/Editorial.astro';
       const metadata = makeElement(
         "p",
         "submission-meta",
-        `Submitted by ${submission.editorUsername} · ${submittedDate}`
+        `Submitted by ${submission.editorUsername || "Unknown editor"} · ${submittedDate}`
       );
 
       heading.append(titleArea, metadata);
@@ -109,7 +166,11 @@ import Editorial from '../../../layouts/Editorial.astro';
         const group = makeElement("div", "preview-field");
         group.append(
           makeElement("h3", "", label),
-          makeElement("p", "", Array.isArray(value) ? value.join(", ") : String(value))
+          makeElement(
+            "p",
+            "",
+            Array.isArray(value) ? value.join(", ") : String(value)
+          )
         );
         preview.append(group);
       }
@@ -152,7 +213,56 @@ import Editorial from '../../../layouts/Editorial.astro';
       preview.append(body);
 
       details.append(summary, preview);
-      card.append(heading, details);
+
+      const actions = makeElement("div", "review-actions");
+
+      const approveButton = makeElement(
+        "button",
+        "approve-button",
+        "Approve & Publish"
+      );
+      approveButton.type = "button";
+
+      approveButton.addEventListener("click", () => {
+        const confirmed = window.confirm(
+          `Publish "${submission.title}" to the public website?\n\nThis action will create the public article or guideline.`
+        );
+
+        if (confirmed) {
+          reviewSubmission(submission.id, "approve");
+        }
+      });
+
+      const rejectButton = makeElement(
+        "button",
+        "reject-button",
+        "Reject"
+      );
+      rejectButton.type = "button";
+
+      rejectButton.addEventListener("click", () => {
+        const reason = window.prompt(
+          "Why are you rejecting this submission?\n\nPlease provide feedback for the editor:"
+        );
+
+        if (reason === null) return;
+
+        if (!reason.trim()) {
+          window.alert("Please enter a rejection reason.");
+          return;
+        }
+
+        const confirmed = window.confirm(
+          `Reject "${submission.title}"?\n\nThe editor will receive your reason.`
+        );
+
+        if (confirmed) {
+          reviewSubmission(submission.id, "reject", reason.trim());
+        }
+      });
+
+      actions.append(approveButton, rejectButton);
+      card.append(heading, details, actions);
 
       return card;
     }
@@ -371,6 +481,48 @@ import Editorial from '../../../layouts/Editorial.astro';
       margin-block: 0.7rem;
     }
 
+    .review-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      margin-top: 1.3rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--rule);
+    }
+
+    .approve-button,
+    .reject-button {
+      padding: 0.75rem 1.1rem;
+      font: inherit;
+      cursor: pointer;
+      border: 1px solid transparent;
+    }
+
+    .approve-button {
+      background: var(--accent);
+      color: white;
+    }
+
+    .approve-button:hover {
+      opacity: 0.9;
+    }
+
+    .reject-button {
+      background: transparent;
+      border-color: #c87563;
+      color: #c87563;
+    }
+
+    .reject-button:hover {
+      background: rgba(200, 117, 99, 0.08);
+    }
+
+    .approve-button:disabled,
+    .reject-button:disabled {
+      opacity: 0.5;
+      cursor: wait;
+    }
+
     @media (max-width: 600px) {
       .review-toolbar {
         align-items: flex-start;
@@ -379,6 +531,14 @@ import Editorial from '../../../layouts/Editorial.astro';
 
       .submission-card {
         padding: 1rem;
+      }
+
+      .review-actions {
+        flex-direction: column;
+      }
+
+      .review-actions button {
+        width: 100%;
       }
     }
   </style>
