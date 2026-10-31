@@ -98,6 +98,7 @@ const description = "Create and publish a Newsletter item.";
       credentials: "same-origin",
       cache: "no-store"
     });
+
     const result = await response.json();
 
     if (!response.ok || !result.ok || !["admin", "editor"].includes(result.user?.role)) {
@@ -105,8 +106,33 @@ const description = "Create and publish a Newsletter item.";
       return;
     }
 
+    // Administrators have access to every section.
+    if (result.user.role === "admin") {
+      accessStatus.hidden = true;
+      form.hidden = false;
+      return;
+    }
+
+    // Editors must have Newsletter permission.
+    const permissionResponse = await fetch("/api/auth/section-permissions", {
+      credentials: "same-origin",
+      cache: "no-store"
+    });
+
+    const permissionResult = await permissionResponse.json();
+
+    if (
+      !permissionResponse.ok ||
+      !permissionResult.ok ||
+      !permissionResult.permissions?.includes("newsletter")
+    ) {
+      window.location.replace("/editorial/dashboard/");
+      return;
+    }
+
     accessStatus.hidden = true;
     form.hidden = false;
+
   } catch {
     accessStatus.textContent = "Unable to verify your account. Please refresh the page.";
   }
