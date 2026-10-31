@@ -6,64 +6,53 @@ import Editorial from '../../../../layouts/Editorial.astro';
 ---
 
 <Editorial title="My Drafts">
-  <section class="drafts-page">
-    <div class="page-heading">
-      <a href="/editorial/submissions/" class="back-link">
-        ← Back to Submission Centre
-      </a>
+  <main class="drafts-page">
+    <a class="back-link" href="/editorial/submissions/">
+      ← Back to Submission Centre
+    </a>
 
+    <header class="page-heading">
       <p class="eyebrow">EDITORIAL WORKSPACE</p>
       <h1>My drafts</h1>
-      <p class="intro">
-        Find the submissions you have saved as drafts. Only your own drafts
-        are shown here.
-      </p>
+      <p>View your saved article and guide drafts.</p>
+    </header>
+
+    <div id="draft-message" class="message" role="status">
+      Loading your drafts...
     </div>
 
-    <div id="page-message" class="message" role="status">
-      Checking your login and loading your drafts...
-    </div>
+    <div id="draft-list" class="draft-list"></div>
 
-    <div id="draft-list" class="draft-list" hidden></div>
-
-    <div id="empty-state" class="empty-state" hidden>
-      <h2>No drafts yet</h2>
-      <p>
-        You have not saved any article or guide drafts.
-        Create a submission to get started.
-      </p>
-      <a href="/editorial/submissions/new/" class="primary-link">
-        Create a submission
-      </a>
-    </div>
-
-    <div class="page-actions">
-      <a href="/editorial/submissions/new/" class="primary-link">
-        + Create a new submission
-      </a>
-    </div>
-  </section>
+    <a class="new-button" href="/editorial/submissions/new/">
+      Create a new submission
+    </a>
+  </main>
 </Editorial>
 
 <script>
-  const message = document.querySelector('#page-message');
-  const draftList = document.querySelector('#draft-list');
-  const emptyState = document.querySelector('#empty-state');
+  type Draft = {
+    id: string;
+    title: string;
+    contentType: string;
+    createdAt?: string;
+    updatedAt?: string;
+  };
 
-  function showMessage(text, type = '') {
+  const message = document.querySelector<HTMLDivElement>('#draft-message')!;
+  const draftList = document.querySelector<HTMLDivElement>('#draft-list')!;
+
+  function showMessage(text: string, type = '') {
     message.textContent = text;
     message.className = `message ${type}`;
     message.hidden = false;
   }
 
-  function formatDate(value) {
+  function formatDate(value?: string) {
     if (!value) return 'Date unavailable';
 
     const date = new Date(value);
 
-    if (Number.isNaN(date.getTime())) {
-      return 'Date unavailable';
-    }
+    if (Number.isNaN(date.getTime())) return 'Date unavailable';
 
     return date.toLocaleString(undefined, {
       year: 'numeric',
@@ -74,103 +63,66 @@ import Editorial from '../../../../layouts/Editorial.astro';
     });
   }
 
-  function createDraftCard(draft) {
-    const card = document.createElement('article');
-    card.className = 'draft-card';
+  function renderDrafts(drafts: Draft[]) {
+    draftList.replaceChildren();
 
-    const details = document.createElement('div');
-    details.className = 'draft-details';
+    if (drafts.length === 0) {
+      showMessage('You do not have any saved drafts yet.');
+      return;
+    }
 
-    const title = document.createElement('h2');
-    title.textContent = draft.title || 'Untitled submission';
+    message.hidden = true;
 
-    const type = document.createElement('span');
-    type.className = 'draft-type';
-    type.textContent =
-      draft.content_type === 'guide' ? 'Guide' : 'Article';
+    drafts.forEach((draft) => {
+      const card = document.createElement('article');
+      card.className = 'draft-card';
 
-    const updated = document.createElement('p');
-    updated.className = 'draft-date';
-    updated.textContent =
-      `Last updated: ${formatDate(draft.updated_at || draft.created_at)}`;
+      const title = document.createElement('h2');
+      title.textContent = draft.title || 'Untitled draft';
 
-    const created = document.createElement('p');
-    created.className = 'draft-date';
-    created.textContent = `Created: ${formatDate(draft.created_at)}`;
+      const type = document.createElement('span');
+      type.className = 'draft-type';
+      type.textContent =
+        draft.contentType === 'guide' ? 'Guide' : 'Article';
 
-    details.append(title, type, updated, created);
+      const updated = document.createElement('p');
+      updated.className = 'draft-date';
+      updated.textContent = `Last updated: ${formatDate(draft.updatedAt)}`;
 
-    const actions = document.createElement('div');
-    actions.className = 'draft-actions';
-
-    const editLink = document.createElement('a');
-    editLink.className = 'edit-link';
-    editLink.textContent = 'Open draft';
-
-    // The editing connection will be added in the next step.
-    editLink.href =
-      `/editorial/submissions/new/?id=${encodeURIComponent(draft.id)}`;
-
-    actions.append(editLink);
-    card.append(details, actions);
-
-    return card;
+      card.append(title, type, updated);
+      draftList.append(card);
+    });
   }
 
   async function loadDrafts() {
     try {
-      const sessionResponse = await fetch('/api/auth/me', {
-        credentials: 'same-origin',
-        cache: 'no-store'
-      });
-
-      if (!sessionResponse.ok) {
-        window.location.replace('/editorial/');
-        return;
-      }
-
-      const sessionData = await sessionResponse.json();
-
-      if (!sessionData.ok || sessionData.user?.role !== 'editor') {
-        showMessage(
-          'Access denied. This page is available to Editors only.',
-          'error'
-        );
-        return;
-      }
-
       const response = await fetch('/api/submissions/draft', {
+        method: 'GET',
         credentials: 'same-origin',
         cache: 'no-store'
       });
 
-      const data = await response.json();
+      const result = await response.json();
 
-      if (!response.ok || !data.ok) {
-        throw new Error(data.message || 'Could not load your drafts.');
+      if (!response.ok || !result.ok) {
+        if (response.status === 401 || response.status === 403) {
+          window.location.replace('/editorial');
+          return;
+        }
+
+        throw new Error(result.message || 'Could not load your drafts.');
       }
 
-      const drafts = Array.isArray(data.drafts) ? data.drafts : [];
+      const drafts: Draft[] = Array.isArray(result.drafts)
+        ? result.drafts
+        : [];
 
-      message.hidden = true;
-      draftList.replaceChildren();
-
-      if (drafts.length === 0) {
-        emptyState.hidden = false;
-        return;
-      }
-
-      emptyState.hidden = true;
-
-      drafts.forEach((draft) => {
-        draftList.append(createDraftCard(draft));
-      });
-
-      draftList.hidden = false;
-
+      renderDrafts(drafts);
     } catch (error) {
       showMessage(
-        error.message || 'Something went wrong while loading your drafts.',
+        error instanceof Error
+          ? error.message
+          : 'Something went wrong. Please refresh the page.',
         'error'
       );
     }
@@ -181,153 +133,103 @@ import Editorial from '../../../../layouts/Editorial.astro';
 
 <style>
   .drafts-page {
-    max-width: 1000px;
+    width: min(100% - 2rem, 1000px);
     margin: 0 auto;
-    padding: 36px 20px 70px;
-  }
-
-  .page-heading {
-    margin-bottom: 30px;
+    padding: 3rem 0 5rem;
   }
 
   .back-link {
-    display: inline-block;
-    margin-bottom: 25px;
-    color: inherit;
+    color: var(--muted);
     text-decoration: none;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
   }
 
   .back-link:hover {
-    text-decoration: underline;
+    color: var(--accent);
+  }
+
+  .page-heading {
+    margin: 2rem 0;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--rule);
   }
 
   .eyebrow {
-    margin: 0 0 10px;
-    font-size: 0.75rem;
-    letter-spacing: 0.14em;
-    font-weight: 700;
-    opacity: 0.65;
+    color: var(--accent);
+    font-family: var(--font-ui);
+    font-size: 0.7rem;
+    letter-spacing: 0.16em;
   }
 
-  h1 {
-    margin: 0 0 12px;
+  .page-heading h1 {
+    margin: 0;
+    color: var(--ink);
     font-size: clamp(2rem, 5vw, 2.8rem);
   }
 
-  .intro {
-    max-width: 650px;
+  .page-heading p:last-child {
+    color: var(--muted);
     line-height: 1.7;
-    opacity: 0.75;
   }
 
   .message {
-    padding: 16px 18px;
-    margin: 20px 0;
-    border: 1px solid #d8d8d8;
-    border-radius: 8px;
+    margin: 1rem 0;
+    padding: 1rem;
+    border: 1px solid var(--rule);
+    color: var(--ink);
     line-height: 1.6;
   }
 
   .message.error {
-    border-color: #c66;
-    color: #a22;
+    border-color: #a85b4c;
+    color: #e3a394;
   }
 
   .draft-list {
     display: grid;
-    gap: 15px;
-    margin-top: 25px;
+    gap: 1rem;
   }
 
   .draft-card {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 20px;
-    padding: 22px;
-    border: 1px solid #dedede;
-    border-radius: 10px;
-    background: #fff;
-  }
-
-  .draft-details {
-    min-width: 0;
+    padding: 1.3rem;
+    border: 1px solid var(--rule);
+    background: var(--surface);
   }
 
   .draft-card h2 {
-    margin: 0 0 10px;
-    font-size: 1.2rem;
-    overflow-wrap: anywhere;
+    margin: 0 0 0.7rem;
+    color: var(--ink);
+    font-size: 1.15rem;
   }
 
   .draft-type {
     display: inline-block;
-    padding: 4px 9px;
-    border-radius: 5px;
-    background: #f0f0f0;
-    font-size: 0.78rem;
-    font-weight: 600;
+    padding: 0.25rem 0.55rem;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    font-size: 0.75rem;
   }
 
   .draft-date {
-    margin: 9px 0 0;
-    font-size: 0.85rem;
-    color: #666;
+    margin: 0.8rem 0 0;
+    color: var(--muted);
+    font-size: 0.8rem;
   }
 
-  .draft-actions {
-    flex-shrink: 0;
-  }
-
-  .edit-link,
-  .primary-link {
+  .new-button {
     display: inline-block;
-    padding: 11px 17px;
-    border-radius: 6px;
-    background: #222;
-    color: #fff;
+    margin-top: 2rem;
+    padding: 0.85rem 1.2rem;
+    border: 1px solid var(--accent);
+    background: var(--accent);
+    color: var(--accent-ink);
     text-decoration: none;
-    font-size: 0.9rem;
-    font-weight: 600;
-  }
-
-  .edit-link:hover,
-  .primary-link:hover {
-    background: #444;
-  }
-
-  .empty-state {
-    padding: 35px 25px;
-    margin-top: 25px;
-    border: 1px dashed #ccc;
-    border-radius: 10px;
-    text-align: center;
-  }
-
-  .empty-state p {
-    line-height: 1.7;
-    margin-bottom: 22px;
-  }
-
-  .page-actions {
-    margin-top: 28px;
+    border-radius: 3px;
   }
 
   @media (max-width: 600px) {
-    .draft-card {
-      align-items: flex-start;
-      flex-direction: column;
-    }
-
-    .draft-actions {
-      width: 100%;
-    }
-
-    .edit-link {
-      text-align: center;
-      width: 100%;
-      box-sizing: border-box;
+    .drafts-page {
+      padding-top: 2rem;
     }
   }
 </style>
