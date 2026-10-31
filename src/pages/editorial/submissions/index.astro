@@ -19,6 +19,7 @@ import Editorial from '../../../layouts/Editorial.astro';
       Checking your account and permissions...
     </div>
 
+    <!-- Administrator options -->
     <div id="admin-options" class="options-grid" hidden>
       <a class="option-card create-card" href="/editorial/submissions/new/">
         <h2>Create a submission</h2>
@@ -33,6 +34,7 @@ import Editorial from '../../../layouts/Editorial.astro';
       </a>
     </div>
 
+    <!-- Editor options -->
     <div id="editor-options" class="options-grid" hidden>
       <a class="option-card create-card" href="/editorial/submissions/new/">
         <h2>Create a submission</h2>
@@ -40,17 +42,17 @@ import Editorial from '../../../layouts/Editorial.astro';
         <span class="option-action">Create submission →</span>
       </a>
 
-      <article class="option-card">
+      <a class="option-card workspace-card" href="/editorial/submissions/drafts/">
         <h2>My drafts</h2>
         <p>Find and continue working on submissions you have saved as drafts.</p>
-        <span class="coming-soon">Drafts section coming next</span>
-      </article>
+        <span class="option-action">Open my drafts →</span>
+      </a>
 
-      <article class="option-card">
+      <a class="option-card workspace-card" href="/editorial/submissions/rejected/">
         <h2>Rejected submissions</h2>
         <p>Review rejected work, read the administrator's reasons, and prepare it for resubmission.</p>
-        <span class="coming-soon">Resubmission section coming next</span>
-      </article>
+        <span class="option-action">Open rejected submissions →</span>
+      </a>
     </div>
 
     <div id="error-message" class="status-message error-message" hidden>
@@ -210,12 +212,14 @@ import Editorial from '../../../layouts/Editorial.astro';
     }
 
     .create-card,
-    .review-card {
+    .review-card,
+    .workspace-card {
       transition: background 0.2s ease, border-color 0.2s ease;
     }
 
     .create-card:hover,
-    .review-card:hover {
+    .review-card:hover,
+    .workspace-card:hover {
       background: var(--accent-soft);
       border-color: var(--accent);
     }
@@ -225,14 +229,6 @@ import Editorial from '../../../layouts/Editorial.astro';
       padding-top: 1.5rem;
       color: var(--accent);
       font-size: 0.9rem;
-    }
-
-    .coming-soon {
-      display: inline-block;
-      margin-top: auto;
-      padding-top: 1.5rem;
-      color: var(--muted);
-      font-size: 0.82rem;
     }
 
     .status-message {
