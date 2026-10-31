@@ -385,9 +385,14 @@ export async function onRequestPut({ request, env }) {
 
     const data = await request.json();
 
-    const id = typeof data.id === "string" ? data.id : "";
-    const requestedStatus = data.status || "draft";
+const urlId = new URL(request.url).searchParams.get("id");
 
+const id =
+  typeof data.id === "string" && data.id.trim()
+    ? data.id.trim()
+    : urlId || "";
+
+const requestedStatus = data.status || "draft";
     if (!id) {
       return Response.json(
         { ok: false, message: "A draft ID is required." },
