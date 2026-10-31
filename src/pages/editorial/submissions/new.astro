@@ -244,6 +244,7 @@ import Editorial from '../../../layouts/Editorial.astro';
   import Link from '@tiptap/extension-link';
   import TurndownService from 'turndown';
   import { gfm } from 'turndown-plugin-gfm';
+  import { marked } from 'marked';
 
   const form = document.querySelector<HTMLFormElement>('#submission-form')!;
   const message = document.querySelector<HTMLDivElement>('#page-message')!;
@@ -283,6 +284,8 @@ import Editorial from '../../../layouts/Editorial.astro';
   const selectedAuthorPaths = new Set<string>();
 
   let coverPreviewUrl = '';
+  let existingCover = '';
+  const editingDraftId = new URLSearchParams(window.location.search).get('id');
   let processedCoverFile: File | null = null;
   let coverProcessing = false;
   let coverSelectionId = 0;
@@ -714,6 +717,72 @@ turndown.addRule('formattedText', {
     loadTopics();
   }
 
+  async function loadExistingDraft() {
+    if (!editingDraftId) return;
+
+    const response = await fetch(
+      `/api/submissions/draft?id=${encodeURIComponent(editingDraftId)}`,
+      {
+        credentials: 'same-origin',
+        cache: 'no-store'
+      }
+    );
+
+    const result = await response.json();
+
+    if (!response.ok || !result.ok || !result.draft) {
+      throw new Error(result.message || 'This draft could not be loaded.');
+    }
+
+    const draft = result.draft;
+    const content = draft.content || {};
+
+    typeSelect.value = draft.contentType || content.contentType || 'article';
+    updateKindOptions();
+
+    document.querySelector<HTMLInputElement>('#title')!.value = content.title || draft.title || '';
+    document.querySelector<HTMLTextAreaElement>('#summary')!.value = content.summary || '';
+    kindSelect.value = content.kind || kindOptions[typeSelect.value as 'article' | 'guide'][0];
+    document.querySelector<HTMLInputElement>('#date')!.value = content.date || '';
+    document.querySelector<HTMLInputElement>('#keywords')!.value = Array.isArray(content.keywords)
+      ? content.keywords.join(', ')
+      : (content.keywords || '');
+    topicSelect.value = content.topic || '';
+
+    selectedAuthorPaths.clear();
+    (Array.isArray(content.authors) ? content.authors : []).forEach((path: string) => {
+      if (availableAuthors.some((author) => author.path === path)) {
+        selectedAuthorPaths.add(path);
+      }
+    });
+    authorSearch.value = '';
+    renderAuthors();
+    renderSelectedAuthors();
+    updateAuthorCount();
+
+    document.querySelector<HTMLInputElement>('#featured')!.checked = Boolean(content.featured);
+    document.querySelector<HTMLInputElement>('#peer-reviewed')!.checked = content.peerReviewed !== false;
+    document.querySelector<HTMLInputElement>('#cover-alt')!.value = content.coverAlt || '';
+    document.querySelector<HTMLInputElement>('#cover-credit')!.value = content.coverCredit || '';
+
+    existingCover = content.cover || '';
+    if (existingCover) {
+      coverPreview.src = existingCover;
+      coverFileName.textContent = 'Existing cover image';
+      coverPreviewContainer.hidden = false;
+    }
+
+    const markdownBody = typeof content.body === 'string' ? content.body : '';
+    editor.commands.setContent(await marked.parse(markdownBody));
+    updateWordCount();
+
+    document.querySelector<HTMLHeadingElement>('.page-heading h1')!.textContent = 'Edit draft';
+    document.querySelector<HTMLParagraphElement>('.page-heading .intro')!.textContent =
+      'Continue editing your saved draft. Save your changes or submit it for administrator review.';
+    saveButton.textContent = 'Save changes';
+    showMessage('Your saved draft has been loaded.', 'success');
+  }
+
   async function checkSession() {
     try {
       const response = await fetch('/api/auth/me', {
@@ -734,6 +803,7 @@ turndown.addRule('formattedText', {
       }
 
       await loadSubmissionOptions();
+      await loadExistingDraft();
 
       loading.hidden = true;
       form.hidden = false;
@@ -755,8 +825,9 @@ turndown.addRule('formattedText', {
     coverPreviewContainer.hidden = false;
   }
 
-  function clearCover() {
+  function clearCover(removeExisting = false) {
     coverSelectionId++;
+    if (removeExisting) existingCover = '';
 
     if (coverPreviewUrl) {
       URL.revokeObjectURL(coverPreviewUrl);
@@ -1116,15 +1187,22 @@ async function insertInlineImage(file: File) {
     message.hidden = true;
 
     try {
-      const cover = await uploadCover();
+      const uploadedCover = await uploadCover();
+      const cover = uploadedCover || existingCover;
+      const isEditing = Boolean(editingDraftId);
 
-      const response = await fetch('/api/submissions/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'same-origin',
-        cache: 'no-store',
-        body: JSON.stringify(getSubmissionData(status, cover))
-      });
+      const response = await fetch(
+        isEditing
+          ? `/api/submissions/draft?id=${encodeURIComponent(editingDraftId!)}`
+          : '/api/submissions/create',
+        {
+          method: isEditing ? 'PUT' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          cache: 'no-store',
+          body: JSON.stringify(getSubmissionData(status, cover))
+        }
+      );
 
       const result = await response.json();
 
@@ -1139,20 +1217,27 @@ async function insertInlineImage(file: File) {
         'success'
       );
 
-      form.reset();
-      selectedAuthorPaths.clear();
-      authorSearch.value = '';
-      clearCover();
-      editor.commands.clearContent();
+      if (isEditing && status === 'pending') {
+        window.location.href = '/editorial/submissions/';
+        return;
+      }
 
-      renderAuthors();
-      renderSelectedAuthors();
-      updateKindOptions();
-      updateAuthorCount();
-      updateWordCount();
+      if (!isEditing) {
+        form.reset();
+        selectedAuthorPaths.clear();
+        authorSearch.value = '';
+        clearCover(true);
+        editor.commands.clearContent();
 
-      const dateInput = document.querySelector<HTMLInputElement>('#date')!;
-      dateInput.value = new Date().toISOString().slice(0, 10);
+        renderAuthors();
+        renderSelectedAuthors();
+        updateKindOptions();
+        updateAuthorCount();
+        updateWordCount();
+
+        const dateInput = document.querySelector<HTMLInputElement>('#date')!;
+        dateInput.value = new Date().toISOString().slice(0, 10);
+      }
     } catch (error) {
       showMessage(
         error instanceof Error ? error.message : 'Something went wrong. Please try again.',
@@ -1161,7 +1246,7 @@ async function insertInlineImage(file: File) {
     } finally {
       saveButton.disabled = false;
       submitButton.disabled = false;
-      saveButton.textContent = 'Save draft';
+      saveButton.textContent = editingDraftId ? 'Save changes' : 'Save draft';
       submitButton.textContent = 'Submit for approval';
     }
   }
@@ -1222,7 +1307,7 @@ async function insertInlineImage(file: File) {
     }
   });
 
-  removeCoverButton.addEventListener('click', clearCover);
+  removeCoverButton.addEventListener('click', () => clearCover(true));
 
   saveButton.addEventListener('click', () => saveSubmission('draft'));
   submitButton.addEventListener('click', () => saveSubmission('pending'));
