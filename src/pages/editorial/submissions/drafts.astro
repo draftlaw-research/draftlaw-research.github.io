@@ -1,0 +1,293 @@
+
+---
+export const prerender = true;
+import Editorial from '../../../layouts/Editorial.astro';
+---
+
+<Editorial title="My Drafts">
+  <main class="drafts-page">
+    <header class="page-heading">
+      <a href="/editorial/submissions/" class="back-link">
+        ← Back to Submission Centre
+      </a>
+      <p class="eyebrow">EDITORIAL WORKSPACE</p>
+      <h1>My drafts</h1>
+      <p class="intro">
+        Find the submissions you have saved as drafts. Only your own drafts
+        are displayed here.
+      </p>
+    </header>
+
+    <div id="page-message" class="message" role="status" hidden></div>
+
+    <div id="loading-message" class="message">
+      Loading your drafts...
+    </div>
+
+    <div id="draft-list" class="draft-list" hidden></div>
+
+    <div id="empty-message" class="empty-state" hidden>
+      <h2>No drafts yet</h2>
+      <p>
+        When you save an article or guide as a draft, it will appear here.
+      </p>
+      <a class="primary-button" href="/editorial/submissions/new/">
+        Create a submission
+      </a>
+    </div>
+
+    <div class="page-actions">
+      <a href="/editorial/submissions/new/" class="secondary-button">
+        Create a new submission
+      </a>
+    </div>
+  </main>
+
+  <script>
+    const loading = document.querySelector('#loading-message');
+    const draftList = document.querySelector('#draft-list');
+    const emptyMessage = document.querySelector('#empty-message');
+    const pageMessage = document.querySelector('#page-message');
+
+    function showError(text) {
+      pageMessage.textContent = text;
+      pageMessage.hidden = false;
+    }
+
+    function formatDate(value) {
+      if (!value) return 'Date unavailable';
+
+      const date = new Date(value);
+
+      if (Number.isNaN(date.getTime())) {
+        return 'Date unavailable';
+      }
+
+      return date.toLocaleString(undefined, {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    }
+
+    function createDraftCard(draft) {
+      const card = document.createElement('article');
+      card.className = 'draft-card';
+
+      const heading = document.createElement('h2');
+      heading.textContent = draft.title || 'Untitled submission';
+
+      const type = document.createElement('span');
+      type.className = 'draft-type';
+      type.textContent =
+        draft.contentType === 'article' ? 'Article' : 'Guide';
+
+      const summary = document.createElement('p');
+      summary.className = 'draft-summary';
+      summary.textContent =
+        draft.content?.summary || 'No summary has been added yet.';
+
+      const updated = document.createElement('p');
+      updated.className = 'draft-date';
+      updated.textContent = `Last updated: ${formatDate(draft.updatedAt)}`;
+
+      const status = document.createElement('span');
+      status.className = 'draft-status';
+      status.textContent = 'Draft';
+
+      card.append(type, status, heading, summary, updated);
+
+      return card;
+    }
+
+    async function loadDrafts() {
+      try {
+        const response = await fetch('/api/submissions/drafts', {
+          method: 'GET',
+          credentials: 'same-origin',
+          cache: 'no-store',
+          headers: {
+            Accept: 'application/json'
+          }
+        });
+
+        if (response.status === 401) {
+          window.location.replace('/editorial');
+          return;
+        }
+
+        const result = await response.json();
+
+        loading.hidden = true;
+
+        if (!response.ok || !result.ok) {
+          showError(
+            result.message || 'Unable to load your drafts. Please try again.'
+          );
+          return;
+        }
+
+        const drafts = Array.isArray(result.drafts)
+          ? result.drafts
+          : [];
+
+        if (drafts.length === 0) {
+          emptyMessage.hidden = false;
+          return;
+        }
+
+        drafts.forEach(draft => {
+          draftList.appendChild(createDraftCard(draft));
+        });
+
+        draftList.hidden = false;
+
+      } catch (error) {
+        console.error('Loading drafts failed:', error);
+        loading.hidden = true;
+
+        showError(
+          'We could not load your drafts. Please refresh the page and try again.'
+        );
+      }
+    }
+
+    loadDrafts();
+  </script>
+
+  <style>
+    .drafts-page {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem 4rem;
+    }
+
+    .page-heading {
+      margin-bottom: 2rem;
+    }
+
+    .back-link {
+      display: inline-block;
+      margin-bottom: 2rem;
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 0.9rem;
+    }
+
+    .back-link:hover {
+      color: var(--accent);
+    }
+
+    .page-heading h1 {
+      margin: 0.5rem 0;
+    }
+
+    .intro {
+      max-width: 65ch;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    .message {
+      padding: 1rem 0;
+      color: var(--muted);
+    }
+
+    .draft-list {
+      display: grid;
+      gap: 1rem;
+    }
+
+    .draft-card {
+      padding: 1.5rem;
+      border: 1px solid var(--rule);
+      background: var(--surface);
+    }
+
+    .draft-card h2 {
+      margin: 0.8rem 0 0.5rem;
+      font-size: 1.3rem;
+    }
+
+    .draft-type,
+    .draft-status {
+      display: inline-block;
+      margin-right: 0.5rem;
+      padding: 0.3rem 0.6rem;
+      font-size: 0.78rem;
+      border: 1px solid var(--rule);
+    }
+
+    .draft-status {
+      color: var(--accent);
+    }
+
+    .draft-summary {
+      color: var(--muted);
+      line-height: 1.65;
+      margin: 0.5rem 0 1rem;
+    }
+
+    .draft-date {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+
+    .empty-state {
+      padding: 2rem;
+      border: 1px solid var(--rule);
+      background: var(--surface);
+    }
+
+    .empty-state h2 {
+      margin-top: 0;
+    }
+
+    .empty-state p {
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .primary-button,
+    .secondary-button {
+      display: inline-block;
+      margin-top: 1rem;
+      padding: 0.8rem 1.1rem;
+      border: 1px solid var(--accent);
+      text-decoration: none;
+      font: inherit;
+      cursor: pointer;
+    }
+
+    .primary-button {
+      background: var(--accent);
+      color: white;
+    }
+
+    .secondary-button {
+      background: var(--surface);
+      color: var(--accent);
+    }
+
+    .page-actions {
+      margin-top: 2rem;
+    }
+
+    [hidden] {
+      display: none !important;
+    }
+
+    @media (max-width: 650px) {
+      .drafts-page {
+        padding-inline: 1rem;
+      }
+
+      .draft-card {
+        padding: 1.2rem;
+      }
+    }
+  </style>
+</Editorial>
