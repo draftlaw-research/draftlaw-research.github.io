@@ -26,11 +26,11 @@ import Editorial from '../../../layouts/Editorial.astro';
         <span class="option-action">Create submission →</span>
       </a>
 
-      <article class="option-card">
+      <a class="option-card review-card" href="/editorial/submissions/review/">
         <h2>Review submissions</h2>
         <p>Review submissions sent by editors and decide whether to approve or reject them.</p>
-        <span class="coming-soon">Review workspace coming next</span>
-      </article>
+        <span class="option-action">Open review workspace →</span>
+      </a>
     </div>
 
     <div id="editor-options" class="options-grid" hidden>
@@ -209,11 +209,13 @@ import Editorial from '../../../layouts/Editorial.astro';
       line-height: 1.65;
     }
 
-    .create-card {
+    .create-card,
+    .review-card {
       transition: background 0.2s ease, border-color 0.2s ease;
     }
 
-    .create-card:hover {
+    .create-card:hover,
+    .review-card:hover {
       background: var(--accent-soft);
       border-color: var(--accent);
     }
