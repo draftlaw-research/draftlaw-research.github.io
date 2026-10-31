@@ -49,7 +49,7 @@ const description = "The DraftLaw Research editorial workspace.";
             <p class="eyebrow">01 / REVIEW</p>
             <h3>Submissions</h3>
             <p>Review and manage submitted Articles and Guidelines.</p>
-            <a class="action-button" href="/editorial/submissions/new/">Open submissions →</a>
+            <a class="action-button" href="/editorial/submissions/">Open submissions →</a>
           </article>
 
           <article class="dashboard-card" id="authors">
@@ -185,14 +185,45 @@ const description = "The DraftLaw Research editorial workspace.";
           currentRole === "admin" ? "Admin Workspace" : "Editor Workspace";
 
         if (currentRole === "admin") {
-          $("#admin-shortcuts").hidden = false;
+  // Admins always have access to Submissions.
+  $("#submissions").hidden = false;
 
-          document.querySelectorAll(".admin-only").forEach((item) => {
-            item.hidden = false;
-          });
-        } else {
-          $("#editor-shortcuts").hidden = false;
-        }
+  $("#admin-shortcuts").hidden = false;
+
+  document.querySelectorAll(".admin-only").forEach((item) => {
+    item.hidden = false;
+  });
+
+} else {
+  // Check the Editor's Article and Guidelines permissions.
+  const permissionResponse = await fetch("/api/auth/section-permissions", {
+    credentials: "same-origin",
+    cache: "no-store"
+  });
+
+  if (!permissionResponse.ok) {
+    throw new Error("Could not verify section permissions.");
+  }
+
+  const permissionResult = await permissionResponse.json();
+
+  if (
+    !permissionResult.ok ||
+    permissionResult.role !== "editor" ||
+    !Array.isArray(permissionResult.permissions)
+  ) {
+    throw new Error("Invalid section permission response.");
+  }
+
+  const canAccessSubmissions =
+    permissionResult.permissions.includes("articles") ||
+    permissionResult.permissions.includes("guides");
+
+  // Hide Submissions if the Editor has neither permission.
+  $("#submissions").hidden = !canAccessSubmissions;
+
+  $("#editor-shortcuts").hidden = false;
+}
 
         $("#editorial-account").hidden = false;
         $("#notification-area").hidden = false;
