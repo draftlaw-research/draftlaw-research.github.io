@@ -112,25 +112,60 @@ const description = "Create and publish a Student Collaborator profile.";
     const MAX_IMAGE_SIZE = 200 * 1024;
     let previewUrl = "";
 
-    async function checkSession() {
-      try {
-        const response = await fetch("/api/auth/me", {
-          credentials: "same-origin",
-          cache: "no-store"
-        });
-        const result = await response.json();
+    
+async function checkSession() {
+  try {
+    const response = await fetch("/api/auth/me", {
+      credentials: "same-origin",
+      cache: "no-store"
+    });
 
-        if (!response.ok || !result.ok || !["admin", "editor"].includes(result.user?.role)) {
-          window.location.replace("/editorial/");
-          return;
-        }
+    const result = await response.json();
 
-        accessStatus.hidden = true;
-        form.hidden = false;
-      } catch {
-        accessStatus.textContent = "Unable to verify your account. Please refresh the page.";
-      }
+    if (
+      !response.ok ||
+      !result.ok ||
+      !["admin", "editor"].includes(result.user?.role)
+    ) {
+      window.location.replace("/editorial/");
+      return;
     }
+
+    // Admins have access to every section.
+    if (result.user.role === "admin") {
+      accessStatus.hidden = true;
+      form.hidden = false;
+      return;
+    }
+
+    // Editors must have Student Collaborators permission.
+    const permissionResponse = await fetch(
+      "/api/auth/section-permissions",
+      {
+        credentials: "same-origin",
+        cache: "no-store"
+      }
+    );
+
+    const permissionResult = await permissionResponse.json();
+
+    if (
+      !permissionResponse.ok ||
+      !permissionResult.ok ||
+      !permissionResult.permissions?.includes("student-collaborators")
+    ) {
+      window.location.replace("/editorial/dashboard/");
+      return;
+    }
+
+    accessStatus.hidden = true;
+    form.hidden = false;
+
+  } catch {
+    accessStatus.textContent =
+      "Unable to verify your account. Please refresh the page.";
+  }
+}
 
     function fileSize(bytes: number) {
       return `${(bytes / 1024).toFixed(1)} KB`;
