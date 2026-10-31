@@ -62,6 +62,27 @@ async function getLoggedInUser(request, env) {
   return session;
 }
 
+// Check whether the user has permission to access Announcements.
+async function hasAnnouncementsPermission(user, env) {
+  // Administrators automatically have access.
+  if (user.role === 'admin') {
+    return true;
+  }
+
+  const permission = await env.EDITORIAL_DB
+    .prepare(`
+      SELECT 1
+      FROM editor_section_permissions
+      WHERE user_id = ?
+        AND section_key = 'announcements'
+      LIMIT 1
+    `)
+    .bind(user.id)
+    .first();
+
+  return Boolean(permission);
+}
+
 function githubHeaders(token) {
   return {
     Authorization: `Bearer ${token}`,
@@ -240,12 +261,16 @@ function buildMarkdown(item) {
   return frontmatter.join('\n');
 }
 
+// GET: Load programs for the announcement form.
 export async function onRequestGet({ request, env }) {
   try {
     if (!env.EDITORIAL_DB || !env.GITHUB_TOKEN) {
       return Response.json(
         { ok: false, message: 'Server configuration is incomplete.' },
-        { status: 500 }
+        {
+          status: 500,
+          headers: { 'Cache-Control': 'no-store' }
+        }
       );
     }
 
@@ -254,7 +279,26 @@ export async function onRequestGet({ request, env }) {
     if (!user) {
       return Response.json(
         { ok: false, message: 'Please log in to continue.' },
-        { status: 401 }
+        {
+          status: 401,
+          headers: { 'Cache-Control': 'no-store' }
+        }
+      );
+    }
+
+    // Verify Announcements permission before loading programs.
+    const authorized = await hasAnnouncementsPermission(user, env);
+
+    if (!authorized) {
+      return Response.json(
+        {
+          ok: false,
+          message: 'You are not authorized to access Program Announcements.'
+        },
+        {
+          status: 403,
+          headers: { 'Cache-Control': 'no-store' }
+        }
       );
     }
 
@@ -262,8 +306,11 @@ export async function onRequestGet({ request, env }) {
 
     return Response.json(
       { ok: true, programs },
-      { headers: { 'Cache-Control': 'no-store' } }
+      {
+        headers: { 'Cache-Control': 'no-store' }
+      }
     );
+
   } catch (error) {
     console.error('Announcement program list error:', error);
 
@@ -272,17 +319,24 @@ export async function onRequestGet({ request, env }) {
         ok: false,
         message: error.message || 'Could not load the Programs list.'
       },
-      { status: 500 }
+      {
+        status: 500,
+        headers: { 'Cache-Control': 'no-store' }
+      }
     );
   }
 }
 
+// POST: Publish a new announcement.
 export async function onRequestPost({ request, env }) {
   try {
     if (!env.EDITORIAL_DB || !env.GITHUB_TOKEN) {
       return Response.json(
         { ok: false, message: 'Server configuration is incomplete.' },
-        { status: 500 }
+        {
+          status: 500,
+          headers: { 'Cache-Control': 'no-store' }
+        }
       );
     }
 
@@ -291,7 +345,26 @@ export async function onRequestPost({ request, env }) {
     if (!user) {
       return Response.json(
         { ok: false, message: 'Please log in to continue.' },
-        { status: 401 }
+        {
+          status: 401,
+          headers: { 'Cache-Control': 'no-store' }
+        }
+      );
+    }
+
+    // Verify Announcements permission before accepting publishing data.
+    const authorized = await hasAnnouncementsPermission(user, env);
+
+    if (!authorized) {
+      return Response.json(
+        {
+          ok: false,
+          message: 'You are not authorized to publish announcements.'
+        },
+        {
+          status: 403,
+          headers: { 'Cache-Control': 'no-store' }
+        }
       );
     }
 
@@ -311,7 +384,10 @@ export async function onRequestPost({ request, env }) {
       if (!programResponse.ok) {
         return Response.json(
           { ok: false, message: 'The selected program could not be found.' },
-          { status: 400 }
+          {
+            status: 400,
+            headers: { 'Cache-Control': 'no-store' }
+          }
         );
       }
     }
@@ -321,7 +397,10 @@ export async function onRequestPost({ request, env }) {
     if (!slug) {
       return Response.json(
         { ok: false, message: 'Please use a title containing letters or numbers.' },
-        { status: 400 }
+        {
+          status: 400,
+          headers: { 'Cache-Control': 'no-store' }
+        }
       );
     }
 
@@ -341,7 +420,10 @@ export async function onRequestPost({ request, env }) {
           ok: false,
           message: 'An announcement with a similar title already exists. Please change the title.'
         },
-        { status: 409 }
+        {
+          status: 409,
+          headers: { 'Cache-Control': 'no-store' }
+        }
       );
     }
 
@@ -378,7 +460,10 @@ export async function onRequestPost({ request, env }) {
           ok: false,
           message: 'GitHub could not publish the announcement. Please try again.'
         },
-        { status: publishResponse.status }
+        {
+          status: publishResponse.status,
+          headers: { 'Cache-Control': 'no-store' }
+        }
       );
     }
 
@@ -388,8 +473,12 @@ export async function onRequestPost({ request, env }) {
         message: 'Announcement published successfully.',
         path: filePath
       },
-      { status: 201 }
+      {
+        status: 201,
+        headers: { 'Cache-Control': 'no-store' }
+      }
     );
+
   } catch (error) {
     console.error('Announcement publishing error:', error);
 
@@ -398,7 +487,10 @@ export async function onRequestPost({ request, env }) {
         ok: false,
         message: error.message || 'The announcement could not be published.'
       },
-      { status: 500 }
+      {
+        status: 500,
+        headers: { 'Cache-Control': 'no-store' }
+      }
     );
   }
 }
