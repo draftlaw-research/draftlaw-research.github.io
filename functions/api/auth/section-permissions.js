@@ -22,6 +22,20 @@ function getCookie(request) {
     : null;
 }
 
+const CONTENT_SECTIONS = [
+  "articles",
+  "guides",
+  "authors",
+  "topics",
+  "team",
+  "student-collaborators",
+  "newsletter",
+  "programs",
+  "announcements",
+  "submit",
+  "most-read"
+];
+
 export async function onRequestGet({ request, env }) {
   const headers = {
     "Cache-Control": "no-store"
@@ -73,12 +87,13 @@ export async function onRequestGet({ request, env }) {
       );
     }
 
+    // Administrators have access to every content section.
     if (user.role === "admin") {
       return Response.json(
         {
           ok: true,
           role: "admin",
-          permissions: ["articles", "guides"]
+          permissions: [...CONTENT_SECTIONS]
         },
         { headers }
       );
@@ -86,17 +101,30 @@ export async function onRequestGet({ request, env }) {
 
     if (user.role !== "editor") {
       return Response.json(
-        { ok: false, message: "You cannot access submissions." },
+        { ok: false, message: "You cannot access content sections." },
         { status: 403, headers }
       );
     }
 
+    // Retrieve every content permission assigned to this Editor.
     const result = await env.EDITORIAL_DB
       .prepare(`
         SELECT section_key
         FROM editor_section_permissions
         WHERE user_id = ?
-          AND section_key IN ('articles', 'guides')
+          AND section_key IN (
+            'articles',
+            'guides',
+            'authors',
+            'topics',
+            'team',
+            'student-collaborators',
+            'newsletter',
+            'programs',
+            'announcements',
+            'submit',
+            'most-read'
+          )
       `)
       .bind(user.id)
       .all();
@@ -117,7 +145,10 @@ export async function onRequestGet({ request, env }) {
     console.error("Section permission check failed:", error);
 
     return Response.json(
-      { ok: false, message: "Unable to verify section permissions." },
+      {
+        ok: false,
+        message: "Unable to verify section permissions."
+      },
       { status: 500, headers }
     );
   }
