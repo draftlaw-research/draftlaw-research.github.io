@@ -57,6 +57,23 @@ async function getLoggedInUser(request, env) {
   return session;
 }
 
+async function hasProgramsPermission(user, env) {
+  // Administrators automatically have access.
+  if (user.role === "admin") {
+    return true;
+  }
+
+  const permission = await env.EDITORIAL_DB.prepare(`
+    SELECT 1
+    FROM editor_section_permissions
+    WHERE user_id = ?
+      AND section_key = 'programs'
+    LIMIT 1
+  `).bind(user.id).first();
+
+  return Boolean(permission);
+}
+
 function slugify(value) {
   return value
     .normalize("NFKD")
@@ -87,8 +104,7 @@ export async function onRequestPost({ request, env }) {
       );
     }
 
-    // Only logged-in editors and administrators may publish.
-    // There is no moderator approval stage.
+    // Verify the logged-in user.
     const user = await getLoggedInUser(request, env);
 
     if (!user) {
@@ -99,6 +115,23 @@ export async function onRequestPost({ request, env }) {
         },
         {
           status: 401,
+          headers: { "Cache-Control": "no-store" }
+        }
+      );
+    }
+
+    // Editors must have Programs permission.
+    // Administrators automatically have access.
+    const authorized = await hasProgramsPermission(user, env);
+
+    if (!authorized) {
+      return Response.json(
+        {
+          ok: false,
+          message: "You are not authorized to publish programs."
+        },
+        {
+          status: 403,
           headers: { "Cache-Control": "no-store" }
         }
       );
