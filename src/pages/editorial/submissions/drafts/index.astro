@@ -199,7 +199,7 @@ import Editorial from '../../../../layouts/Editorial.astro';
   .empty-eyebrow {
     margin: 0 0 0.65rem;
     color: var(--accent);
-    font-family: var(--font-ui);
+    font-family: var(--sans);
     font-size: 0.72rem;
     font-weight: 700;
     letter-spacing: 0.16em;
@@ -209,6 +209,7 @@ import Editorial from '../../../../layouts/Editorial.astro';
   .page-heading h1 {
     margin: 0 0 0.75rem;
     color: var(--ink);
+    font-family: var(--serif);
     font-size: clamp(2.1rem, 5vw, 3rem);
   }
 
@@ -216,20 +217,22 @@ import Editorial from '../../../../layouts/Editorial.astro';
     max-width: 650px;
     margin: 0;
     color: var(--muted);
+    font-family: var(--serif);
     line-height: 1.75;
   }
 
   .message {
     padding: 1.5rem 0;
     color: var(--muted);
+    font-family: var(--serif);
     line-height: 1.6;
   }
 
   .message.error {
-    color: #b65b5b;
+    color: #d69b83;
   }
 
-  /* Same grid and individual card treatment as Submission Centre. */
+  /* Individual cards matching the Submission Centre. */
   .draft-list {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -246,10 +249,8 @@ import Editorial from '../../../../layouts/Editorial.astro';
     padding: 1.7rem;
     border: 1px solid var(--rule);
     background: var(--surface);
-    color: inherit;
-    transition:
-      background 160ms ease,
-      border-color 160ms ease;
+    color: var(--ink);
+    transition: background 160ms ease, border-color 160ms ease;
   }
 
   .draft-card:hover {
@@ -259,14 +260,15 @@ import Editorial from '../../../../layouts/Editorial.astro';
 
   .draft-details {
     min-width: 0;
+    width: 100%;
   }
 
   .draft-meta {
     margin-bottom: 0.8rem;
-    font-family: var(--font-ui);
+    font-family: var(--sans);
     font-size: 0.72rem;
     font-weight: 700;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
   }
 
@@ -275,21 +277,24 @@ import Editorial from '../../../../layouts/Editorial.astro';
   }
 
   .draft-card h2 {
-    margin: 0 0 0.65rem;
+    margin: 0 0 0.85rem;
     color: var(--ink);
-    font-size: clamp(1.15rem, 2.5vw, 1.35rem);
+    font-family: var(--serif);
+    font-size: 1.35rem;
+    line-height: 1.3;
     overflow-wrap: anywhere;
   }
 
   .draft-date {
-    margin: 0.25rem 0 0;
+    margin: 0.35rem 0 0;
     color: var(--muted);
-    font-size: 0.85rem;
+    font-family: var(--serif);
+    font-size: 0.95rem;
     line-height: 1.5;
   }
 
   .draft-created {
-    opacity: 0.8;
+    opacity: 0.9;
   }
 
   .draft-actions {
@@ -301,29 +306,38 @@ import Editorial from '../../../../layouts/Editorial.astro';
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 0.7rem 1rem;
+    gap: 0.45rem;
+    padding: 0.65rem 1rem;
     border: 1px solid var(--accent);
     background: transparent;
     color: var(--accent);
-    cursor: pointer;
-    font-family: inherit;
-    font-size: 0.9rem;
+    font-family: var(--serif);
+    font-size: 0.95rem;
     text-decoration: none;
-    transition: background 160ms ease;
+    transition: background 160ms ease, color 160ms ease;
+  }
+
+  .open-draft-link::after {
+    content: "→";
   }
 
   .open-draft-link:hover {
-    background: var(--accent-soft);
+    background: var(--accent);
+    color: var(--accent-ink);
   }
 
   .empty-state {
-    padding: 1.5rem 0;
+    margin-top: 1.75rem;
+    padding: 1.7rem;
+    border: 1px solid var(--rule);
+    background: var(--surface);
     color: var(--muted);
   }
 
   .empty-state h2 {
     margin: 0 0 0.5rem;
     color: var(--ink);
+    font-family: var(--serif);
     font-size: 1.4rem;
   }
 
@@ -337,7 +351,7 @@ import Editorial from '../../../../layouts/Editorial.astro';
     }
 
     .draft-card {
-      min-height: 230px;
+      min-height: 210px;
       padding: 1.4rem;
     }
 
