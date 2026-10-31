@@ -232,7 +232,6 @@ import Editorial from '../../../../layouts/Editorial.astro';
     color: #d69b83;
   }
 
-  /* Individual cards matching the Submission Centre. */
   .draft-list {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -240,7 +239,9 @@ import Editorial from '../../../../layouts/Editorial.astro';
     margin-top: 1.75rem;
   }
 
-  .draft-card {
+  /* These elements are created by JavaScript, so their styles must be global. */
+
+  :global(.draft-card) {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
@@ -253,17 +254,17 @@ import Editorial from '../../../../layouts/Editorial.astro';
     transition: background 160ms ease, border-color 160ms ease;
   }
 
-  .draft-card:hover {
+  :global(.draft-card:hover) {
     background: var(--accent-soft);
     border-color: var(--accent);
   }
 
-  .draft-details {
-    min-width: 0;
+  :global(.draft-details) {
     width: 100%;
+    min-width: 0;
   }
 
-  .draft-meta {
+  :global(.draft-meta) {
     margin-bottom: 0.8rem;
     font-family: var(--sans);
     font-size: 0.72rem;
@@ -272,11 +273,11 @@ import Editorial from '../../../../layouts/Editorial.astro';
     text-transform: uppercase;
   }
 
-  .draft-type {
+  :global(.draft-type) {
     color: var(--accent);
   }
 
-  .draft-card h2 {
+  :global(.draft-card h2) {
     margin: 0 0 0.85rem;
     color: var(--ink);
     font-family: var(--serif);
@@ -285,7 +286,7 @@ import Editorial from '../../../../layouts/Editorial.astro';
     overflow-wrap: anywhere;
   }
 
-  .draft-date {
+  :global(.draft-date) {
     margin: 0.35rem 0 0;
     color: var(--muted);
     font-family: var(--serif);
@@ -293,16 +294,16 @@ import Editorial from '../../../../layouts/Editorial.astro';
     line-height: 1.5;
   }
 
-  .draft-created {
+  :global(.draft-created) {
     opacity: 0.9;
   }
 
-  .draft-actions {
+  :global(.draft-actions) {
     margin-top: auto;
     padding-top: 1.5rem;
   }
 
-  .open-draft-link {
+  :global(.open-draft-link) {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -317,11 +318,11 @@ import Editorial from '../../../../layouts/Editorial.astro';
     transition: background 160ms ease, color 160ms ease;
   }
 
-  .open-draft-link::after {
+  :global(.open-draft-link::after) {
     content: "→";
   }
 
-  .open-draft-link:hover {
+  :global(.open-draft-link:hover) {
     background: var(--accent);
     color: var(--accent-ink);
   }
@@ -350,12 +351,12 @@ import Editorial from '../../../../layouts/Editorial.astro';
       grid-template-columns: 1fr;
     }
 
-    .draft-card {
+    :global(.draft-card) {
       min-height: 210px;
       padding: 1.4rem;
     }
 
-    .open-draft-link {
+    :global(.open-draft-link) {
       width: 100%;
     }
   }
