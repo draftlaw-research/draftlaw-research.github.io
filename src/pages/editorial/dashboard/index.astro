@@ -14,27 +14,7 @@ const description = "The DraftLaw Research editorial workspace.";
         <p>Manage submissions, contributors and website sections from one place.</p>
       </div>
 
-      <div class="notification-area" id="notification-area" hidden>
-        <button
-          type="button"
-          class="notification-bell"
-          id="notification-toggle"
-          aria-label="Open notifications"
-          aria-expanded="false"
-          aria-controls="notification-panel"
-        >
-          <span aria-hidden="true">🔔</span>
-          <span class="notification-indicator" id="notification-indicator" hidden></span>
-        </button>
-
-        <section class="notification-panel" id="notification-panel" hidden>
-          <div class="notification-panel-heading">
-            <h2>Notifications</h2>
-            <span id="notification-count">0 unread</span>
-          </div>
-          <p class="notification-empty">Your notifications will appear here.</p>
-        </section>
-      </div>
+      
     </header>
 
     <div id="workspace" hidden>
@@ -143,14 +123,6 @@ const description = "The DraftLaw Research editorial workspace.";
   <script>
     const $ = (selector) => document.querySelector(selector);
 
-    const notificationToggle = $("#notification-toggle");
-    const notificationPanel = $("#notification-panel");
-
-    notificationToggle.addEventListener("click", () => {
-      const opening = notificationPanel.hidden;
-      notificationPanel.hidden = !opening;
-      notificationToggle.setAttribute("aria-expanded", String(opening));
-    });
 
     // Connect each permission to its corresponding dashboard card.
     const sectionCards = {
@@ -277,14 +249,13 @@ const description = "The DraftLaw Research editorial workspace.";
           });
         }
 
-        // Show account and notification controls after verification.
+        // Show the account controls after verification.
         const editorialAccount = $("#editorial-account");
 
         if (editorialAccount) {
           editorialAccount.hidden = false;
         }
 
-        $("#notification-area").hidden = false;
 
         // Reveal the dashboard only after permission checks succeed.
         workspace.hidden = false;
@@ -312,71 +283,6 @@ const description = "The DraftLaw Research editorial workspace.";
       gap: 1.5rem;
     }
 
-    .notification-area {
-      position: relative;
-      flex: 0 0 auto;
-    }
-
-    .notification-bell {
-      position: relative;
-      width: 46px;
-      height: 46px;
-      border: 1px solid var(--rule);
-      border-radius: 50%;
-      background: transparent;
-      color: var(--text);
-      font-size: 1.45rem;
-      cursor: pointer;
-    }
-
-    .notification-bell:hover {
-      background: var(--accent-soft);
-    }
-
-    .notification-indicator {
-      position: absolute;
-      top: 5px;
-      right: 5px;
-      width: 9px;
-      height: 9px;
-      border-radius: 50%;
-      background: #d34b4b;
-      box-shadow: 0 0 0 3px var(--surface), 0 0 10px #d34b4b;
-    }
-
-    .notification-panel {
-      position: absolute;
-      z-index: 5;
-      top: 56px;
-      right: 0;
-      width: min(320px, calc(100vw - 2rem));
-      padding: 1rem;
-      border: 1px solid var(--rule);
-      background: var(--surface);
-      box-shadow: 0 12px 35px rgb(0 0 0 / 14%);
-    }
-
-    .notification-panel-heading {
-      display: flex;
-      justify-content: space-between;
-      gap: 1rem;
-      align-items: center;
-    }
-
-    .notification-panel-heading h2 {
-      margin: 0;
-      font-size: 1rem;
-    }
-
-    .notification-panel-heading span,
-    .notification-empty {
-      color: var(--muted);
-      font-size: .85rem;
-    }
-
-    .notification-empty {
-      margin: 1rem 0 .2rem;
-    }
 
     .dashboard-heading {
       padding-top: 2rem;
