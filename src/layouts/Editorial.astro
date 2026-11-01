@@ -219,11 +219,13 @@ const socials = SOCIALS.filter((s) => s.url);
       <slot />
     </main>
 
+    
     <!-- FOOTER -->
     <footer class="site-footer editorial-footer">
       <div class="wrap footer-grid">
 
-        <div>
+        <!-- LEFT COLUMN: BRAND -->
+        <div class="footer-brand-column">
           <a
             class="footer-logo"
             href="/"
@@ -240,50 +242,11 @@ const socials = SOCIALS.filter((s) => s.url);
           </p>
         </div>
 
-        <div>
-          <h2>Editorial shortcuts</h2>
+        <!-- RIGHT COLUMN: SOCIAL MEDIA AND CONTACT -->
+        <div class="footer-social-contact">
 
-          <ul id="admin-shortcuts" hidden>
-            <li>
-              <a href="/editorial/dashboard/#content">Website content</a>
-            </li>
-            <li>
-              <a href="/editorial/dashboard/#submissions">
-                Submissions and approvals
-              </a>
-            </li>
-            <li>
-              <a href="/editorial/dashboard/#accounts">Editor accounts</a>
-            </li>
-            <li>
-              <a href="/editorial/dashboard/#activity">Activity log</a>
-            </li>
-          </ul>
-
-          <ul id="editor-shortcuts" hidden>
-            <li>
-              <a href="/editorial/dashboard/#content">
-                My assigned content
-              </a>
-            </li>
-            <li>
-              <a href="/editorial/dashboard/#submissions">
-                My submissions
-              </a>
-            </li>
-            <li>
-              <a href="/editorial/dashboard/#workspace">
-                Editorial workspace
-              </a>
-            </li>
-            <li id="editor-activity-shortcut" hidden>
-              <a href="/editorial/dashboard/#activity">My activity</a>
-            </li>
-          </ul>
-        </div>
-
-        <div>
           <h2>Follow us</h2>
+
           <ul>
             {socials.map((s) => (
               <li>
@@ -293,18 +256,15 @@ const socials = SOCIALS.filter((s) => s.url);
               </li>
             ))}
           </ul>
-        </div>
 
-        <div>
-          <h2>Contact</h2>
+          <h2 class="footer-contact-heading">Contact</h2>
+
           <ul>
             <li>
               <a href={`mailto:${SITE.email}`}>{SITE.email}</a>
             </li>
-            <li>
-              <a href="/submit/">How to submit</a>
-            </li>
           </ul>
+
         </div>
 
       </div>
@@ -313,6 +273,7 @@ const socials = SOCIALS.filter((s) => s.url);
         © {year} {SITE.name}. {SITE.rights}
       </div>
     </footer>
+
 
     <!-- HEADER FUNCTIONALITY -->
     <script>
@@ -358,15 +319,7 @@ const socials = SOCIALS.filter((s) => s.url);
       const signOutMessage =
         document.querySelector<HTMLParagraphElement>('#signout-message');
 
-      const adminShortcuts =
-        document.querySelector<HTMLElement>('#admin-shortcuts');
-
-      const editorShortcuts =
-        document.querySelector<HTMLElement>('#editor-shortcuts');
-
-      const editorActivityShortcut =
-        document.querySelector<HTMLElement>('#editor-activity-shortcut');
-
+  
       const notificationClose =
         document.querySelector<HTMLButtonElement>('#notification-close');
 
@@ -524,21 +477,6 @@ const socials = SOCIALS.filter((s) => s.url);
 
           if (account) account.hidden = false;
 
-          // Show the appropriate footer shortcuts.
-          if (role === 'admin') {
-            if (adminShortcuts) adminShortcuts.hidden = false;
-          } else {
-            if (editorShortcuts) editorShortcuts.hidden = false;
-          }
-
-          // Keep the existing activity shortcut behavior.
-          if (
-            role === 'editor' &&
-            user.canViewActivity === true &&
-            editorActivityShortcut
-          ) {
-            editorActivityShortcut.hidden = false;
-          }
 
         } catch (error) {
           console.error(
@@ -1392,6 +1330,7 @@ messageLink.addEventListener('click', async (event) => {
         font-size: 0.7rem;
       }
 
+      
       /* =========================================
          FOOTER
          ========================================= */
@@ -1401,6 +1340,13 @@ messageLink.addEventListener('click', async (event) => {
         -webkit-backdrop-filter: blur(20px);
         backdrop-filter: blur(20px);
         border-top: 1px solid rgba(255,255,255,0.12);
+      }
+
+      :global(.editorial-footer .footer-grid) {
+        display: grid;
+        grid-template-columns: minmax(0, 1.5fr) minmax(220px, 0.7fr);
+        gap: 3rem;
+        align-items: start;
       }
 
       .editorial-footer h2 {
@@ -1424,6 +1370,32 @@ messageLink.addEventListener('click', async (event) => {
       .editorial-footer a:hover {
         color: var(--accent);
       }
+
+      .footer-social-contact {
+        justify-self: end;
+        width: min(100%, 260px);
+      }
+
+      .editorial-footer .footer-contact-heading {
+        margin-top: 1.8rem;
+      }
+
+      .editorial-footer .footer-base {
+        margin-top: 0;
+      }
+
+      @media (max-width: 700px) {
+        :global(.editorial-footer .footer-grid) {
+          grid-template-columns: 1fr;
+          gap: 2rem;
+        }
+
+        .footer-social-contact {
+          justify-self: start;
+          width: 100%;
+        }
+      }
+
 
       /* =========================================
          MOBILE
