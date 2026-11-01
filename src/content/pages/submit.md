@@ -1,10 +1,12 @@
 ---
-title: Call for submissions
-description: Short articles, case summaries, commentary, book reviews and
-  opinion pieces on any area of law. Free to submit, accepted on a rolling
-  basis.
+title: "Call for Papers: Submit Short Law Articles | DraftLaw Research"
+description: Free call for papers for short law articles, case summaries,
+  commentary, book reviews and opinion pieces. Peer-reviewed, rolling
+  submissions.
 ---
-Submitting is completely free. No charges or fees apply. Each submission goes through blind peer review, so a submission does not guarantee publication.
+# **Call for Papers: Submit Your Law Article**
+
+DraftLaw Research is a nonprofit initiative, based in Sweden and working internationally, that gives legal voices a place to be heard. Our call for papers is open on a rolling basis to law students, researchers and practitioners from any jurisdiction. We publish short articles, case summaries, legal commentary, short book reviews and opinion pieces on any area of law with an international audience. Submitting is free, every piece goes through blind peer review, and published authors receive a Certificate of Acknowledgement.
 
 ## **What we accept**
 
