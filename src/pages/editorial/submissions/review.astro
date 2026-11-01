@@ -120,6 +120,49 @@ import Editorial from '../../../layouts/Editorial.astro';
       }
     }
 
+    // Resolve cover image paths for the administrator preview.
+    function getCoverPreviewUrl(cover) {
+      if (!cover || typeof cover !== "string") {
+        return "";
+      }
+
+      const repository =
+        "https://raw.githubusercontent.com/draftlaw-research/draftlaw-research.github.io/editorial-portal-development/";
+
+      // New Astro cover images.
+      if (cover.startsWith("/src/assets/covers/")) {
+        const filename = cover.split("/").pop();
+
+        return repository +
+          "src/assets/covers/" +
+          encodeURIComponent(filename);
+      }
+
+      // Older public uploads.
+      if (cover.startsWith("/uploads/")) {
+        const filename = cover.split("/").pop();
+
+        return repository +
+          "public/uploads/" +
+          encodeURIComponent(filename);
+      }
+
+      // Existing absolute GitHub raw URLs.
+      if (cover.startsWith("https://raw.githubusercontent.com/")) {
+        return cover;
+      }
+
+      // Existing absolute HTTP image URLs.
+      if (
+        cover.startsWith("https://") ||
+        cover.startsWith("http://")
+      ) {
+        return cover;
+      }
+
+      return cover;
+    }
+
     async function reviewSubmission(id, decision, reason = "") {
       const buttons = listElement.querySelectorAll("button");
 
@@ -147,7 +190,15 @@ import Editorial from '../../../layouts/Editorial.astro';
           })
         });
 
-        const result = await response.json();
+        let result;
+
+        try {
+          result = await response.json();
+        } catch {
+          throw new Error(
+            `The server returned an invalid response (HTTP ${response.status}).`
+          );
+        }
 
         if (response.status === 401) {
           window.location.replace("/editorial");
@@ -157,7 +208,7 @@ import Editorial from '../../../layouts/Editorial.astro';
         if (!response.ok || !result.ok) {
           throw new Error(
             result.message ||
-            "The review action could not be completed."
+            `The review action failed (HTTP ${response.status}).`
           );
         }
 
@@ -168,6 +219,8 @@ import Editorial from '../../../layouts/Editorial.astro';
         await loadSubmissions();
 
       } catch (error) {
+        console.error("Submission review error:", error);
+
         showStatus(
           error.message || "Something went wrong. Please try again.",
           true
@@ -184,7 +237,7 @@ import Editorial from '../../../layouts/Editorial.astro';
 
       const card = makeElement("article", "submission-card");
 
-      // Card header
+      // Card header.
       const header = makeElement(
         "div",
         "submission-card-header"
@@ -206,7 +259,7 @@ import Editorial from '../../../layouts/Editorial.astro';
 
       header.append(typeLabel, reviewStatus);
 
-      // Cover image
+      // Cover image.
       const coverArea = makeElement(
         "div",
         "publication-cover"
@@ -215,7 +268,7 @@ import Editorial from '../../../layouts/Editorial.astro';
       if (content.cover) {
         const image = document.createElement("img");
 
-        image.src = content.cover;
+        image.src = getCoverPreviewUrl(content.cover);
         image.alt = content.coverAlt || "Publication cover";
         image.loading = "lazy";
 
@@ -255,7 +308,7 @@ import Editorial from '../../../layouts/Editorial.astro';
         );
       }
 
-      // Publication information
+      // Publication information.
       const publication = makeElement(
         "div",
         "publication-information"
@@ -281,7 +334,7 @@ import Editorial from '../../../layouts/Editorial.astro';
         );
       }
 
-      // Author names
+      // Author names.
       const authorNames = (content.authors || []).map(authorPath => {
         return (
           authorDirectory.get(authorPath) ||
@@ -318,7 +371,7 @@ import Editorial from '../../../layouts/Editorial.astro';
         publication.append(authors);
       }
 
-      // Publication metadata
+      // Publication metadata.
       const metadata = makeElement(
         "div",
         "publication-metadata"
@@ -385,7 +438,7 @@ import Editorial from '../../../layouts/Editorial.astro';
         publication.append(metadata);
       }
 
-      // Submission information
+      // Submission information.
       const submittedDate = submission.submittedAt
         ? new Date(submission.submittedAt).toLocaleString()
         : "Date unavailable";
@@ -398,7 +451,7 @@ import Editorial from '../../../layouts/Editorial.astro';
         )
       );
 
-      // Full manuscript, expandable
+      // Full manuscript, expandable.
       const details = makeElement(
         "details",
         "submission-details"
@@ -420,7 +473,7 @@ import Editorial from '../../../layouts/Editorial.astro';
 
       details.append(detailsSummary, body);
 
-      // Review actions
+      // Review actions.
       const actions = makeElement(
         "div",
         "review-actions"
@@ -481,7 +534,7 @@ import Editorial from '../../../layouts/Editorial.astro';
 
       actions.append(approveButton, rejectButton);
 
-      // Assemble the individual card
+      // Assemble the individual card.
       card.append(
         header,
         coverArea,
@@ -509,7 +562,15 @@ import Editorial from '../../../layouts/Editorial.astro';
           }
         );
 
-        const result = await response.json();
+        let result;
+
+        try {
+          result = await response.json();
+        } catch {
+          throw new Error(
+            `Invalid server response (HTTP ${response.status}).`
+          );
+        }
 
         if (response.status === 401) {
           window.location.replace("/editorial");
@@ -549,6 +610,8 @@ import Editorial from '../../../layouts/Editorial.astro';
         listElement.hidden = false;
 
       } catch (error) {
+        console.error("Loading submissions error:", error);
+
         showStatus(
           error.message || "Unable to load submissions.",
           true
@@ -574,6 +637,8 @@ import Editorial from '../../../layouts/Editorial.astro';
         }
 
       } catch (error) {
+        console.error("Administrator page error:", error);
+
         showStatus(
           "Unable to verify administrator access.",
           true
