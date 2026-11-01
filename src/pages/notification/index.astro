@@ -1,0 +1,469 @@
+
+---
+import Editorial from "../../../layouts/Editorial.astro";
+
+export const prerender = true;
+---
+
+<Editorial
+  title="Notifications"
+  description="Your DraftLaw Research editorial notifications."
+>
+  <main class="notification-page">
+    <a class="back-link" href="/editorial/dashboard/">
+      ← Back to dashboard
+    </a>
+
+    <header class="page-heading">
+      <p class="eyebrow">EDITORIAL WORKSPACE / UPDATES</p>
+      <h1>Notifications</h1>
+      <p>
+        Stay informed about submissions, editorial decisions and other
+        important updates.
+      </p>
+    </header>
+
+    <section class="notification-panel">
+      <div class="notification-toolbar">
+        <div>
+          <h2>Your notifications</h2>
+          <p id="notification-summary">Loading notifications...</p>
+        </div>
+
+        <button id="refresh-button" type="button">
+          Refresh
+        </button>
+      </div>
+
+      <nav class="notification-filters" aria-label="Filter notifications">
+        <button class="filter-button active" data-filter="all" type="button">
+          All
+        </button>
+        <button class="filter-button" data-filter="unread" type="button">
+          Unread
+        </button>
+        <button class="filter-button" data-filter="read" type="button">
+          Read
+        </button>
+      </nav>
+
+      <p id="page-status" class="page-status" role="status" aria-live="polite">
+        Verifying your account...
+      </p>
+
+      <div id="notification-list" class="notification-list" hidden></div>
+    </section>
+  </main>
+</Editorial>
+
+<script>
+  type NotificationItem = {
+    id: string;
+    submissionId: string | null;
+    type: string;
+    message: string;
+    isRead: boolean;
+    createdAt: string;
+  };
+
+  const statusElement = document.querySelector("#page-status")!;
+  const listElement = document.querySelector("#notification-list")!;
+  const summaryElement = document.querySelector("#notification-summary")!;
+  const refreshButton = document.querySelector<HTMLButtonElement>("#refresh-button")!;
+
+  let notifications: NotificationItem[] = [];
+  let currentFilter = "all";
+
+  function formatDate(value: string) {
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+      return "Date unavailable";
+    }
+
+    return new Intl.DateTimeFormat(undefined, {
+      dateStyle: "medium",
+      timeStyle: "short"
+    }).format(date);
+  }
+
+  function showStatus(message: string, isError = false) {
+    statusElement.textContent = message;
+    statusElement.classList.toggle("error", isError);
+    statusElement.hidden = false;
+  }
+
+  function renderNotifications() {
+    listElement.replaceChildren();
+
+    const filtered = notifications.filter(item => {
+      if (currentFilter === "unread") return !item.isRead;
+      if (currentFilter === "read") return item.isRead;
+      return true;
+    });
+
+    const unreadCount = notifications.filter(item => !item.isRead).length;
+
+    summaryElement.textContent =
+      `${notifications.length} notifications · ${unreadCount} unread`;
+
+    if (!filtered.length) {
+      const empty = document.createElement("div");
+      empty.className = "empty-state";
+
+      const heading = document.createElement("h3");
+      heading.textContent =
+        currentFilter === "unread"
+          ? "You're all caught up"
+          : currentFilter === "read"
+            ? "No read notifications"
+            : "No notifications yet";
+
+      const message = document.createElement("p");
+      message.textContent =
+        currentFilter === "unread"
+          ? "You have no unread notifications."
+          : "New editorial updates will appear here.";
+
+      empty.append(heading, message);
+      listElement.append(empty);
+      return;
+    }
+
+    filtered.forEach(item => {
+      const card = document.createElement("article");
+      card.className = "notification-item";
+
+      if (!item.isRead) {
+        card.classList.add("unread");
+      }
+
+      const content = document.createElement("div");
+      content.className = "notification-content";
+
+      const heading = document.createElement("div");
+      heading.className = "notification-heading";
+
+      const type = document.createElement("span");
+      type.className = "notification-type";
+      type.textContent = item.type.replaceAll("_", " ");
+
+      const state = document.createElement("span");
+      state.className = "notification-state";
+      state.textContent = item.isRead ? "Read" : "Unread";
+
+      heading.append(type, state);
+
+      const message = document.createElement("p");
+      message.className = "notification-message";
+      message.textContent = item.message;
+
+      const date = document.createElement("time");
+      date.className = "notification-date";
+      date.textContent = formatDate(item.createdAt);
+      date.dateTime = item.createdAt;
+
+      content.append(heading, message, date);
+
+      const action = document.createElement("a");
+      action.className = "notification-action";
+      action.href = "/editorial/submissions/";
+      action.textContent = "Open Submission Centre →";
+      action.setAttribute(
+        "aria-label",
+        `Open Submission Centre. ${item.message}`
+      );
+
+      card.append(content, action);
+      listElement.append(card);
+    });
+  }
+
+  async function verifySession() {
+    const response = await fetch("/api/auth/me", {
+      credentials: "same-origin",
+      cache: "no-store"
+    });
+
+    if (!response.ok) {
+      window.location.replace("/editorial/");
+      return false;
+    }
+
+    const result = await response.json();
+
+    if (
+      !result.ok ||
+      !result.user ||
+      !["admin", "editor"].includes(result.user.role)
+    ) {
+      window.location.replace("/editorial/");
+      return false;
+    }
+
+    return true;
+  }
+
+  async function loadNotifications() {
+    refreshButton.disabled = true;
+    listElement.hidden = true;
+    showStatus("Loading your notifications...");
+
+    try {
+      const response = await fetch("/api/notifications", {
+        credentials: "same-origin",
+        cache: "no-store",
+        headers: {
+          Accept: "application/json"
+        }
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.ok) {
+        throw new Error(
+          result.message || "Unable to retrieve notifications."
+        );
+      }
+
+      notifications = Array.isArray(result.notifications)
+        ? result.notifications
+        : [];
+
+      renderNotifications();
+
+      statusElement.hidden = true;
+      listElement.hidden = false;
+
+    } catch (error) {
+      showStatus(
+        error instanceof Error
+          ? error.message
+          : "Something went wrong while loading notifications.",
+        true
+      );
+    } finally {
+      refreshButton.disabled = false;
+    }
+  }
+
+  document.querySelectorAll<HTMLButtonElement>(".filter-button")
+    .forEach(button => {
+      button.addEventListener("click", () => {
+        currentFilter = button.dataset.filter || "all";
+
+        document.querySelectorAll(".filter-button").forEach(item => {
+          item.classList.remove("active");
+        });
+
+        button.classList.add("active");
+        renderNotifications();
+      });
+    });
+
+  refreshButton.addEventListener("click", loadNotifications);
+
+  async function initialize() {
+    try {
+      if (await verifySession()) {
+        await loadNotifications();
+      }
+    } catch {
+      showStatus(
+        "We could not verify your account. Please refresh or log in again.",
+        true
+      );
+    }
+  }
+
+  initialize();
+</script>
+
+<style>
+  .notification-page {
+    width: min(100% - 2rem, 1050px);
+    margin: 0 auto;
+    padding: 2rem 0 5rem;
+  }
+
+  .back-link {
+    display: inline-block;
+    margin-bottom: 2rem;
+    color: var(--muted);
+    text-decoration: none;
+    font-size: .9rem;
+  }
+
+  .back-link:hover {
+    color: var(--accent);
+  }
+
+  .page-heading {
+    margin-bottom: 2.5rem;
+  }
+
+  .page-heading h1 {
+    margin: .5rem 0;
+  }
+
+  .page-heading > p:last-child {
+    color: var(--muted);
+    max-width: 65ch;
+  }
+
+  .notification-panel {
+    padding: 1.5rem;
+    border: 1px solid var(--rule);
+    border-radius: 16px;
+    background: var(--surface);
+  }
+
+  .notification-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .notification-toolbar h2 {
+    margin: 0;
+    font-size: 1.2rem;
+  }
+
+  .notification-toolbar p {
+    color: var(--muted);
+    font-size: .85rem;
+  }
+
+  .notification-toolbar button,
+  .filter-button {
+    border: 1px solid var(--rule);
+    padding: .65rem 1rem;
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+    font: inherit;
+  }
+
+  .notification-toolbar button:hover,
+  .filter-button:hover,
+  .filter-button.active {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-soft);
+  }
+
+  .notification-filters {
+    display: flex;
+    gap: .5rem;
+    flex-wrap: wrap;
+    padding: 1rem 0;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .notification-filters button {
+    border-radius: 30px;
+    font-size: .85rem;
+  }
+
+  .page-status {
+    padding: 1.5rem 0;
+    color: var(--muted);
+  }
+
+  .page-status.error {
+    color: #e28b8b;
+  }
+
+  .notification-list {
+    display: grid;
+    gap: .8rem;
+    padding-top: 1rem;
+  }
+
+  .notification-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1.5rem;
+    padding: 1.25rem;
+    border: 1px solid var(--rule);
+    border-radius: 12px;
+    background: var(--surface);
+  }
+
+  .notification-item.unread {
+    border-left: 3px solid var(--accent);
+    background: var(--accent-soft);
+  }
+
+  .notification-content {
+    min-width: 0;
+  }
+
+  .notification-heading {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    flex-wrap: wrap;
+  }
+
+  .notification-type {
+    color: var(--accent);
+    font-size: .72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+  }
+
+  .notification-state {
+    color: var(--muted);
+    font-size: .72rem;
+  }
+
+  .notification-message {
+    margin: .6rem 0;
+    line-height: 1.6;
+  }
+
+  .notification-date {
+    color: var(--muted);
+    font-size: .78rem;
+  }
+
+  .notification-action {
+    flex: 0 0 auto;
+    color: var(--accent);
+    font-size: .85rem;
+    text-decoration: none;
+  }
+
+  .notification-action:hover {
+    text-decoration: underline;
+  }
+
+  .empty-state {
+    padding: 3rem 1rem;
+    text-align: center;
+  }
+
+  .empty-state p {
+    color: var(--muted);
+  }
+
+  @media (max-width: 650px) {
+    .notification-panel {
+      padding: 1rem;
+    }
+
+    .notification-item {
+      align-items: flex-start;
+      flex-direction: column;
+      gap: .8rem;
+    }
+
+    .notification-action {
+      padding-top: .4rem;
+    }
+  }
+</style>
