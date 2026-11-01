@@ -681,7 +681,47 @@ function renderNotifications() {
     }
 
     messageLink.href = destination;
+messageLink.addEventListener('click', async (event) => {
+  if (item.isRead) return;
 
+  event.preventDefault();
+
+  messageLink.setAttribute('aria-disabled', 'true');
+
+  try {
+    const response = await fetch('/api/notifications/read', {
+      method: 'POST',
+      credentials: 'same-origin',
+      cache: 'no-store',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json'
+      },
+      body: JSON.stringify({ id: item.id })
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.ok) {
+      throw new Error(
+        result.message || 'Unable to mark notification as read.'
+      );
+    }
+
+    item.isRead = true;
+
+    renderNotifications();
+
+    window.location.assign(destination);
+
+  } catch (error) {
+    console.error('Mark notification as read failed:', error);
+
+    messageLink.removeAttribute('aria-disabled');
+
+    alert('This notification could not be marked as read. Please try again.');
+  }
+});
     message.appendChild(messageLink);
 
     const date = document.createElement('time');
