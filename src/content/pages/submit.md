@@ -10,7 +10,7 @@ DraftLaw Research is a nonprofit initiative, based in Sweden and working interna
 
 ## **What we accept**
 
-Short Articles, Case Summaries, Legal Commentary, Short Book Reviews and Law Opinion Pieces.
+We accept law blog submissions from everyone. Content types include Short Articles, Case Summaries, Legal Commentary, Short Book Reviews and Law Opinion Pieces.
 
 ## **Topics**
 
