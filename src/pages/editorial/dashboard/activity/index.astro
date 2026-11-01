@@ -5,21 +5,21 @@ import Editorial from "../../../../layouts/Editorial.astro";
 export const prerender = true;
 ---
 
-<Editorial title="Activity Log" description="Editorial publication and repository activity.">
+<Editorial title="Activity Log" description="A record of editorial actions and publication decisions.">
   <main class="activity-wrap">
     <a class="back-link" href="/editorial/dashboard/">← Back to dashboard</a>
 
     <header class="page-heading">
       <p class="eyebrow">EDITORIAL WORKSPACE / ADMINISTRATION</p>
       <h1>Activity Log</h1>
-      <p>Review recent publication and development activity recorded on GitHub.</p>
+<p>Review editorial actions, submission decisions, and publication history.</p>
     </header>
 
     <section class="activity-panel">
       <div class="panel-heading">
         <div>
           <h2>Recent activity</h2>
-          <p id="branch-name">Loading branch information...</p>
+          <p id="activity-summary">Loading editorial history...</p>
         </div>
         <button type="button" id="refresh-button">Refresh</button>
       </div>
@@ -33,13 +33,14 @@ export const prerender = true;
   </main>
 </Editorial>
 
-<script>
-  const statusElement = document.querySelector<HTMLParagraphElement>("#status")!;
-  const listElement = document.querySelector<HTMLDivElement>("#activity-list")!;
-  const branchElement = document.querySelector<HTMLParagraphElement>("#branch-name")!;
-  const refreshButton = document.querySelector<HTMLButtonElement>("#refresh-button")!;
 
-  function formatDate(value: string) {
+<script>
+  const statusElement = document.querySelector("#status");
+  const listElement = document.querySelector("#activity-list");
+  const summaryElement = document.querySelector("#activity-summary");
+  const refreshButton = document.querySelector("#refresh-button");
+
+  function formatDate(value) {
     const date = new Date(value);
 
     if (Number.isNaN(date.getTime())) return "Date unavailable";
@@ -50,25 +51,19 @@ export const prerender = true;
     }).format(date);
   }
 
-  function makeElement(tag: string, className: string, text: string) {
+  function makeElement(tag, className, text) {
     const element = document.createElement(tag);
     element.className = className;
     element.textContent = text;
     return element;
   }
 
-  function renderActivity(items: Array<{
-    sha: string;
-    message: string;
-    author: string;
-    date: string;
-    url: string;
-  }>) {
+  function renderActivity(items) {
     listElement.replaceChildren();
 
     if (!items.length) {
       listElement.append(
-        makeElement("p", "empty-state", "No repository activity was found.")
+        makeElement("p", "empty-state", "No editorial activity has been recorded yet.")
       );
       return;
     }
@@ -81,31 +76,36 @@ export const prerender = true;
       topLine.className = "activity-meta";
 
       topLine.append(
-        makeElement("span", "activity-author", item.author || "Unknown contributor"),
+        makeElement("span", "activity-author", item.author || "Unknown user"),
         makeElement("time", "activity-date", formatDate(item.date))
       );
 
       const message = makeElement(
         "h3",
         "activity-message",
-        item.message || "Repository update"
+        item.message || "Editorial action"
       );
 
-      const bottomLine = document.createElement("div");
-      bottomLine.className = "activity-bottom";
-
-      bottomLine.append(
-        makeElement("span", "commit-id", item.sha.slice(0, 7))
+      const title = makeElement(
+        "p",
+        "activity-content-title",
+        item.title || "Untitled content"
       );
 
-      const link = document.createElement("a");
-      link.href = item.url;
-      link.target = "_blank";
-      link.rel = "noopener noreferrer";
-      link.textContent = "View commit on GitHub ↗";
+      const type = makeElement(
+        "span",
+        "activity-content-type",
+        item.contentType || "Content"
+      );
 
-      bottomLine.append(link);
-      article.append(topLine, message, bottomLine);
+      article.append(topLine, message, title, type);
+
+      if (item.reason) {
+        article.append(
+          makeElement("p", "activity-reason", `Reason: ${item.reason}`)
+        );
+      }
+
       listElement.append(article);
     }
   }
@@ -137,7 +137,7 @@ export const prerender = true;
     refreshButton.disabled = true;
     listElement.hidden = true;
     statusElement.hidden = false;
-    statusElement.textContent = "Loading recent activity...";
+    statusElement.textContent = "Loading editorial history...";
 
     try {
       const response = await fetch("/api/admin/activity", {
@@ -148,10 +148,12 @@ export const prerender = true;
       const result = await response.json();
 
       if (!response.ok || !result.ok) {
-        throw new Error(result.message || "Unable to load activity.");
+        throw new Error(result.message || "Unable to load editorial activity.");
       }
 
-      branchElement.textContent = `Branch: ${result.branch}`;
+      summaryElement.textContent =
+        `${result.total} recent editorial actions`;
+
       renderActivity(result.activities || []);
 
       statusElement.hidden = true;
@@ -160,7 +162,7 @@ export const prerender = true;
       statusElement.textContent =
         error instanceof Error
           ? error.message
-          : "Something went wrong while loading activity.";
+          : "Something went wrong while loading editorial activity.";
     } finally {
       refreshButton.disabled = false;
     }
@@ -172,6 +174,7 @@ export const prerender = true;
     await loadActivity();
   }
 </script>
+
 
 <style>
   * {
