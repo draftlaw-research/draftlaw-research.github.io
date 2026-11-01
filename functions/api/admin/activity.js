@@ -1,7 +1,4 @@
 
-const REPOSITORY = "draftlaw-research/draftlaw-research.github.io";
-const BRANCH = "editorial-portal-development";
-
 async function sha256(value) {
   const digest = await crypto.subtle.digest(
     "SHA-256",
@@ -54,13 +51,29 @@ async function isAdministrator(request, env) {
   );
 }
 
+function getActionLabel(action) {
+  const labels = {
+    admin_content_published: "Published content directly",
+    submission_created_and_submitted: "Submitted content for approval",
+    submission_draft_created: "Created a draft",
+    submission_draft_updated: "Updated a draft",
+    submission_draft_updated_and_submitted: "Updated and resubmitted content",
+    submission_rejected_updated: "Updated rejected content",
+    submission_rejected_updated_and_resubmitted: "Revised and resubmitted rejected content",
+    submission_approved_and_published: "Approved and published content",
+    submission_rejected: "Rejected a submission"
+  };
+
+  return labels[action] || action.replace(/_/g, " ");
+}
+
 export async function onRequestGet({ request, env }) {
   try {
-    if (!env.EDITORIAL_DB || !env.GITHUB_TOKEN) {
+    if (!env.EDITORIAL_DB) {
       return Response.json(
         {
           ok: false,
-          message: "Required server settings are missing."
+          message: "Editorial database is not configured."
         },
         { status: 500 }
       );
@@ -78,56 +91,52 @@ export async function onRequestGet({ request, env }) {
       );
     }
 
-    const url = new URL(
-      `https://api.github.com/repos/${REPOSITORY}/commits`
-    );
+    const result = await env.EDITORIAL_DB
+      .prepare(`
+        SELECT
+          activity.id,
+          activity.action,
+          activity.target_type,
+          activity.target_id,
+          activity.details_json,
+          activity.created_at,
+          users.username
+        FROM activity_log AS activity
+        LEFT JOIN users ON users.id = activity.user_id
+        ORDER BY activity.created_at DESC
+        LIMIT 100
+      `)
+      .all();
 
-    url.searchParams.set("sha", BRANCH);
-    url.searchParams.set("per_page", "50");
+    const activities = (result.results || []).map(item => {
+      let details = {};
 
-    const response = await fetch(url.toString(), {
-      headers: {
-        Authorization: `Bearer ${env.GITHUB_TOKEN}`,
-        Accept: "application/vnd.github+json",
-        "X-GitHub-Api-Version": "2022-11-28",
-        "User-Agent": "DraftLaw-Editorial-Portal"
+      try {
+        details = JSON.parse(item.details_json || "{}");
+      } catch {
+        details = {};
       }
+
+      const contentType =
+        details.contentType ||
+        item.target_type ||
+        "content";
+
+      return {
+        id: item.id,
+        action: item.action,
+        message: getActionLabel(item.action),
+        title: details.title || "Untitled content",
+        contentType,
+        author: item.username || "Unknown user",
+        date: item.created_at,
+        reason: details.reason || null
+      };
     });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      console.error("GitHub activity request failed:", data);
-
-      return Response.json(
-        {
-          ok: false,
-          message: "GitHub could not provide the activity history."
-        },
-        { status: 502 }
-      );
-    }
-
-    const activities = Array.isArray(data)
-      ? data.map(commit => ({
-          sha: commit.sha || "",
-          message: String(commit.commit?.message || "").split("\n")[0],
-          author:
-            commit.author?.login ||
-            commit.commit?.author?.name ||
-            "Unknown contributor",
-          date:
-            commit.commit?.author?.date ||
-            commit.commit?.committer?.date ||
-            "",
-          url: commit.html_url || ""
-        }))
-      : [];
 
     return Response.json(
       {
         ok: true,
-        branch: BRANCH,
         total: activities.length,
         activities
       },
@@ -138,12 +147,12 @@ export async function onRequestGet({ request, env }) {
       }
     );
   } catch (error) {
-    console.error("Activity log error:", error);
+    console.error("Editorial activity request failed:", error);
 
     return Response.json(
       {
         ok: false,
-        message: "Unable to load the Activity Log."
+        message: "Unable to load editorial activity."
       },
       {
         status: 500,
