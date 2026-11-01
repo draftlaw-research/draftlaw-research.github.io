@@ -119,22 +119,159 @@ function encodeBase64(text) {
   return btoa(binary);
 }
 
+function decodeGithubBase64(value) {
+  const cleaned = String(value || "").replace(/\s/g, "");
+  const binary = atob(cleaned);
+  const bytes = Uint8Array.from(
+    binary,
+    character => character.charCodeAt(0)
+  );
+
+  return new TextDecoder().decode(bytes);
+}
+
 async function githubRequest(path, token) {
-  return fetch(`https://api.github.com/repos/${REPOSITORY}/${path}`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Accept: "application/vnd.github+json",
-      "X-GitHub-Api-Version": "2022-11-28",
-      "User-Agent": "DraftLaw-Editorial-Portal"
+  return fetch(
+    `https://api.github.com/repos/${REPOSITORY}/${path}`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+        "User-Agent": "DraftLaw-Editorial-Portal"
+      }
     }
-  });
+  );
+}
+
+async function getExistingCommitSha(githubPath, token) {
+  try {
+    const response = await githubRequest(
+      `commits?path=${encodeURIComponent(githubPath)}&sha=${BRANCH}&per_page=1`,
+      token
+    );
+
+    if (!response.ok) {
+      console.error(
+        "Could not retrieve existing GitHub commit:",
+        await response.text()
+      );
+      return null;
+    }
+
+    const commits = await response.json();
+
+    return Array.isArray(commits)
+      ? commits[0]?.sha || null
+      : null;
+  } catch (error) {
+    console.error("GitHub commit lookup failed:", error);
+    return null;
+  }
+}
+
+async function getOrCreateGithubFile(githubPath, markdown, token) {
+  const existingResponse = await githubRequest(
+    `contents/${githubPath}?ref=${BRANCH}`,
+    token
+  );
+
+  if (existingResponse.status === 200) {
+    const existingFile = await existingResponse.json();
+
+    if (
+      existingFile.encoding !== "base64" ||
+      typeof existingFile.content !== "string"
+    ) {
+      throw new Error(
+        "GitHub returned an unsupported existing file format."
+      );
+    }
+
+    const existingMarkdown = decodeGithubBase64(
+      existingFile.content
+    );
+
+    if (existingMarkdown !== markdown) {
+      const conflict = new Error(
+        "A different content file already exists at the publishing destination. No existing file was overwritten."
+      );
+      conflict.status = 409;
+      throw conflict;
+    }
+
+    // The file already exists and exactly matches this submission.
+    // This handles a previous attempt that created the GitHub file
+    // but failed before updating the D1 record.
+    const commitSha = await getExistingCommitSha(
+      githubPath,
+      token
+    );
+
+    return {
+      commitSha,
+      alreadyExisted: true
+    };
+  }
+
+  if (existingResponse.status !== 404) {
+    console.error(
+      "GitHub existence check failed:",
+      await existingResponse.text()
+    );
+
+    const error = new Error(
+      "Could not check the publishing destination on GitHub."
+    );
+    error.status = 502;
+    throw error;
+  }
+
+  const publishResponse = await fetch(
+    `https://api.github.com/repos/${REPOSITORY}/contents/${githubPath}`,
+    {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/vnd.github+json",
+        "Content-Type": "application/json",
+        "X-GitHub-Api-Version": "2022-11-28",
+        "User-Agent": "DraftLaw-Editorial-Portal"
+      },
+      body: JSON.stringify({
+        message: `Publish content: ${githubPath}`,
+        content: encodeBase64(markdown),
+        branch: BRANCH
+      })
+    }
+  );
+
+  const publishResult = await publishResponse.json();
+
+  if (!publishResponse.ok) {
+    console.error("GitHub publishing failed:", publishResult);
+
+    const error = new Error(
+      "GitHub could not publish this content. The submission remains pending."
+    );
+    error.status = 502;
+    throw error;
+  }
+
+  return {
+    commitSha: publishResult.commit?.sha || null,
+    alreadyExisted: false
+  };
 }
 
 export async function onRequestPost({ request, env }) {
   try {
     if (!env.EDITORIAL_DB || !env.GITHUB_TOKEN) {
       return Response.json(
-        { ok: false, message: "The editorial publishing service is not configured." },
+        {
+          ok: false,
+          message: "The editorial publishing service is not configured."
+        },
         { status: 500 }
       );
     }
@@ -143,14 +280,20 @@ export async function onRequestPost({ request, env }) {
 
     if (!user) {
       return Response.json(
-        { ok: false, message: "Please log in to continue." },
+        {
+          ok: false,
+          message: "Please log in to continue."
+        },
         { status: 401 }
       );
     }
 
     if (user.role !== "admin") {
       return Response.json(
-        { ok: false, message: "Only administrators can review submissions." },
+        {
+          ok: false,
+          message: "Only administrators can review submissions."
+        },
         { status: 403 }
       );
     }
@@ -175,7 +318,10 @@ export async function onRequestPost({ request, env }) {
 
     if (decision === "reject" && !reason) {
       return Response.json(
-        { ok: false, message: "Please provide a reason for rejection." },
+        {
+          ok: false,
+          message: "Please provide a reason for rejection."
+        },
         { status: 400 }
       );
     }
@@ -196,12 +342,27 @@ export async function onRequestPost({ request, env }) {
 
     if (submission.status !== "pending") {
       return Response.json(
-        { ok: false, message: "This submission has already been reviewed." },
+        {
+          ok: false,
+          message: "This submission has already been reviewed."
+        },
         { status: 409 }
       );
     }
 
-    const content = JSON.parse(submission.content_json || "{}");
+    let content;
+
+    try {
+      content = JSON.parse(submission.content_json || "{}");
+    } catch {
+      return Response.json(
+        {
+          ok: false,
+          message: "The saved submission contains invalid data."
+        },
+        { status: 422 }
+      );
+    }
 
     if (
       !["article", "guide"].includes(submission.content_type) ||
@@ -219,12 +380,16 @@ export async function onRequestPost({ request, env }) {
       !Array.isArray(content.keywords)
     ) {
       return Response.json(
-        { ok: false, message: "The saved submission is incomplete or invalid. It cannot be published." },
+        {
+          ok: false,
+          message: "The saved submission is incomplete or invalid. It cannot be published."
+        },
         { status: 422 }
       );
     }
 
     const now = new Date().toISOString();
+
     let githubPath = null;
     let githubCommitSha = null;
     let finalStatus = "rejected";
@@ -237,60 +402,30 @@ export async function onRequestPost({ request, env }) {
       const slug = makeSlug(content.title);
       githubPath = `src/content/${collection}/${slug}.md`;
 
-      const existingResponse = await githubRequest(
-        `contents/${githubPath}?ref=${BRANCH}`,
-        env.GITHUB_TOKEN
-      );
-
-      if (existingResponse.status === 200) {
-        return Response.json(
-          { ok: false, message: "A content file with this title already exists. Please resolve the filename conflict before approving." },
-          { status: 409 }
-        );
-      }
-
-      if (existingResponse.status !== 404) {
-        console.error("GitHub existence check failed:", await existingResponse.text());
-
-        return Response.json(
-          { ok: false, message: "Could not check the publishing destination on GitHub." },
-          { status: 502 }
-        );
-      }
-
       const markdown = makeMarkdown(content);
 
-      const publishResponse = await fetch(
-        `https://api.github.com/repos/${REPOSITORY}/contents/${githubPath}`,
-        {
-          method: "PUT",
-          headers: {
-            Authorization: `Bearer ${env.GITHUB_TOKEN}`,
-            Accept: "application/vnd.github+json",
-            "Content-Type": "application/json",
-            "X-GitHub-Api-Version": "2022-11-28",
-            "User-Agent": "DraftLaw-Editorial-Portal"
-          },
-          body: JSON.stringify({
-            message: `Publish ${submission.content_type}: ${content.title}`,
-            content: encodeBase64(markdown),
-            branch: BRANCH
-          })
-        }
-      );
+      try {
+        const githubResult = await getOrCreateGithubFile(
+          githubPath,
+          markdown,
+          env.GITHUB_TOKEN
+        );
 
-      const publishResult = await publishResponse.json();
-
-      if (!publishResponse.ok) {
-        console.error("GitHub publishing failed:", publishResult);
+        githubCommitSha = githubResult.commitSha;
+      } catch (error) {
+        console.error("Submission publishing error:", error);
 
         return Response.json(
-          { ok: false, message: "GitHub could not publish this content. The submission remains pending." },
-          { status: 502 }
+          {
+            ok: false,
+            message: error.message ||
+              "Unable to publish this submission."
+          },
+          { status: error.status || 502 }
         );
       }
 
-      githubCommitSha = publishResult.commit?.sha || null;
+      // The D1 CHECK constraint allows "approved", not "published".
       finalStatus = "approved";
     }
 
@@ -336,7 +471,10 @@ export async function onRequestPost({ request, env }) {
 
     if (Number(updateResult.meta?.changes || 0) !== 1) {
       return Response.json(
-        { ok: false, message: "The submission changed while it was being reviewed. Please refresh the review page." },
+        {
+          ok: false,
+          message: "The submission changed while it was being reviewed. Please refresh the review page."
+        },
         { status: 409 }
       );
     }
@@ -344,7 +482,8 @@ export async function onRequestPost({ request, env }) {
     await env.EDITORIAL_DB.batch([
       env.EDITORIAL_DB.prepare(`
         INSERT INTO activity_log (
-          id, user_id, action, target_type, target_id, details_json, created_at
+          id, user_id, action, target_type, target_id,
+          details_json, created_at
         )
         VALUES (?, ?, ?, ?, ?, ?, ?)
       `).bind(
@@ -378,21 +517,27 @@ export async function onRequestPost({ request, env }) {
       {
         ok: true,
         message: decision === "approve"
-          ? "The submission has been published to the website."
+          ? "The submission has been approved and published."
           : "The submission has been rejected and the editor has been notified.",
         status: finalStatus,
         githubPath,
         githubCommitSha
       },
       {
-        headers: { "Cache-Control": "no-store" }
+        headers: {
+          "Cache-Control": "no-store"
+        }
       }
     );
+
   } catch (error) {
     console.error("Submission review failed:", error);
 
     return Response.json(
-      { ok: false, message: "Something went wrong while reviewing this submission." },
+      {
+        ok: false,
+        message: "Something went wrong while reviewing this submission."
+      },
       { status: 500 }
     );
   }
