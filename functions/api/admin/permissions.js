@@ -171,7 +171,8 @@ export async function onRequestGet({ request, env }) {
   profile_image_url
 FROM users
           WHERE role IN ('editor', 'moderator')
-          ORDER BY role, username
+  AND username NOT LIKE 'deleted-%'
+ORDER BY role, username
         `)
         .all();
     } else {
@@ -186,7 +187,8 @@ FROM users
   profile_image_url
 FROM users
           WHERE role = 'editor'
-          ORDER BY username
+  AND username NOT LIKE 'deleted-%'
+ORDER BY username
         `)
         .all();
     }
