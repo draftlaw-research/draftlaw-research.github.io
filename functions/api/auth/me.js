@@ -55,18 +55,16 @@ export async function onRequestGet({ request, env }) {
       );
     }
 
-    // Hash the token before looking it up in the database.
+    // Hash the token before looking it up.
     const tokenHash = await sha256(token);
 
+    // Retrieve the session and account information.
     const session = await env.EDITORIAL_DB
       .prepare(`
         SELECT
           sessions.id AS session_id,
           sessions.expires_at,
-          users.id AS user_id,
-          users.username,
-          users.role,
-          users.is_active
+          users.*
         FROM sessions
         JOIN users ON users.id = sessions.user_id
         WHERE sessions.token_hash = ?
@@ -97,14 +95,30 @@ export async function onRequestGet({ request, env }) {
       );
     }
 
-    // Return the authenticated user's details.
+    // Retrieve the account's profile information.
+    const displayName =
+      session.display_name ||
+      session.displayName ||
+      session.full_name ||
+      session.username;
+
+    const profileImageUrl =
+      session.profile_image_url ||
+      session.profileImageUrl ||
+      session.avatar_url ||
+      session.avatar ||
+      null;
+
+    // Return authenticated user information.
     return Response.json(
       {
         ok: true,
         user: {
-          id: session.user_id,
+          id: session.id,
           username: session.username,
-          role: session.role
+          role: session.role,
+          displayName,
+          profileImageUrl
         },
         expiresAt: session.expires_at
       },
@@ -120,7 +134,10 @@ export async function onRequestGet({ request, env }) {
     console.error("Session verification failed:", error);
 
     return Response.json(
-      { ok: false, message: "Unable to verify session" },
+      {
+        ok: false,
+        message: "Unable to verify session"
+      },
       {
         status: 500,
         headers: { "Cache-Control": "no-store" }
