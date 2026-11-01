@@ -135,7 +135,7 @@ async function recordActivity(
     .run();
 }
 
-// List editor and moderator accounts.
+// List active-directory editor and moderator accounts.
 export async function onRequestGet({ request, env }) {
   try {
     if (!env.EDITORIAL_DB) {
@@ -160,6 +160,7 @@ export async function onRequestGet({ request, env }) {
           created_at
         FROM users
         WHERE role IN ('editor', 'moderator')
+          AND username NOT LIKE 'deleted-%'
         ORDER BY role, username
       `)
       .all();
@@ -294,7 +295,7 @@ export async function onRequestPost({ request, env }) {
   }
 }
 
-// Update a profile, or activate/deactivate an account.
+// Update an editor profile or activate/deactivate an account.
 export async function onRequestPatch({ request, env }) {
   try {
     if (!env.EDITORIAL_DB) {
@@ -357,6 +358,7 @@ export async function onRequestPatch({ request, env }) {
           FROM users
           WHERE id = ?
             AND role IN ('editor', 'moderator')
+            AND username NOT LIKE 'deleted-%'
           LIMIT 1
         `)
         .bind(userId)
@@ -424,6 +426,7 @@ export async function onRequestPatch({ request, env }) {
         FROM users
         WHERE id = ?
           AND role IN ('editor', 'moderator')
+          AND username NOT LIKE 'deleted-%'
         LIMIT 1
       `)
       .bind(userId)
@@ -444,7 +447,7 @@ export async function onRequestPatch({ request, env }) {
       .bind(active ? 1 : 0, now, userId)
       .run();
 
-    // Immediately invalidate all sessions when an account is deactivated.
+    // Invalidate all sessions when an account is deactivated.
     if (!active) {
       await env.EDITORIAL_DB
         .prepare(`
@@ -481,5 +484,180 @@ export async function onRequestPatch({ request, env }) {
   } catch (error) {
     console.error("Account update failed:", error);
     return jsonError("Unable to update the account.", 500);
+  }
+}
+
+// Permanently remove an editor or moderator from the active account directory.
+// Historical submissions, published content, notifications and audit records
+// are deliberately retained. An anonymised user row preserves their references.
+export async function onRequestDelete({ request, env }) {
+  try {
+    if (!env.EDITORIAL_DB) {
+      return jsonError("Database is not configured.", 500);
+    }
+
+    const origin = request.headers.get("Origin");
+
+    if (origin && origin !== new URL(request.url).origin) {
+      return jsonError("Invalid request origin.", 403);
+    }
+
+    const admin = await getAdmin(request, env);
+
+    if (!admin) {
+      return jsonError("Administrator login required.", 403);
+    }
+
+    let data;
+
+    try {
+      data = await request.json();
+    } catch {
+      return jsonError("Invalid request data.");
+    }
+
+    const userId = data.userId;
+    const confirmUsername = data.confirmUsername;
+
+    if (
+      typeof userId !== "string" ||
+      !userId.trim() ||
+      typeof confirmUsername !== "string" ||
+      !confirmUsername.trim()
+    ) {
+      return jsonError("Account confirmation details are required.");
+    }
+
+    if (userId === admin.id) {
+      return jsonError("You cannot delete your own administrator account.", 403);
+    }
+
+    const target = await env.EDITORIAL_DB
+      .prepare(`
+        SELECT id, username, role
+        FROM users
+        WHERE id = ?
+          AND role IN ('editor', 'moderator')
+          AND username NOT LIKE 'deleted-%'
+        LIMIT 1
+      `)
+      .bind(userId)
+      .first();
+
+    if (!target) {
+      return jsonError("Account not found or already removed.", 404);
+    }
+
+    if (confirmUsername !== target.username) {
+      return jsonError(
+        "The username confirmation does not match. No changes were made.",
+        400
+      );
+    }
+
+    // Generate an unusable replacement identity and random password.
+    // The reserved deleted- prefix keeps this record out of account listings.
+    const randomSuffix = crypto.randomUUID()
+      .replace(/-/g, "")
+      .slice(0, 20);
+
+    const replacementUsername = `deleted-${randomSuffix}`;
+
+    const replacementPasswordBytes =
+      crypto.getRandomValues(new Uint8Array(48));
+
+    const replacementPassword = Array.from(replacementPasswordBytes)
+      .map(byte => byte.toString(16).padStart(2, "0"))
+      .join("");
+
+    const replacementPasswordHash =
+      await createPasswordHash(replacementPassword);
+
+    const now = new Date().toISOString();
+
+    // D1 batch runs these statements together.
+    // The user row remains only as an anonymised historical reference.
+    await env.EDITORIAL_DB.batch([
+      env.EDITORIAL_DB
+        .prepare(`
+          DELETE FROM sessions
+          WHERE user_id = ?
+        `)
+        .bind(userId),
+
+      env.EDITORIAL_DB
+        .prepare(`
+          DELETE FROM editor_section_permissions
+          WHERE user_id = ?
+        `)
+        .bind(userId),
+
+      env.EDITORIAL_DB
+        .prepare(`
+          UPDATE users
+          SET username = ?,
+              password_hash = ?,
+              is_active = 0,
+              display_name = NULL,
+              profile_image_url = NULL,
+              updated_at = ?
+          WHERE id = ?
+            AND role IN ('editor', 'moderator')
+            AND username = ?
+        `)
+        .bind(
+          replacementUsername,
+          replacementPasswordHash,
+          now,
+          userId,
+          target.username
+        ),
+
+      env.EDITORIAL_DB
+        .prepare(`
+          INSERT INTO activity_log (
+            id,
+            user_id,
+            action,
+            target_type,
+            target_id,
+            details_json,
+            created_at
+          )
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+        `)
+        .bind(
+          crypto.randomUUID(),
+          admin.id,
+          "account_deleted",
+          "user",
+          userId,
+          JSON.stringify({
+            username: target.username,
+            role: target.role,
+            accountAccessRemoved: true,
+            historicalSubmissionsPreserved: true,
+            publishedContentPreserved: true,
+            activityHistoryPreserved: true
+          }),
+          now
+        )
+    ]);
+
+    return Response.json(
+      {
+        ok: true,
+        message:
+          `The account ${target.username} has been removed. ` +
+          "Its submissions, published content and activity history have been preserved."
+      },
+      {
+        headers: { "Cache-Control": "no-store" }
+      }
+    );
+
+  } catch (error) {
+    console.error("Account deletion failed:", error);
+    return jsonError("Unable to remove this account. No success was confirmed.", 500);
   }
 }
