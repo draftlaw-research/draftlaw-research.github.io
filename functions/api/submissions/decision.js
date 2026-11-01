@@ -291,7 +291,7 @@ export async function onRequestPost({ request, env }) {
       }
 
       githubCommitSha = publishResult.commit?.sha || null;
-      finalStatus = "published";
+      finalStatus = "approved";
     }
 
     const typeLabel = submission.content_type === "article"
