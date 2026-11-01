@@ -44,6 +44,7 @@ const socials = SOCIALS.filter((s) => s.url);
   <body class="editorial-shell">
     <a class="skip" href="#main">Skip to content</a>
 
+    <!-- HEADER -->
     <header class="editorial-header">
       <div class="wrap editorial-header-inner">
 
@@ -65,39 +66,160 @@ const socials = SOCIALS.filter((s) => s.url);
           </span>
         </a>
 
-        <div class="editorial-account" id="editorial-account" hidden>
-          <div class="signed-in-label">SIGNED IN AS</div>
-          <div class="signed-in-user" id="editorial-user-name">
-            Checking session...
+        <!-- HEADER CONTROLS -->
+        <div class="editorial-header-actions" id="editorial-account" hidden>
+
+          <!-- NOTIFICATIONS -->
+          <div class="header-control notification-control">
+
+            <button
+              class="header-icon-button notification-trigger"
+              id="notification-trigger"
+              type="button"
+              aria-label="Notifications"
+              aria-expanded="false"
+              aria-controls="notification-dropdown"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"
+                />
+                <path d="M10 21h4" />
+              </svg>
+
+              <span
+                class="notification-count"
+                id="notification-count"
+                hidden
+              >0</span>
+            </button>
+
+            <section
+              class="header-dropdown notification-dropdown"
+              id="notification-dropdown"
+              aria-label="Notifications"
+              hidden
+            >
+              <div class="notification-heading">
+                <div>
+                  <h2>Notifications</h2>
+                  <p id="notification-summary">Your latest updates</p>
+                </div>
+
+                <button
+                  class="dropdown-close"
+                  id="notification-close"
+                  type="button"
+                  aria-label="Close notifications"
+                >
+                  &times;
+                </button>
+              </div>
+
+              <div class="notification-filters" role="group" aria-label="Filter notifications">
+                <button
+                  type="button"
+                  class="notification-filter active"
+                  data-filter="all"
+                  aria-pressed="true"
+                >
+                  All
+                </button>
+
+                <button
+                  type="button"
+                  class="notification-filter"
+                  data-filter="unread"
+                  aria-pressed="false"
+                >
+                  Unread
+                </button>
+              </div>
+
+              <div
+                class="notification-list"
+                id="notification-list"
+                aria-live="polite"
+              >
+                <p class="notification-status">Loading notifications...</p>
+              </div>
+
+              <div class="notification-footer">
+                <span id="notification-footer-count">Loading...</span>
+              </div>
+            </section>
           </div>
 
-          <a class="editorial-account-link" href="/">
-            Visit public website ↗
-          </a>
+          <!-- PROFILE -->
+          <div class="header-control profile-control">
 
-          <button
-            class="editorial-signout"
-            id="editorial-signout"
-            type="button"
-          >
-            Sign out
-          </button>
+            <button
+              class="profile-trigger"
+              id="profile-trigger"
+              type="button"
+              aria-label="Open profile menu"
+              aria-expanded="false"
+              aria-controls="profile-dropdown"
+            >
+              <img
+                id="editorial-avatar"
+                src={logo.src}
+                alt="Profile"
+              />
+            </button>
 
-          <p
-            class="signout-message"
-            id="signout-message"
-            role="status"
-            hidden
-          ></p>
+            <section
+              class="header-dropdown profile-dropdown"
+              id="profile-dropdown"
+              aria-label="Account menu"
+              hidden
+            >
+              <div class="profile-account-info">
+                <span class="profile-signed-in-label">SIGNED IN AS</span>
+
+                <div class="profile-identity">
+                  <strong id="profile-role">Admin</strong>
+                  <span class="profile-separator">—</span>
+                  <span id="profile-username">Loading...</span>
+                </div>
+              </div>
+
+              <div class="profile-menu-divider"></div>
+
+              <a
+                class="profile-menu-link"
+                href="/"
+              >
+                Visit public website
+                <span aria-hidden="true">↗</span>
+              </a>
+
+              <button
+                class="profile-menu-link profile-signout"
+                id="editorial-signout"
+                type="button"
+              >
+                Sign out
+              </button>
+
+              <p
+                class="signout-message"
+                id="signout-message"
+                role="status"
+                hidden
+              ></p>
+            </section>
+          </div>
         </div>
-
       </div>
     </header>
 
+    <!-- MAIN CONTENT -->
     <main id="main" data-pagefind-body={indexed ? '' : undefined}>
       <slot />
     </main>
 
+    <!-- FOOTER -->
     <footer class="site-footer editorial-footer">
       <div class="wrap footer-grid">
 
@@ -192,28 +314,161 @@ const socials = SOCIALS.filter((s) => s.url);
       </div>
     </footer>
 
+    <!-- HEADER FUNCTIONALITY -->
     <script>
+      const account =
+        document.querySelector<HTMLElement>('#editorial-account');
+
+      const avatar =
+        document.querySelector<HTMLImageElement>('#editorial-avatar');
+
+      const profileRole =
+        document.querySelector<HTMLElement>('#profile-role');
+
+      const profileUsername =
+        document.querySelector<HTMLElement>('#profile-username');
+
+      const profileTrigger =
+        document.querySelector<HTMLButtonElement>('#profile-trigger');
+
+      const profileDropdown =
+        document.querySelector<HTMLElement>('#profile-dropdown');
+
+      const notificationTrigger =
+        document.querySelector<HTMLButtonElement>('#notification-trigger');
+
+      const notificationDropdown =
+        document.querySelector<HTMLElement>('#notification-dropdown');
+
+      const notificationList =
+        document.querySelector<HTMLElement>('#notification-list');
+
+      const notificationCount =
+        document.querySelector<HTMLElement>('#notification-count');
+
+      const notificationSummary =
+        document.querySelector<HTMLElement>('#notification-summary');
+
+      const notificationFooterCount =
+        document.querySelector<HTMLElement>('#notification-footer-count');
+
       const signOutButton =
-        document.querySelector<HTMLButtonElement>(
-          '#editorial-signout'
-        );
+        document.querySelector<HTMLButtonElement>('#editorial-signout');
 
       const signOutMessage =
-        document.querySelector<HTMLParagraphElement>(
-          '#signout-message'
+        document.querySelector<HTMLParagraphElement>('#signout-message');
+
+      const adminShortcuts =
+        document.querySelector<HTMLElement>('#admin-shortcuts');
+
+      const editorShortcuts =
+        document.querySelector<HTMLElement>('#editor-shortcuts');
+
+      const editorActivityShortcut =
+        document.querySelector<HTMLElement>('#editor-activity-shortcut');
+
+      const notificationClose =
+        document.querySelector<HTMLButtonElement>('#notification-close');
+
+      const logoUrl = avatar?.getAttribute('src') || '';
+
+      type NotificationItem = {
+        id: string;
+        submissionId?: string;
+        type?: string;
+        message: string;
+        isRead: boolean;
+        createdAt: string;
+      };
+
+      let notifications: NotificationItem[] = [];
+      let currentFilter: 'all' | 'unread' = 'all';
+
+      // -----------------------------------------
+      // DROPDOWN CONTROLS
+      // -----------------------------------------
+
+      function closeProfileDropdown() {
+        if (profileDropdown) profileDropdown.hidden = true;
+        profileTrigger?.setAttribute('aria-expanded', 'false');
+      }
+
+      function closeNotificationDropdown() {
+        if (notificationDropdown) notificationDropdown.hidden = true;
+        notificationTrigger?.setAttribute('aria-expanded', 'false');
+      }
+
+      profileTrigger?.addEventListener('click', (event) => {
+        event.stopPropagation();
+
+        const shouldOpen = profileDropdown?.hidden === true;
+
+        closeNotificationDropdown();
+
+        if (profileDropdown) {
+          profileDropdown.hidden = !shouldOpen;
+        }
+
+        profileTrigger.setAttribute(
+          'aria-expanded',
+          String(shouldOpen)
+        );
+      });
+
+      notificationTrigger?.addEventListener('click', (event) => {
+        event.stopPropagation();
+
+        const shouldOpen = notificationDropdown?.hidden === true;
+
+        closeProfileDropdown();
+
+        if (notificationDropdown) {
+          notificationDropdown.hidden = !shouldOpen;
+        }
+
+        notificationTrigger.setAttribute(
+          'aria-expanded',
+          String(shouldOpen)
         );
 
-      const account =
-        document.querySelector<HTMLElement>(
-          '#editorial-account'
-        );
+        if (shouldOpen) {
+          loadNotifications();
+        }
+      });
 
-      const userName =
-        document.querySelector<HTMLElement>(
-          '#editorial-user-name'
-        );
+      notificationClose?.addEventListener('click', () => {
+        closeNotificationDropdown();
+      });
 
-      // Load the actual identity from the authenticated session.
+      document.addEventListener('click', (event) => {
+        const target = event.target as Node;
+
+        if (
+          !profileDropdown?.contains(target) &&
+          !profileTrigger?.contains(target)
+        ) {
+          closeProfileDropdown();
+        }
+
+        if (
+          !notificationDropdown?.contains(target) &&
+          !notificationTrigger?.contains(target)
+        ) {
+          closeNotificationDropdown();
+        }
+      });
+
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+          closeProfileDropdown();
+          closeNotificationDropdown();
+        }
+      });
+
+      // -----------------------------------------
+      // AUTHENTICATED USER INFORMATION
+      // -----------------------------------------
+
       async function loadEditorialIdentity() {
         try {
           const response = await fetch('/api/auth/me', {
@@ -235,22 +490,54 @@ const socials = SOCIALS.filter((s) => s.url);
               result.user.role
             )
           ) {
-            if (account) {
-              account.hidden = true;
-            }
-
+            if (account) account.hidden = true;
             return;
           }
 
-          if (userName) {
-            userName.textContent =
-              result.user.role === 'admin'
-                ? 'Admin'
-                : result.user.username || 'Editorial user';
+          const user = result.user;
+          const role = String(user.role).toLowerCase();
+          const username = user.username || 'Editorial user';
+
+          if (profileRole) {
+            profileRole.textContent =
+              role.charAt(0).toUpperCase() + role.slice(1);
           }
 
-          if (account) {
-            account.hidden = false;
+          if (profileUsername) {
+            profileUsername.textContent = username;
+          }
+
+          // Admin uses the DraftLaw logo.
+          // Editors and moderators use their uploaded profile photos.
+          if (avatar) {
+            const profileImage =
+              role === 'admin'
+                ? logoUrl
+                : user.profileImageUrl || logoUrl;
+
+            avatar.src = profileImage;
+
+            avatar.onerror = () => {
+              avatar.src = logoUrl;
+            };
+          }
+
+          if (account) account.hidden = false;
+
+          // Show the appropriate footer shortcuts.
+          if (role === 'admin') {
+            if (adminShortcuts) adminShortcuts.hidden = false;
+          } else {
+            if (editorShortcuts) editorShortcuts.hidden = false;
+          }
+
+          // Keep the existing activity shortcut behavior.
+          if (
+            role === 'editor' &&
+            user.canViewActivity === true &&
+            editorActivityShortcut
+          ) {
+            editorActivityShortcut.hidden = false;
           }
 
         } catch (error) {
@@ -259,16 +546,188 @@ const socials = SOCIALS.filter((s) => s.url);
             error
           );
 
-          if (account) {
-            account.hidden = true;
+          if (account) account.hidden = true;
+        }
+      }
+
+      // -----------------------------------------
+      // NOTIFICATION DISPLAY
+      // -----------------------------------------
+
+      function formatNotificationDate(value: string) {
+        const date = new Date(value);
+
+        if (Number.isNaN(date.getTime())) {
+          return '';
+        }
+
+        return date.toLocaleString(undefined, {
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit'
+        });
+      }
+
+      function renderNotifications() {
+        if (!notificationList) return;
+
+        notificationList.replaceChildren();
+
+        const unread = notifications.filter(
+          item => !item.isRead
+        );
+
+        const visibleNotifications =
+          currentFilter === 'unread'
+            ? unread
+            : notifications;
+
+        if (notificationSummary) {
+          notificationSummary.textContent =
+            unread.length === 1
+              ? '1 unread notification'
+              : `${unread.length} unread notifications`;
+        }
+
+        if (notificationFooterCount) {
+          notificationFooterCount.textContent =
+            `${notifications.length} total notifications`;
+        }
+
+        if (notificationCount) {
+          notificationCount.textContent =
+            unread.length > 99 ? '99+' : String(unread.length);
+
+          notificationCount.hidden = unread.length === 0;
+        }
+
+        if (visibleNotifications.length === 0) {
+          const empty = document.createElement('p');
+
+          empty.className = 'notification-status';
+          empty.textContent =
+            currentFilter === 'unread'
+              ? 'You have no unread notifications.'
+              : 'You have no notifications yet.';
+
+          notificationList.appendChild(empty);
+          return;
+        }
+
+        visibleNotifications.forEach((item) => {
+          const row = document.createElement('article');
+          row.className = 'notification-item';
+
+          if (!item.isRead) {
+            row.classList.add('is-unread');
+          }
+
+          const indicator = document.createElement('span');
+          indicator.className = 'notification-indicator';
+          indicator.setAttribute('aria-hidden', 'true');
+
+          const content = document.createElement('div');
+          content.className = 'notification-content';
+
+          const message = document.createElement('p');
+          message.className = 'notification-message';
+          message.textContent = item.message || 'New notification';
+
+          const date = document.createElement('time');
+          date.className = 'notification-date';
+          date.textContent = formatNotificationDate(item.createdAt);
+
+          if (item.createdAt) {
+            date.dateTime = item.createdAt;
+          }
+
+          content.append(message, date);
+          row.append(indicator, content);
+
+          notificationList.appendChild(row);
+        });
+      }
+
+      async function loadNotifications() {
+        if (!notificationList) return;
+
+        notificationList.innerHTML =
+          '<p class="notification-status">Loading notifications...</p>';
+
+        try {
+          const response = await fetch('/api/notifications', {
+            method: 'GET',
+            credentials: 'same-origin',
+            cache: 'no-store',
+            headers: {
+              Accept: 'application/json'
+            }
+          });
+
+          const result = await response.json();
+
+          if (!response.ok || !result.ok) {
+            throw new Error(
+              result.message || 'Unable to load notifications.'
+            );
+          }
+
+          notifications = Array.isArray(result.notifications)
+            ? result.notifications
+            : [];
+
+          renderNotifications();
+
+        } catch (error) {
+          console.error('Notification loading failed:', error);
+
+          notificationList.innerHTML =
+            '<p class="notification-status notification-error">Unable to load notifications. Please try again.</p>';
+
+          if (notificationSummary) {
+            notificationSummary.textContent =
+              'Notifications unavailable';
+          }
+
+          if (notificationFooterCount) {
+            notificationFooterCount.textContent = '';
           }
         }
       }
 
-      // Run on every page using this layout.
-      loadEditorialIdentity();
+      // All / Unread filters.
+      document
+        .querySelectorAll<HTMLButtonElement>('.notification-filter')
+        .forEach(button => {
+          button.addEventListener('click', () => {
+            currentFilter =
+              button.dataset.filter === 'unread'
+                ? 'unread'
+                : 'all';
 
-      // Sign out.
+            document
+              .querySelectorAll<HTMLButtonElement>('.notification-filter')
+              .forEach(filterButton => {
+                const active =
+                  filterButton === button;
+
+                filterButton.classList.toggle('active', active);
+                filterButton.setAttribute(
+                  'aria-pressed',
+                  String(active)
+                );
+              });
+
+            renderNotifications();
+          });
+        });
+
+      // -----------------------------------------
+      // SIGN OUT
+      // -----------------------------------------
+
       signOutButton?.addEventListener('click', async () => {
         signOutButton.disabled = true;
 
@@ -306,14 +765,72 @@ const socials = SOCIALS.filter((s) => s.url);
           }
         }
       });
+
+      // Load identity and initial unread count.
+      loadEditorialIdentity();
+      loadNotifications();
     </script>
 
     <style>
-      /* EDITORIAL HEADER */
+      /* =========================================
+         EDITORIAL BACKGROUND
+         ========================================= */
 
-      .editorial-header {
-        background: var(--header-bg);
-        border-bottom: 1px solid var(--rule);
+      :global(body.editorial-shell) {
+        position: relative;
+        isolation: isolate;
+        min-height: 100vh;
+        background:
+          radial-gradient(
+            ellipse at 15% 15%,
+            rgba(128, 102, 62, 0.18),
+            transparent 38%
+          ),
+          radial-gradient(
+            ellipse at 90% 80%,
+            rgba(75, 48, 41, 0.22),
+            transparent 40%
+          ),
+          radial-gradient(
+            ellipse at 50% 50%,
+            #28231b 0%,
+            #141311 42%,
+            #080808 100%
+          );
+        background-attachment: fixed;
+      }
+
+      :global(body.editorial-shell::before) {
+        content: "";
+        position: fixed;
+        z-index: -1;
+        inset: -10%;
+        pointer-events: none;
+        background:
+          radial-gradient(
+            circle at 15% 20%,
+            rgba(182, 157, 115, 0.15),
+            transparent 25%
+          ),
+          radial-gradient(
+            circle at 85% 75%,
+            rgba(112, 67, 54, 0.16),
+            transparent 28%
+          );
+        filter: blur(75px);
+      }
+
+      /* =========================================
+         HEADER
+         ========================================= */
+
+      :global(.editorial-header) {
+        position: relative;
+        z-index: 100;
+        background: rgba(5, 5, 5, 0.82);
+        -webkit-backdrop-filter: blur(22px);
+        backdrop-filter: blur(22px);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.12);
       }
 
       .editorial-header-inner {
@@ -324,7 +841,7 @@ const socials = SOCIALS.filter((s) => s.url);
         padding-block: 1.1rem;
       }
 
-      /* ORGANISATION BRAND */
+      /* BRAND */
 
       .editorial-brand {
         display: inline-flex;
@@ -369,67 +886,389 @@ const socials = SOCIALS.filter((s) => s.url);
         line-height: 1.2;
       }
 
-      /* ACCOUNT AREA */
+      /* HEADER ACTIONS */
 
-      .editorial-account {
+      .editorial-header-actions {
         display: flex;
-        flex-direction: column;
-        align-items: flex-end;
-        gap: 0.25rem;
-        text-align: right;
-        font-family: var(--font-ui);
-        font-size: 0.72rem;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 1.1rem;
         flex-shrink: 0;
       }
 
-      .signed-in-label {
-        color: var(--muted);
-        font-size: 0.61rem;
-        letter-spacing: 0.11em;
+      .header-control {
+        position: relative;
       }
 
-      .signed-in-user {
-        color: var(--ink);
-        font-size: 0.78rem;
-        font-weight: 600;
-      }
-
-      .editorial-account-link,
-      .editorial-signout {
-        color: var(--muted);
-        font-family: inherit;
-        font-size: 0.7rem;
-        text-decoration: none;
-      }
-
-      .editorial-account-link:hover,
-      .editorial-signout:hover {
-        color: var(--accent);
-      }
-
-      .editorial-signout {
-        border: 0;
+      .header-icon-button {
+        position: relative;
+        display: grid;
+        place-items: center;
+        width: 43px;
+        height: 43px;
         padding: 0;
+        border: 1px solid rgba(255,255,255,0.13);
+        border-radius: 50%;
+        background: rgba(255,255,255,0.045);
+        color: var(--ink);
+        cursor: pointer;
+        transition: border-color 0.2s, background 0.2s;
+      }
+
+      .header-icon-button:hover {
+        border-color: var(--accent);
+        background: var(--accent-soft);
+      }
+
+      .header-icon-button svg {
+        width: 20px;
+        height: 20px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.6;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      .notification-count {
+        position: absolute;
+        top: -4px;
+        right: -4px;
+        display: grid;
+        place-items: center;
+        min-width: 19px;
+        height: 19px;
+        padding-inline: 4px;
+        border: 2px solid #080808;
+        border-radius: 20px;
+        background: var(--accent);
+        color: #080808;
+        font-family: var(--font-ui);
+        font-size: 0.61rem;
+        font-weight: 700;
+        line-height: 1;
+      }
+
+      /* =========================================
+         DROPDOWN SHARED DESIGN
+         ========================================= */
+
+      .header-dropdown {
+        position: absolute;
+        top: calc(100% + 15px);
+        right: 0;
+        z-index: 200;
+        overflow: hidden;
+        border: 1px solid rgba(255,255,255,0.14);
+        border-radius: 13px;
+        background: #171612;
+        color: var(--ink);
+        box-shadow:
+          0 22px 65px rgba(0,0,0,0.55),
+          inset 0 1px 0 rgba(255,255,255,0.04);
+        font-family: var(--font-ui);
+      }
+
+      .header-dropdown[hidden],
+      .editorial-header-actions[hidden] {
+        display: none !important;
+      }
+
+      /* =========================================
+         NOTIFICATION DROPDOWN
+         ========================================= */
+
+      .notification-dropdown {
+        width: min(390px, calc(100vw - 2rem));
+      }
+
+      .notification-heading {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 1.2rem 1.25rem 0.9rem;
+      }
+
+      .notification-heading h2 {
+        margin: 0;
+        color: var(--ink);
+        font-family: var(--font-ui);
+        font-size: 1.08rem;
+        font-weight: 700;
+      }
+
+      .notification-heading p {
+        margin: 0.25rem 0 0;
+        color: var(--muted);
+        font-size: 0.76rem;
+      }
+
+      .dropdown-close {
+        display: grid;
+        place-items: center;
+        width: 29px;
+        height: 29px;
+        padding: 0;
+        border: 0;
+        border-radius: 50%;
         background: transparent;
+        color: var(--muted);
+        font-family: Arial, sans-serif;
+        font-size: 1.5rem;
+        line-height: 1;
         cursor: pointer;
       }
 
-      .editorial-signout:disabled {
+      .dropdown-close:hover {
+        background: rgba(255,255,255,0.08);
+        color: var(--ink);
+      }
+
+      .notification-filters {
+        display: flex;
+        gap: 1.3rem;
+        padding-inline: 1.25rem;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+      }
+
+      .notification-filter {
+        position: relative;
+        padding: 0.65rem 0 0.75rem;
+        border: 0;
+        background: transparent;
+        color: var(--muted);
+        font-family: var(--font-ui);
+        font-size: 0.78rem;
+        cursor: pointer;
+      }
+
+      .notification-filter:hover,
+      .notification-filter.active {
+        color: var(--accent);
+      }
+
+      .notification-filter.active::after {
+        content: "";
+        position: absolute;
+        right: 0;
+        bottom: -1px;
+        left: 0;
+        height: 2px;
+        background: var(--accent);
+      }
+
+      .notification-list {
+        max-height: min(430px, 60vh);
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(182,157,115,0.5) transparent;
+      }
+
+      .notification-list::-webkit-scrollbar {
+        width: 6px;
+      }
+
+      .notification-list::-webkit-scrollbar-thumb {
+        border-radius: 10px;
+        background: rgba(182,157,115,0.5);
+      }
+
+      .notification-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.85rem;
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid rgba(255,255,255,0.07);
+        transition: background 0.2s;
+      }
+
+      .notification-item:hover {
+        background: rgba(255,255,255,0.035);
+      }
+
+      .notification-item.is-unread {
+        background: rgba(182,157,115,0.055);
+      }
+
+      .notification-indicator {
+        flex: 0 0 8px;
+        width: 8px;
+        height: 8px;
+        margin-top: 0.42rem;
+        border-radius: 50%;
+        background: transparent;
+      }
+
+      .notification-item.is-unread .notification-indicator {
+        background: var(--accent);
+        box-shadow: 0 0 8px rgba(182,157,115,0.3);
+      }
+
+      .notification-content {
+        min-width: 0;
+        flex: 1;
+      }
+
+      .notification-message {
+        margin: 0;
+        color: var(--ink);
+        font-family: var(--font-ui);
+        font-size: 0.83rem;
+        line-height: 1.55;
+        overflow-wrap: anywhere;
+      }
+
+      .notification-item:not(.is-unread) .notification-message {
+        color: var(--muted);
+      }
+
+      .notification-date {
+        display: block;
+        margin-top: 0.4rem;
+        color: var(--muted);
+        font-size: 0.69rem;
+      }
+
+      .notification-status {
+        margin: 0;
+        padding: 2rem 1.25rem;
+        color: var(--muted);
+        text-align: center;
+        font-size: 0.82rem;
+      }
+
+      .notification-error {
+        color: #d69b83;
+      }
+
+      .notification-footer {
+        padding: 0.75rem 1.25rem;
+        border-top: 1px solid rgba(255,255,255,0.09);
+        color: var(--muted);
+        font-size: 0.7rem;
+      }
+
+      /* =========================================
+         PROFILE AVATAR AND DROPDOWN
+         ========================================= */
+
+      .profile-trigger {
+        display: block;
+        width: 43px;
+        height: 43px;
+        padding: 2px;
+        overflow: hidden;
+        border: 1px solid rgba(182,157,115,0.65);
+        border-radius: 50%;
+        background: #171612;
+        cursor: pointer;
+        transition: border-color 0.2s, transform 0.2s;
+      }
+
+      .profile-trigger:hover {
+        border-color: var(--accent);
+        transform: scale(1.04);
+      }
+
+      .profile-trigger img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        object-fit: cover;
+      }
+
+      .profile-dropdown {
+        width: min(285px, calc(100vw - 2rem));
+        padding: 1.1rem;
+      }
+
+      .profile-account-info {
+        padding: 0.15rem 0.1rem 0.9rem;
+      }
+
+      .profile-signed-in-label {
+        display: block;
+        margin-bottom: 0.45rem;
+        color: var(--muted);
+        font-size: 0.62rem;
+        letter-spacing: 0.1em;
+      }
+
+      .profile-identity {
+        display: flex;
+        align-items: baseline;
+        flex-wrap: wrap;
+        gap: 0.35rem;
+        color: var(--ink);
+        font-size: 0.8rem;
+        overflow-wrap: anywhere;
+      }
+
+      .profile-identity strong {
+        color: var(--accent);
+        font-weight: 700;
+      }
+
+      .profile-separator {
+        color: var(--muted);
+      }
+
+      #profile-username {
+        overflow-wrap: anywhere;
+      }
+
+      .profile-menu-divider {
+        height: 1px;
+        background: rgba(255,255,255,0.1);
+      }
+
+      .profile-menu-link {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+        padding: 0.8rem 0.1rem;
+        border: 0;
+        background: transparent;
+        color: var(--ink);
+        font-family: var(--font-ui);
+        font-size: 0.8rem;
+        text-align: left;
+        text-decoration: none;
+        cursor: pointer;
+      }
+
+      .profile-menu-link:hover {
+        color: var(--accent);
+      }
+
+      .profile-signout {
+        border-top: 1px solid rgba(255,255,255,0.08);
+      }
+
+      .profile-signout:disabled {
         opacity: 0.55;
         cursor: wait;
       }
 
       .signout-message {
-        margin: 0.2rem 0 0;
-        max-width: 24ch;
+        margin: 0.3rem 0 0;
         color: #d69b83;
-        font-size: 0.68rem;
+        font-size: 0.7rem;
       }
 
-      /* FOOTER */
+      /* =========================================
+         FOOTER
+         ========================================= */
 
-      .editorial-footer {
-        border-top: 1px solid var(--rule);
+      :global(.editorial-footer) {
+        background: rgba(5,5,5,0.72);
+        -webkit-backdrop-filter: blur(20px);
+        backdrop-filter: blur(20px);
+        border-top: 1px solid rgba(255,255,255,0.12);
       }
 
       .editorial-footer h2 {
@@ -454,13 +1293,15 @@ const socials = SOCIALS.filter((s) => s.url);
         color: var(--accent);
       }
 
-      /* MOBILE */
+      /* =========================================
+         MOBILE
+         ========================================= */
 
       @media (max-width: 700px) {
         .editorial-header-inner {
           align-items: center;
           flex-wrap: wrap;
-          gap: 1rem;
+          gap: 0.9rem;
         }
 
         .editorial-brand {
@@ -482,14 +1323,15 @@ const socials = SOCIALS.filter((s) => s.url);
           letter-spacing: 0.16em;
         }
 
-        .editorial-account {
+        .editorial-header-actions {
           margin-left: auto;
+          gap: 0.75rem;
         }
       }
 
       @media (max-width: 400px) {
         .editorial-header-inner {
-          align-items: flex-start;
+          align-items: center;
         }
 
         .editorial-brand-logo {
@@ -498,107 +1340,45 @@ const socials = SOCIALS.filter((s) => s.url);
         }
 
         .editorial-brand-name {
-          font-size: 0.9rem;
+          font-size: 0.86rem;
         }
 
         .editorial-brand-sub {
-          font-size: 0.55rem;
+          font-size: 0.53rem;
+        }
+
+        .editorial-header-actions {
+          gap: 0.55rem;
+        }
+
+        .header-icon-button,
+        .profile-trigger {
+          width: 39px;
+          height: 39px;
+        }
+
+        .notification-dropdown {
+          position: fixed;
+          top: 85px;
+          right: 0.75rem;
+        }
+
+        .profile-dropdown {
+          right: 0;
         }
       }
 
-      /* =========================================
-         SHARED EDITORIAL PORTAL BACKGROUND
-         ========================================= */
-
-      :global(body.editorial-shell) {
-        position: relative;
-        isolation: isolate;
-        min-height: 100vh;
-        background:
-          radial-gradient(
-            ellipse at 15% 15%,
-            rgba(128, 102, 62, 0.18),
-            transparent 38%
-          ),
-          radial-gradient(
-            ellipse at 90% 80%,
-            rgba(75, 48, 41, 0.22),
-            transparent 40%
-          ),
-          radial-gradient(
-            ellipse at 50% 50%,
-            #28231b 0%,
-            #141311 42%,
-            #080808 100%
-          );
-        background-attachment: fixed;
-      }
-
-      /* Blurred ambient background lighting */
-
-      :global(body.editorial-shell::before) {
-        content: "";
-        position: fixed;
-        z-index: -1;
-        inset: -10%;
-        pointer-events: none;
-        background:
-          radial-gradient(
-            circle at 15% 20%,
-            rgba(182, 157, 115, 0.15),
-            transparent 25%
-          ),
-          radial-gradient(
-            circle at 85% 75%,
-            rgba(112, 67, 54, 0.16),
-            transparent 28%
-          );
-        filter: blur(75px);
-      }
-
-      /* Shared frosted-glass header */
-
-      :global(.editorial-header) {
-        position: relative;
-        z-index: 10;
-        background: rgba(5, 5, 5, 0.72);
-        -webkit-backdrop-filter: blur(22px);
-        backdrop-filter: blur(22px);
-        border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-      }
-
-      /* Shared frosted-glass footer */
-
-      :global(.editorial-footer) {
-        background: rgba(5, 5, 5, 0.72);
-        -webkit-backdrop-filter: blur(22px);
-        backdrop-filter: blur(22px);
-        border-top: 1px solid rgba(255, 255, 255, 0.12);
-      }
-
-      /* Shared floating surfaces across editorial pages */
-
-      :global(body.editorial-shell .card),
-      :global(body.editorial-shell .aside-box),
-      :global(body.editorial-shell .program-card),
-      :global(body.editorial-shell .team-card),
-      :global(body.editorial-shell .form-card),
-      :global(body.editorial-shell .panel) {
-        border: 1px solid rgba(255, 255, 255, 0.12);
-        border-radius: 14px;
-        background: rgba(5, 5, 5, 0.82);
-        -webkit-backdrop-filter: blur(20px);
-        backdrop-filter: blur(20px);
-        box-shadow:
-          0 25px 65px rgba(0, 0, 0, 0.42),
-          inset 0 1px 0 rgba(255, 255, 255, 0.045);
-      }
-
-      /* Respect users who prefer reduced motion */
+      /* REDUCED MOTION */
 
       @media (prefers-reduced-motion: reduce) {
         :global(body.editorial-shell::before) {
           filter: blur(35px);
+        }
+
+        .header-icon-button,
+        .profile-trigger,
+        .notification-item {
+          transition: none;
         }
       }
     </style>
