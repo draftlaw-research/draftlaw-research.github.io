@@ -1,0 +1,363 @@
+---
+export const prerender = true;
+
+import Editorial from '../../../../layouts/Editorial.astro';
+---
+
+<Editorial title="My Drafts">
+  <section class="drafts-page">
+    <div class="page-heading">
+      <a href="/editorial/submissions/" class="back-link">
+        ← Back to Submission Centre
+      </a>
+
+      <p class="eyebrow">EDITORIAL WORKSPACE</p>
+      <h1>My drafts</h1>
+      <p class="intro">
+        Find and continue working on submissions you have saved as drafts.
+        Only your own drafts are shown here.
+      </p>
+    </div>
+
+    <div id="page-message" class="message" role="status" aria-live="polite">
+      Checking your login and loading your drafts...
+    </div>
+
+    <div id="draft-list" class="draft-list" hidden></div>
+
+    <div id="empty-state" class="empty-state" hidden>
+      <p class="empty-eyebrow">YOUR WORKSPACE</p>
+      <h2>No drafts yet</h2>
+      <p>You have not saved any article or guide drafts.</p>
+    </div>
+  </section>
+</Editorial>
+
+<script>
+  const message = document.querySelector('#page-message');
+  const draftList = document.querySelector('#draft-list');
+  const emptyState = document.querySelector('#empty-state');
+
+  function showMessage(text, type = '') {
+    message.textContent = text;
+    message.className = `message ${type}`;
+    message.hidden = false;
+  }
+
+  function formatDate(value) {
+    if (!value) return 'Date unavailable';
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+      return 'Date unavailable';
+    }
+
+    return date.toLocaleString(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit'
+    });
+  }
+
+  function createDraftCard(draft) {
+    const card = document.createElement('article');
+    card.className = 'draft-card';
+
+    const details = document.createElement('div');
+    details.className = 'draft-details';
+
+    const meta = document.createElement('div');
+    meta.className = 'draft-meta';
+
+    const type = document.createElement('span');
+    type.className = 'draft-type';
+    type.textContent = draft.contentType === 'guide'
+      ? 'Guide Draft'
+      : 'Article Draft';
+
+    meta.append(type);
+
+    const title = document.createElement('h2');
+    title.textContent = draft.title || 'Untitled submission';
+
+    const updated = document.createElement('p');
+    updated.className = 'draft-date';
+    updated.textContent = `Last updated ${formatDate(draft.updatedAt || draft.createdAt)}`;
+
+    const created = document.createElement('p');
+    created.className = 'draft-date draft-created';
+    created.textContent = `Created ${formatDate(draft.createdAt)}`;
+
+    details.append(meta, title, updated, created);
+
+    const actions = document.createElement('div');
+    actions.className = 'draft-actions';
+
+    const editLink = document.createElement('a');
+    editLink.className = 'open-draft-link';
+    editLink.textContent = 'Open draft';
+    editLink.href = `/editorial/submissions/new/?id=${encodeURIComponent(draft.id)}`;
+    editLink.setAttribute(
+      'aria-label',
+      `Open draft: ${draft.title || 'Untitled submission'}`
+    );
+
+    actions.append(editLink);
+    card.append(details, actions);
+
+    return card;
+  }
+
+  async function loadDrafts() {
+    try {
+      const sessionResponse = await fetch('/api/auth/me', {
+        credentials: 'same-origin',
+        cache: 'no-store'
+      });
+
+      if (!sessionResponse.ok) {
+        window.location.replace('/editorial/');
+        return;
+      }
+
+      const sessionData = await sessionResponse.json();
+
+      if (!sessionData.ok || sessionData.user?.role !== 'editor') {
+        showMessage(
+          'Access denied. This page is available to Editors only.',
+          'error'
+        );
+        return;
+      }
+
+      const response = await fetch('/api/submissions/draft', {
+        credentials: 'same-origin',
+        cache: 'no-store'
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.ok) {
+        throw new Error(data.message || 'Could not load your drafts.');
+      }
+
+      const drafts = Array.isArray(data.drafts) ? data.drafts : [];
+
+      message.hidden = true;
+      draftList.replaceChildren();
+      draftList.hidden = true;
+      emptyState.hidden = true;
+
+      if (drafts.length === 0) {
+        emptyState.hidden = false;
+        return;
+      }
+
+      drafts.forEach((draft) => {
+        draftList.append(createDraftCard(draft));
+      });
+
+      draftList.hidden = false;
+    } catch (error) {
+      showMessage(
+        error.message || 'Something went wrong while loading your drafts.',
+        'error'
+      );
+    }
+  }
+
+  loadDrafts();
+</script>
+
+<style>
+  .drafts-page {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem 4rem;
+  }
+
+  .page-heading {
+    margin-bottom: 2.5rem;
+  }
+
+  .back-link {
+    display: inline-block;
+    margin-bottom: 2rem;
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 0.9rem;
+  }
+
+  .back-link:hover {
+    color: var(--accent);
+  }
+
+  .eyebrow,
+  .empty-eyebrow {
+    margin: 0 0 0.65rem;
+    color: var(--accent);
+    font-family: var(--sans);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+
+  .page-heading h1 {
+    margin: 0 0 0.75rem;
+    color: var(--ink);
+    font-family: var(--serif);
+    font-size: clamp(2.1rem, 5vw, 3rem);
+  }
+
+  .intro {
+    max-width: 650px;
+    margin: 0;
+    color: var(--muted);
+    font-family: var(--serif);
+    line-height: 1.75;
+  }
+
+  .message {
+    padding: 1.5rem 0;
+    color: var(--muted);
+    font-family: var(--serif);
+    line-height: 1.6;
+  }
+
+  .message.error {
+    color: #d69b83;
+  }
+
+  .draft-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+    margin-top: 1.75rem;
+  }
+
+  /* These elements are created by JavaScript, so their styles must be global. */
+
+  :global(.draft-card) {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    min-width: 0;
+    min-height: 230px;
+    padding: 1.7rem;
+    border: 1px solid var(--rule);
+    background: var(--surface);
+    color: var(--ink);
+    transition: background 160ms ease, border-color 160ms ease;
+  }
+
+  :global(.draft-card:hover) {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+  }
+
+  :global(.draft-details) {
+    width: 100%;
+    min-width: 0;
+  }
+
+  :global(.draft-meta) {
+    margin-bottom: 0.8rem;
+    font-family: var(--sans);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  :global(.draft-type) {
+    color: var(--accent);
+  }
+
+  :global(.draft-card h2) {
+    margin: 0 0 0.85rem;
+    color: var(--ink);
+    font-family: var(--serif);
+    font-size: 1.35rem;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+  }
+
+  :global(.draft-date) {
+    margin: 0.35rem 0 0;
+    color: var(--muted);
+    font-family: var(--serif);
+    font-size: 0.95rem;
+    line-height: 1.5;
+  }
+
+  :global(.draft-created) {
+    opacity: 0.9;
+  }
+
+  :global(.draft-actions) {
+    margin-top: auto;
+    padding-top: 1.5rem;
+  }
+
+  :global(.open-draft-link) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    padding: 0.65rem 1rem;
+    border: 1px solid var(--accent);
+    background: transparent;
+    color: var(--accent);
+    font-family: var(--serif);
+    font-size: 0.95rem;
+    text-decoration: none;
+    transition: background 160ms ease, color 160ms ease;
+  }
+
+  :global(.open-draft-link::after) {
+    content: "→";
+  }
+
+  :global(.open-draft-link:hover) {
+    background: var(--accent);
+    color: var(--accent-ink);
+  }
+
+  .empty-state {
+    margin-top: 1.75rem;
+    padding: 1.7rem;
+    border: 1px solid var(--rule);
+    background: var(--surface);
+    color: var(--muted);
+  }
+
+  .empty-state h2 {
+    margin: 0 0 0.5rem;
+    color: var(--ink);
+    font-family: var(--serif);
+    font-size: 1.4rem;
+  }
+
+  .empty-state p:last-child {
+    margin: 0;
+  }
+
+  @media (max-width: 650px) {
+    .draft-list {
+      grid-template-columns: 1fr;
+    }
+
+    :global(.draft-card) {
+      min-height: 210px;
+      padding: 1.4rem;
+    }
+
+    :global(.open-draft-link) {
+      width: 100%;
+    }
+  }
+</style>

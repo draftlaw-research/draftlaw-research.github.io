@@ -1,0 +1,968 @@
+
+---
+import Editorial from '../../../layouts/Editorial.astro';
+---
+
+<Editorial title="Review Submissions">
+  <section class="wrap review-page">
+    <p class="eyebrow">ADMINISTRATION / CONTENT REVIEW</p>
+    <h1>Review Submissions</h1>
+    <p class="intro">
+      Review articles and guidelines submitted by editors before publication.
+    </p>
+
+    <div class="review-toolbar">
+      <div>
+        <span class="count-label">AWAITING REVIEW</span>
+        <strong id="pending-count">—</strong>
+      </div>
+
+      <button class="refresh-button" id="refresh-button" type="button">
+        Refresh queue
+      </button>
+    </div>
+
+    <p id="page-status" class="status-message" role="status">
+      Checking administrator access…
+    </p>
+
+    <div id="submission-list" class="submission-list" hidden></div>
+  </section>
+
+  <script>
+    const statusElement = document.querySelector("#page-status");
+    const listElement = document.querySelector("#submission-list");
+    const countElement = document.querySelector("#pending-count");
+    const refreshButton = document.querySelector("#refresh-button");
+
+    let authorDirectory = new Map();
+    let topicDirectory = new Map();
+
+    function showStatus(message, isError = false) {
+      statusElement.textContent = message;
+      statusElement.classList.toggle("error-message", isError);
+      statusElement.hidden = false;
+    }
+
+    function makeElement(tag, className, text) {
+      const element = document.createElement(tag);
+
+      if (className) {
+        element.className = className;
+      }
+
+      if (text !== undefined && text !== null) {
+        element.textContent = text;
+      }
+
+      return element;
+    }
+
+    async function checkAdmin() {
+      const response = await fetch("/api/auth/me", {
+        credentials: "same-origin",
+        cache: "no-store"
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.ok || !result.user) {
+        window.location.replace("/editorial");
+        return false;
+      }
+
+      if (result.user.role !== "admin") {
+        document.querySelector(".review-page").hidden = true;
+
+        showStatus(
+          "Administrator access is required to review submissions.",
+          true
+        );
+
+        return false;
+      }
+
+      return true;
+    }
+
+    async function loadPublicationReferences() {
+      try {
+        const response = await fetch("/api/submissions/options", {
+          credentials: "same-origin",
+          cache: "no-store"
+        });
+
+        const result = await response.json();
+
+        if (!response.ok || !result.ok) {
+          return;
+        }
+
+        authorDirectory = new Map(
+          (result.authors || []).map(author => [
+            author.path,
+            author.name
+          ])
+        );
+
+        topicDirectory = new Map(
+          (result.topics || []).map(topic => [
+            topic.path,
+            topic.name
+          ])
+        );
+
+      } catch (error) {
+        console.error(
+          "Could not load author and topic names:",
+          error
+        );
+      }
+    }
+
+    // Resolve cover image paths for the administrator preview.
+    function getCoverPreviewUrl(cover) {
+      if (!cover || typeof cover !== "string") {
+        return "";
+      }
+
+      const repository =
+        "https://raw.githubusercontent.com/draftlaw-research/draftlaw-research.github.io/editorial-portal-development/";
+
+      // New Astro cover images.
+      if (cover.startsWith("/src/assets/covers/")) {
+        const filename = cover.split("/").pop();
+
+        return repository +
+          "src/assets/covers/" +
+          encodeURIComponent(filename);
+      }
+
+      // Older public uploads.
+      if (cover.startsWith("/uploads/")) {
+        const filename = cover.split("/").pop();
+
+        return repository +
+          "public/uploads/" +
+          encodeURIComponent(filename);
+      }
+
+      // Existing absolute GitHub raw URLs.
+      if (cover.startsWith("https://raw.githubusercontent.com/")) {
+        return cover;
+      }
+
+      // Existing absolute HTTP image URLs.
+      if (
+        cover.startsWith("https://") ||
+        cover.startsWith("http://")
+      ) {
+        return cover;
+      }
+
+      return cover;
+    }
+
+    async function reviewSubmission(id, decision, reason = "") {
+      const buttons = listElement.querySelectorAll("button");
+
+      buttons.forEach(button => {
+        button.disabled = true;
+      });
+
+      showStatus(
+        decision === "approve"
+          ? "Publishing submission…"
+          : "Rejecting submission…"
+      );
+
+      try {
+        const response = await fetch("/api/submissions/decision", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            id,
+            decision,
+            reason
+          })
+        });
+
+        let result;
+
+        try {
+          result = await response.json();
+        } catch {
+          throw new Error(
+            `The server returned an invalid response (HTTP ${response.status}).`
+          );
+        }
+
+        if (response.status === 401) {
+          window.location.replace("/editorial");
+          return;
+        }
+
+        if (!response.ok || !result.ok) {
+          throw new Error(
+            result.message ||
+            `The review action failed (HTTP ${response.status}).`
+          );
+        }
+
+        showStatus(
+          result.message || "Review action completed successfully."
+        );
+
+        await loadSubmissions();
+
+      } catch (error) {
+        console.error("Submission review error:", error);
+
+        showStatus(
+          error.message || "Something went wrong. Please try again.",
+          true
+        );
+
+        buttons.forEach(button => {
+          button.disabled = false;
+        });
+      }
+    }
+
+    function renderSubmission(submission) {
+      const content = submission.content || {};
+
+      const card = makeElement("article", "submission-card");
+
+      // Card header.
+      const header = makeElement(
+        "div",
+        "submission-card-header"
+      );
+
+      const typeLabel = makeElement(
+        "span",
+        "type-label",
+        submission.contentType === "article"
+          ? "ARTICLE"
+          : "GUIDELINE"
+      );
+
+      const reviewStatus = makeElement(
+        "span",
+        "review-status",
+        "AWAITING REVIEW"
+      );
+
+      header.append(typeLabel, reviewStatus);
+
+      // Cover image.
+      const coverArea = makeElement(
+        "div",
+        "publication-cover"
+      );
+
+      if (content.cover) {
+        const image = document.createElement("img");
+
+        image.src = getCoverPreviewUrl(content.cover);
+        image.alt = content.coverAlt || "Publication cover";
+        image.loading = "lazy";
+
+        image.addEventListener("error", () => {
+          image.remove();
+
+          if (!coverArea.querySelector(".cover-placeholder")) {
+            coverArea.append(
+              makeElement(
+                "div",
+                "cover-placeholder",
+                "COVER IMAGE UNAVAILABLE"
+              )
+            );
+          }
+        });
+
+        coverArea.append(image);
+
+        if (content.coverCredit) {
+          coverArea.append(
+            makeElement(
+              "span",
+              "cover-credit",
+              content.coverCredit
+            )
+          );
+        }
+
+      } else {
+        coverArea.append(
+          makeElement(
+            "div",
+            "cover-placeholder",
+            "NO COVER IMAGE"
+          )
+        );
+      }
+
+      // Publication information.
+      const publication = makeElement(
+        "div",
+        "publication-information"
+      );
+
+      publication.append(
+        makeElement(
+          "h2",
+          "publication-title",
+          content.title ||
+          submission.title ||
+          "Untitled submission"
+        )
+      );
+
+      if (content.summary) {
+        publication.append(
+          makeElement(
+            "p",
+            "publication-summary",
+            content.summary
+          )
+        );
+      }
+
+      // Author names.
+      const authorNames = (content.authors || []).map(authorPath => {
+        return (
+          authorDirectory.get(authorPath) ||
+          authorPath
+            .split("/")
+            .pop()
+            .replace(/\.md$/i, "")
+            .replace(/[-_]/g, " ")
+        );
+      });
+
+      if (authorNames.length) {
+        const authors = makeElement(
+          "div",
+          "publication-authors"
+        );
+
+        authors.append(
+          makeElement(
+            "span",
+            "metadata-label",
+            authorNames.length > 1 ? "AUTHORS" : "AUTHOR"
+          )
+        );
+
+        authors.append(
+          makeElement(
+            "p",
+            "metadata-value",
+            authorNames.join(", ")
+          )
+        );
+
+        publication.append(authors);
+      }
+
+      // Publication metadata.
+      const metadata = makeElement(
+        "div",
+        "publication-metadata"
+      );
+
+      function addMetadata(label, value) {
+        if (
+          value === undefined ||
+          value === null ||
+          value === "" ||
+          (Array.isArray(value) && value.length === 0)
+        ) {
+          return;
+        }
+
+        const item = makeElement(
+          "div",
+          "metadata-item"
+        );
+
+        item.append(
+          makeElement(
+            "span",
+            "metadata-label",
+            label
+          ),
+          makeElement(
+            "span",
+            "metadata-value",
+            Array.isArray(value)
+              ? value.join(", ")
+              : String(value)
+          )
+        );
+
+        metadata.append(item);
+      }
+
+      addMetadata("PUBLICATION TYPE", content.kind);
+      addMetadata("PUBLICATION DATE", content.date);
+
+      if (content.topic) {
+        addMetadata(
+          "TOPIC",
+          topicDirectory.get(content.topic) || content.topic
+        );
+      }
+
+      addMetadata("KEYWORDS", content.keywords);
+
+      addMetadata(
+        "PEER REVIEW",
+        content.peerReviewed === false
+          ? "Not peer reviewed"
+          : "Peer reviewed"
+      );
+
+      addMetadata(
+        "FEATURED",
+        content.featured === true ? "Yes" : "No"
+      );
+
+      if (metadata.children.length > 0) {
+        publication.append(metadata);
+      }
+
+      // Submission information.
+      const submittedDate = submission.submittedAt
+        ? new Date(submission.submittedAt).toLocaleString()
+        : "Date unavailable";
+
+      publication.append(
+        makeElement(
+          "p",
+          "submission-meta",
+          `Submitted by ${submission.editorUsername || "Unknown editor"} · ${submittedDate}`
+        )
+      );
+
+      // Full manuscript, expandable.
+      const details = makeElement(
+        "details",
+        "submission-details"
+      );
+
+      const detailsSummary = makeElement(
+        "summary",
+        "",
+        "Read full manuscript"
+      );
+
+      const body = makeElement(
+        "div",
+        "body-preview"
+      );
+
+      body.textContent =
+        content.body || "No manuscript content was supplied.";
+
+      details.append(detailsSummary, body);
+
+      // Review actions.
+      const actions = makeElement(
+        "div",
+        "review-actions"
+      );
+
+      const approveButton = makeElement(
+        "button",
+        "approve-button",
+        "Approve & Publish"
+      );
+
+      approveButton.type = "button";
+
+      approveButton.addEventListener("click", () => {
+        const confirmed = window.confirm(
+          `Publish "${submission.title}" to the public website?\n\nThis action will create the public article or guideline.`
+        );
+
+        if (confirmed) {
+          reviewSubmission(submission.id, "approve");
+        }
+      });
+
+      const rejectButton = makeElement(
+        "button",
+        "reject-button",
+        "Reject"
+      );
+
+      rejectButton.type = "button";
+
+      rejectButton.addEventListener("click", () => {
+        const reason = window.prompt(
+          "Why are you rejecting this submission?\n\nPlease provide feedback for the editor:"
+        );
+
+        if (reason === null) {
+          return;
+        }
+
+        if (!reason.trim()) {
+          window.alert("Please enter a rejection reason.");
+          return;
+        }
+
+        const confirmed = window.confirm(
+          `Reject "${submission.title}"?\n\nThe editor will receive your reason.`
+        );
+
+        if (confirmed) {
+          reviewSubmission(
+            submission.id,
+            "reject",
+            reason.trim()
+          );
+        }
+      });
+
+      actions.append(approveButton, rejectButton);
+
+      // Assemble the individual card.
+      card.append(
+        header,
+        coverArea,
+        publication,
+        details,
+        actions
+      );
+
+      return card;
+    }
+
+    async function loadSubmissions() {
+      refreshButton.disabled = true;
+      listElement.hidden = true;
+      listElement.replaceChildren();
+
+      showStatus("Loading pending submissions…");
+
+      try {
+        const response = await fetch(
+          "/api/submissions/review",
+          {
+            credentials: "same-origin",
+            cache: "no-store"
+          }
+        );
+
+        let result;
+
+        try {
+          result = await response.json();
+        } catch {
+          throw new Error(
+            `Invalid server response (HTTP ${response.status}).`
+          );
+        }
+
+        if (response.status === 401) {
+          window.location.replace("/editorial");
+          return;
+        }
+
+        if (response.status === 403) {
+          throw new Error(
+            "Administrator access is required."
+          );
+        }
+
+        if (!response.ok || !result.ok) {
+          throw new Error(
+            result.message || "Unable to load submissions."
+          );
+        }
+
+        const submissions = result.submissions || [];
+
+        countElement.textContent = String(submissions.length);
+
+        if (submissions.length === 0) {
+          showStatus(
+            "There are no submissions waiting for review."
+          );
+          return;
+        }
+
+        for (const submission of submissions) {
+          listElement.append(
+            renderSubmission(submission)
+          );
+        }
+
+        statusElement.hidden = true;
+        listElement.hidden = false;
+
+      } catch (error) {
+        console.error("Loading submissions error:", error);
+
+        showStatus(
+          error.message || "Unable to load submissions.",
+          true
+        );
+
+      } finally {
+        refreshButton.disabled = false;
+      }
+    }
+
+    refreshButton.addEventListener(
+      "click",
+      loadSubmissions
+    );
+
+    async function startPage() {
+      try {
+        const authorized = await checkAdmin();
+
+        if (authorized) {
+          await loadPublicationReferences();
+          await loadSubmissions();
+        }
+
+      } catch (error) {
+        console.error("Administrator page error:", error);
+
+        showStatus(
+          "Unable to verify administrator access.",
+          true
+        );
+      }
+    }
+
+    startPage();
+  </script>
+
+  <style>
+    .review-page {
+      padding-block: 3rem 5rem;
+      min-height: 55vh;
+    }
+
+    .review-page h1 {
+      margin-bottom: 0.6rem;
+    }
+
+    .intro {
+      color: var(--muted);
+      max-width: 65ch;
+      line-height: 1.7;
+    }
+
+    .review-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-block: 2rem;
+      padding: 1.2rem;
+      border: 1px solid var(--rule);
+      background: var(--surface);
+    }
+
+    .review-toolbar > div {
+      display: grid;
+      gap: 0.35rem;
+    }
+
+    .count-label {
+      font-family: var(--font-ui);
+      font-size: 0.7rem;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+    }
+
+    #pending-count {
+      font-size: 2rem;
+      color: var(--accent);
+    }
+
+    .refresh-button {
+      border: 1px solid var(--accent);
+      background: transparent;
+      color: var(--accent);
+      padding: 0.7rem 1rem;
+      cursor: pointer;
+      font: inherit;
+    }
+
+    .refresh-button:hover {
+      background: var(--accent-soft);
+    }
+
+    .refresh-button:disabled {
+      opacity: 0.5;
+      cursor: wait;
+    }
+
+    .status-message {
+      padding-block: 1.5rem;
+      color: var(--muted);
+    }
+
+    .error-message {
+      color: #c87563;
+    }
+
+    /* Submission cards */
+    :global(.submission-list) {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1.5rem;
+      align-items: start;
+    }
+
+    :global(.submission-card) {
+      min-width: 0;
+      overflow: hidden;
+      border: 1px solid var(--rule);
+      background: var(--surface);
+      display: flex;
+      flex-direction: column;
+    }
+
+    :global(.submission-card-header) {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      padding: 1rem 1.2rem;
+      border-bottom: 1px solid var(--rule);
+    }
+
+    :global(.type-label) {
+      font-family: var(--font-ui);
+      font-size: 0.68rem;
+      letter-spacing: 0.12em;
+      color: var(--accent);
+    }
+
+    :global(.review-status) {
+      font-family: var(--font-ui);
+      font-size: 0.62rem;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+    }
+
+    /* Cover image */
+    :global(.publication-cover) {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 8;
+      overflow: hidden;
+      background: var(--background);
+    }
+
+    :global(.publication-cover img) {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    :global(.cover-placeholder) {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+      color: var(--muted);
+      font-family: var(--font-ui);
+      font-size: 0.75rem;
+      letter-spacing: 0.12em;
+    }
+
+    :global(.cover-credit) {
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      padding: 0.35rem 0.6rem;
+      background: rgba(0, 0, 0, 0.72);
+      color: white;
+      font-size: 0.65rem;
+    }
+
+    /* Publication information */
+    :global(.publication-information) {
+      display: grid;
+      gap: 1rem;
+      padding: 1.3rem;
+    }
+
+    :global(.publication-title) {
+      margin: 0;
+      font-size: 1.4rem;
+      line-height: 1.3;
+      overflow-wrap: anywhere;
+    }
+
+    :global(.publication-summary) {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.9rem;
+      line-height: 1.7;
+    }
+
+    :global(.publication-authors) {
+      padding-block: 0.85rem;
+      border-top: 1px solid var(--rule);
+      border-bottom: 1px solid var(--rule);
+    }
+
+    :global(.metadata-label) {
+      display: block;
+      margin-bottom: 0.35rem;
+      color: var(--muted);
+      font-family: var(--font-ui);
+      font-size: 0.62rem;
+      letter-spacing: 0.1em;
+    }
+
+    :global(.metadata-value) {
+      display: block;
+      margin: 0;
+      color: var(--ink);
+      font-size: 0.85rem;
+      line-height: 1.5;
+      overflow-wrap: anywhere;
+    }
+
+    :global(.publication-metadata) {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1rem;
+    }
+
+    :global(.metadata-item) {
+      min-width: 0;
+    }
+
+    :global(.submission-meta) {
+      margin: 0;
+      padding-top: 0.85rem;
+      border-top: 1px solid var(--rule);
+      color: var(--muted);
+      font-size: 0.75rem;
+      line-height: 1.5;
+    }
+
+    /* Full manuscript */
+    :global(.submission-details) {
+      margin: 0 1.3rem;
+      padding-block: 1rem;
+      border-top: 1px solid var(--rule);
+    }
+
+    :global(.submission-details summary) {
+      color: var(--accent);
+      cursor: pointer;
+      font-family: var(--font-ui);
+      font-size: 0.85rem;
+    }
+
+    :global(.body-preview) {
+      margin-top: 1rem;
+      max-height: 600px;
+      overflow-y: auto;
+      padding: 1rem;
+      border: 1px solid var(--rule);
+      background: var(--background);
+      color: var(--ink);
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      line-height: 1.8;
+      font-size: 0.88rem;
+    }
+
+    /* Review buttons */
+    :global(.review-actions) {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      padding: 1.2rem 1.3rem;
+      margin-top: auto;
+      border-top: 1px solid var(--rule);
+    }
+
+    :global(.approve-button),
+    :global(.reject-button) {
+      flex: 1;
+      min-width: 120px;
+      padding: 0.8rem 1rem;
+      font: inherit;
+      cursor: pointer;
+      border: 1px solid transparent;
+    }
+
+    :global(.approve-button) {
+      background: var(--accent);
+      color: white;
+    }
+
+    :global(.approve-button:hover) {
+      opacity: 0.9;
+    }
+
+    :global(.reject-button) {
+      background: transparent;
+      border-color: #c87563;
+      color: #c87563;
+    }
+
+    :global(.reject-button:hover) {
+      background: rgba(200, 117, 99, 0.08);
+    }
+
+    :global(.approve-button:disabled),
+    :global(.reject-button:disabled) {
+      opacity: 0.5;
+      cursor: wait;
+    }
+
+    /* Responsive layout */
+    @media (max-width: 850px) {
+      :global(.submission-list) {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 600px) {
+      .review-toolbar {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      :global(.publication-information) {
+        padding: 1rem;
+      }
+
+      :global(.publication-metadata) {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      :global(.review-actions) {
+        flex-direction: column;
+      }
+
+      :global(.review-actions button) {
+        width: 100%;
+      }
+    }
+  </style>
+</Editorial>
