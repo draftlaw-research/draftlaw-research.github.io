@@ -1,4 +1,7 @@
 
+const REPOSITORY = "draftlaw-research/draftlaw-research.github.io";
+const BRANCH = "editorial-portal-development";
+
 const ALLOWED_TYPES = {
   article: [
     "Article",
@@ -76,8 +79,6 @@ async function getLoggedInUser(request, env) {
   return session;
 }
 
-// Check whether an Editor has permission for the requested section.
-// Administrators automatically have access.
 async function hasSectionPermission(user, env, section) {
   if (user.role === "admin") {
     return true;
@@ -271,40 +272,250 @@ function validateSubmission(data) {
   };
 }
 
+function yamlString(value) {
+  return JSON.stringify(String(value ?? ""));
+}
+
+function makeSlug(title) {
+  const slug = title
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 90)
+    .replace(/-+$/g, "");
+
+  return slug || `content-${crypto.randomUUID().slice(0, 8)}`;
+}
+
+function makeMarkdown(content) {
+  const lines = [
+    "---",
+    `title: ${yamlString(content.title)}`,
+    `summary: ${yamlString(content.summary)}`,
+    "authors:",
+    ...content.authors.map(author => `  - ${yamlString(author)}`)
+  ];
+
+  if (content.topic) {
+    lines.push(`topic: ${yamlString(content.topic)}`);
+  }
+
+  lines.push(
+    `kind: ${yamlString(content.kind)}`,
+    `date: ${content.date}`,
+    `cover: ${yamlString(content.cover || "")}`,
+    `coverAlt: ${yamlString(content.coverAlt || "")}`,
+    `coverCredit: ${yamlString(content.coverCredit || "")}`,
+    `featured: ${content.featured === true}`,
+    "keywords:"
+  );
+
+  for (const keyword of content.keywords || []) {
+    lines.push(`  - ${yamlString(keyword)}`);
+  }
+
+  lines.push(
+    `peerReviewed: ${content.peerReviewed !== false}`,
+    "---",
+    "",
+    content.body || ""
+  );
+
+  return lines.join("\n");
+}
+
+function encodeBase64(value) {
+  const bytes = new TextEncoder().encode(value);
+  let binary = "";
+
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  }
+
+  return btoa(binary);
+}
+
+function decodeGithubBase64(value) {
+  const binary = atob(String(value || "").replace(/\s/g, ""));
+  const bytes = Uint8Array.from(
+    binary,
+    character => character.charCodeAt(0)
+  );
+
+  return new TextDecoder().decode(bytes);
+}
+
+async function githubRequest(path, token) {
+  return fetch(
+    `https://api.github.com/repos/${REPOSITORY}/${path}`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+        "User-Agent": "DraftLaw-Editorial-Portal"
+      }
+    }
+  );
+}
+
+async function getExistingCommitSha(path, token) {
+  const response = await githubRequest(
+    `commits?path=${encodeURIComponent(path)}&sha=${BRANCH}&per_page=1`,
+    token
+  );
+
+  if (!response.ok) {
+    console.error(
+      "GitHub commit lookup failed:",
+      await response.text()
+    );
+    return null;
+  }
+
+  const commits = await response.json();
+
+  return Array.isArray(commits)
+    ? commits[0]?.sha || null
+    : null;
+}
+
+async function publishToGithub(content, token) {
+  const collection = content.contentType === "article"
+    ? "articles"
+    : "guides";
+
+  const githubPath =
+    `src/content/${collection}/${makeSlug(content.title)}.md`;
+
+  const markdown = makeMarkdown(content);
+
+  const existingResponse = await githubRequest(
+    `contents/${githubPath}?ref=${BRANCH}`,
+    token
+  );
+
+  if (existingResponse.status === 200) {
+    const existingFile = await existingResponse.json();
+
+    if (
+      existingFile.encoding !== "base64" ||
+      typeof existingFile.content !== "string"
+    ) {
+      throw new Error(
+        "GitHub returned an unsupported existing file format."
+      );
+    }
+
+    const existingMarkdown = decodeGithubBase64(
+      existingFile.content
+    );
+
+    if (existingMarkdown !== markdown) {
+      const error = new Error(
+        "A different file already exists with this title. Please change the title or resolve the filename conflict."
+      );
+      error.status = 409;
+      throw error;
+    }
+
+    return {
+      githubPath,
+      githubCommitSha: await getExistingCommitSha(
+        githubPath,
+        token
+      )
+    };
+  }
+
+  if (existingResponse.status !== 404) {
+    console.error(
+      "GitHub destination check failed:",
+      await existingResponse.text()
+    );
+
+    const error = new Error(
+      "Could not check the publishing destination on GitHub."
+    );
+    error.status = 502;
+    throw error;
+  }
+
+  const publishResponse = await fetch(
+    `https://api.github.com/repos/${REPOSITORY}/contents/${githubPath}`,
+    {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/vnd.github+json",
+        "Content-Type": "application/json",
+        "X-GitHub-Api-Version": "2022-11-28",
+        "User-Agent": "DraftLaw-Editorial-Portal"
+      },
+      body: JSON.stringify({
+        message: `Publish ${content.contentType}: ${content.title}`,
+        content: encodeBase64(markdown),
+        branch: BRANCH
+      })
+    }
+  );
+
+  const result = await publishResponse.json();
+
+  if (!publishResponse.ok) {
+    console.error("GitHub publish failed:", result);
+
+    const error = new Error(
+      "GitHub could not publish this content."
+    );
+    error.status = 502;
+    throw error;
+  }
+
+  return {
+    githubPath,
+    githubCommitSha: result.commit?.sha || null
+  };
+}
+
+function jsonResponse(body, status = 200) {
+  return Response.json(body, {
+    status,
+    headers: {
+      "Cache-Control": "no-store"
+    }
+  });
+}
+
 export async function onRequestPost({ request, env }) {
   try {
     if (!env.EDITORIAL_DB) {
-      return Response.json(
+      return jsonResponse(
         {
           ok: false,
           message: "Submission storage is not configured."
         },
-        {
-          status: 500,
-          headers: { "Cache-Control": "no-store" }
-        }
+        500
       );
     }
 
     const user = await getLoggedInUser(request, env);
 
     if (!user) {
-      return Response.json(
+      return jsonResponse(
         {
           ok: false,
           message: "Please log in to continue."
         },
-        {
-          status: 401,
-          headers: { "Cache-Control": "no-store" }
-        }
+        401
       );
     }
 
     const data = await request.json();
     const content = validateSubmission(data);
 
-    // Match the requested submission type to its permission section.
     const requiredSection =
       content.contentType === "article" ? "articles" : "guides";
 
@@ -315,38 +526,77 @@ export async function onRequestPost({ request, env }) {
     );
 
     if (!authorized) {
-      return Response.json(
+      return jsonResponse(
         {
           ok: false,
           message: `You do not have permission to create ${content.contentType} submissions. Please contact an administrator.`
         },
-        {
-          status: 403,
-          headers: { "Cache-Control": "no-store" }
-        }
+        403
       );
     }
 
     const requestedStatus = data.status || "draft";
 
     if (!["draft", "pending"].includes(requestedStatus)) {
-      return Response.json(
+      return jsonResponse(
         {
           ok: false,
           message: "Invalid submission status."
         },
-        {
-          status: 400,
-          headers: { "Cache-Control": "no-store" }
-        }
+        400
       );
     }
 
-    const submissionId = crypto.randomUUID();
+    if (user.role === "admin" && requestedStatus === "pending" && !env.GITHUB_TOKEN) {
+      return jsonResponse(
+        {
+          ok: false,
+          message: "Direct publishing is not configured. Please contact the site administrator."
+        },
+        500
+      );
+    }
+
     const now = new Date().toISOString();
+    const submissionId = crypto.randomUUID();
+
+    // Admins publish immediately when they submit for publication.
+    // Editors continue to use the pending review workflow.
+    const publishDirectly =
+      user.role === "admin" && requestedStatus === "pending";
+
+    let finalStatus = requestedStatus;
+    let githubPath = null;
+    let githubCommitSha = null;
+    let publishedAt = null;
+
+    if (publishDirectly) {
+      try {
+        const githubResult = await publishToGithub(
+          content,
+          env.GITHUB_TOKEN
+        );
+
+        githubPath = githubResult.githubPath;
+        githubCommitSha = githubResult.githubCommitSha;
+        finalStatus = "approved";
+        publishedAt = now;
+
+      } catch (error) {
+        console.error("Administrator direct publishing failed:", error);
+
+        return jsonResponse(
+          {
+            ok: false,
+            message: error.message ||
+              "Unable to publish this content.",
+          },
+          error.status || 502
+        );
+      }
+    }
 
     const contentJson = JSON.stringify(content);
-
     const title = content.title;
     const typeLabel =
       content.contentType === "article" ? "Article" : "Guide";
@@ -354,7 +604,10 @@ export async function onRequestPost({ request, env }) {
     const activityDetails = JSON.stringify({
       title,
       contentType: content.contentType,
-      status: requestedStatus
+      status: finalStatus,
+      githubPath,
+      githubCommitSha,
+      directPublish: publishDirectly
     });
 
     const statements = [];
@@ -368,23 +621,39 @@ export async function onRequestPost({ request, env }) {
           title,
           content_json,
           status,
+          github_path,
+          github_commit_sha,
           submitted_at,
+          published_at,
           created_at,
           updated_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).bind(
         submissionId,
         user.id,
         content.contentType,
         title,
         contentJson,
-        requestedStatus,
+        finalStatus,
+        githubPath,
+        githubCommitSha,
         requestedStatus === "pending" ? now : null,
+        publishedAt,
         now,
         now
       )
     );
+
+    let activityAction;
+
+    if (publishDirectly) {
+      activityAction = "admin_content_published";
+    } else if (finalStatus === "pending") {
+      activityAction = "submission_created_and_submitted";
+    } else {
+      activityAction = "submission_draft_created";
+    }
 
     statements.push(
       env.EDITORIAL_DB.prepare(`
@@ -401,9 +670,7 @@ export async function onRequestPost({ request, env }) {
       `).bind(
         crypto.randomUUID(),
         user.id,
-        requestedStatus === "pending"
-          ? "submission_created_and_submitted"
-          : "submission_draft_created",
+        activityAction,
         content.contentType,
         submissionId,
         activityDetails,
@@ -411,7 +678,8 @@ export async function onRequestPost({ request, env }) {
       )
     );
 
-    if (requestedStatus === "pending") {
+    // Only notify administrators when an editor submits for review.
+    if (finalStatus === "pending") {
       const admins = await env.EDITORIAL_DB
         .prepare(`
           SELECT id
@@ -448,40 +716,44 @@ export async function onRequestPost({ request, env }) {
 
     await env.EDITORIAL_DB.batch(statements);
 
-    return Response.json(
+    let message;
+
+    if (publishDirectly) {
+      message = "Your content has been published successfully.";
+    } else if (finalStatus === "pending") {
+      message = "Your submission has been sent for approval.";
+    } else {
+      message = "Your draft has been saved.";
+    }
+
+    return jsonResponse(
       {
         ok: true,
-        message: requestedStatus === "pending"
-          ? "Your submission has been sent for approval."
-          : "Your draft has been saved.",
+        message,
         submission: {
           id: submissionId,
           title,
           contentType: content.contentType,
-          status: requestedStatus,
+          status: finalStatus,
+          githubPath,
+          githubCommitSha,
+          publishedAt,
           createdAt: now
         }
       },
-      {
-        status: 201,
-        headers: {
-          "Cache-Control": "no-store"
-        }
-      }
+      201
     );
 
   } catch (error) {
     console.error("Submission creation failed:", error);
 
-    return Response.json(
+    return jsonResponse(
       {
         ok: false,
-        message: error.message || "Unable to save your submission."
+        message: error.message ||
+          "Unable to save your submission."
       },
-      {
-        status: 400,
-        headers: { "Cache-Control": "no-store" }
-      }
+      400
     );
   }
 }
