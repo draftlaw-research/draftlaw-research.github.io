@@ -172,8 +172,9 @@ export async function onRequestPost({ request, env }) {
 
     const filename = `editorial-${crypto.randomUUID()}.${extension}`;
 
-    // Store uploaded images in the public folder.
-    const githubPath = `public/uploads/${filename}`;
+    // Astro processes content collection images from src/assets at build time.
+// Keep editorial covers alongside the site's existing cover assets.
+const githubPath = `src/assets/covers/${filename}`;
 
     const githubResponse = await fetch(
       `https://api.github.com/repos/${REPOSITORY}/contents/${githubPath}`,
@@ -212,9 +213,10 @@ export async function onRequestPost({ request, env }) {
     }
 
     const githubResult = await githubResponse.json();
-    const coverUrl = githubResult.content?.download_url;
+const coverPath = `/src/assets/covers/${filename}`;
+const previewUrl = githubResult.content?.download_url;
 
-    if (!coverUrl) {
+    if (!previewUrl) {
       console.error(
         "GitHub did not return a cover image URL:",
         githubResult
@@ -228,7 +230,8 @@ export async function onRequestPost({ request, env }) {
     return Response.json(
       {
         ok: true,
-        cover: coverUrl,
+        cover: coverPath,
+preview: previewUrl,
         message: "Cover image uploaded successfully."
       },
       {
