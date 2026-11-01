@@ -11,10 +11,8 @@ const description = "The DraftLaw Research editorial workspace.";
       <div>
         <p class="eyebrow">EDITORIAL WORKSPACE</p>
         <h1>Editorial Dashboard</h1>
-        <p>Manage submissions, contributors and website sections from one place.</p>
+        <p>Manage publications, contributors and website sections from one place.</p>
       </div>
-
-      
     </header>
 
     <div id="workspace" hidden>
@@ -25,65 +23,116 @@ const description = "The DraftLaw Research editorial workspace.";
 
         <div class="dashboard-grid">
 
-<article class="dashboard-card active-card" id="submissions" hidden>
-  <p class="eyebrow">01 / PUBLICATIONS</p>
-  <h3>Publications</h3>
-  <p>Create, review and manage new publications, including articles and guidelines.</p>
-  <a class="action-button" href="/editorial/submissions/">Manage publications →</a>
-</article>
+          <!-- PUBLICATIONS -->
+          <article class="dashboard-card active-card" id="submissions" hidden>
+            <p class="eyebrow">01 / PUBLICATIONS</p>
+            <h3>Publications</h3>
+            <p>
+              Create, review and manage new publications, including articles
+              and guidelines.
+            </p>
+            <a class="action-button" href="/editorial/submissions/">
+              Manage publications →
+            </a>
+          </article>
 
+          <!-- AUTHORS -->
+          <article class="dashboard-card" id="authors" hidden>
+            <p class="eyebrow">02 / CONTRIBUTORS</p>
+            <h3>Authors</h3>
+            <p>Create and publish author profiles for the website.</p>
+            <a class="action-button" href="/editorial/dashboard/authors/">
+              Create author profile →
+            </a>
+          </article>
 
+          <!-- TOPICS -->
           <article class="dashboard-card" id="topics" hidden>
             <p class="eyebrow">03 / WEBSITE SECTION</p>
             <h3>Topics</h3>
-            <p>Create and publish topics and categories used across the website.</p>
-            <a class="action-button" href="/editorial/dashboard/topics/">Create topic →</a>
+            <p>
+              Create and publish topics and categories used across the website.
+            </p>
+            <a class="action-button" href="/editorial/dashboard/topics/">
+              Create topic →
+            </a>
           </article>
 
+          <!-- TEAM MEMBERS -->
           <article class="dashboard-card" id="team-members" hidden>
             <p class="eyebrow">04 / WEBSITE SECTION</p>
             <h3>Team Members</h3>
             <p>Add and publish members of the DraftLaw Research team.</p>
-            <a class="action-button" href="/editorial/dashboard/team/">Add team member →</a>
+            <a class="action-button" href="/editorial/dashboard/team/">
+              Add team member →
+            </a>
           </article>
 
-          <article class="dashboard-card" id="student-collaborators" hidden>
+          <!-- STUDENT COLLABORATORS -->
+          <article
+            class="dashboard-card"
+            id="student-collaborators"
+            hidden
+          >
             <p class="eyebrow">05 / WEBSITE SECTION</p>
             <h3>Student Collaborators</h3>
             <p>Add and publish Student Collaborator profiles.</p>
-            <a class="action-button" href="/editorial/dashboard/student-collaborators/">Add Student Collaborator →</a>
+            <a
+              class="action-button"
+              href="/editorial/dashboard/student-collaborators/"
+            >
+              Add Student Collaborator →
+            </a>
           </article>
 
+          <!-- NEWSLETTER -->
           <article class="dashboard-card" id="newsletter-items" hidden>
             <p class="eyebrow">06 / WEBSITE SECTION</p>
             <h3>Newsletter Items</h3>
-            <p>Publish calls for papers, events, competitions and opportunities.</p>
-            <a class="action-button" href="/editorial/dashboard/newsletter/">Add newsletter item →</a>
+            <p>
+              Publish calls for papers, events, competitions and opportunities.
+            </p>
+            <a class="action-button" href="/editorial/dashboard/newsletter/">
+              Add newsletter item →
+            </a>
           </article>
 
+          <!-- PROGRAMS -->
           <article class="dashboard-card" id="programs" hidden>
             <p class="eyebrow">07 / INITIATIVES</p>
             <h3>Programs</h3>
             <p>Create and manage DraftLaw Research programs.</p>
-            <a class="action-button" href="/editorial/dashboard/programs/">Add a program →</a>
+            <a class="action-button" href="/editorial/dashboard/programs/">
+              Add a program →
+            </a>
           </article>
 
+          <!-- PROGRAM ANNOUNCEMENTS -->
           <article class="dashboard-card" id="announcements" hidden>
             <p class="eyebrow">08 / INITIATIVES</p>
             <h3>Program Announcements</h3>
             <p>Publish open calls, program updates and results.</p>
-            <a class="action-button" href="/editorial/dashboard/announcements/">
+            <a
+              class="action-button"
+              href="/editorial/dashboard/announcements/"
+            >
               Add an announcement →
             </a>
           </article>
 
+          <!-- ADMIN: EDITOR ACCOUNTS -->
           <article class="dashboard-card admin-only" id="accounts" hidden>
             <p class="eyebrow">09 / ADMINISTRATION</p>
             <h3>Editor Accounts</h3>
-            <p>Create editor accounts and manage their access to the portal.</p>
-            <a class="action-button" href="/editorial/admin/accounts/">Manage editor accounts →</a>
+            <p>
+              Create editor accounts and manage their access to the portal.
+            </p>
+            <a class="action-button" href="/editorial/admin/accounts/">
+              Manage editor accounts →
+            </a>
           </article>
 
+          <!-- ADMIN: ACTIVITY LOG -->
           <article class="dashboard-card admin-only" id="activity" hidden>
             <p class="eyebrow">10 / ADMINISTRATION</p>
             <h3>Activity log</h3>
@@ -100,6 +149,7 @@ const description = "The DraftLaw Research editorial workspace.";
         <div class="section-head">
           <h2>Editorial process</h2>
         </div>
+
         <p class="process-note">
           Changes proposed by editors will require administrative approval
           before they can be published on the public website.
@@ -113,11 +163,10 @@ const description = "The DraftLaw Research editorial workspace.";
   </div>
 
   <script>
-    const $ = (selector) => document.querySelector(selector);
-
+    const $ = (selector: string) => document.querySelector(selector);
 
     // Connect each permission to its corresponding dashboard card.
-    const sectionCards = {
+    const sectionCards: Record<string, string[]> = {
       articles: ["submissions"],
       guides: ["submissions"],
       authors: ["authors"],
@@ -130,11 +179,11 @@ const description = "The DraftLaw Research editorial workspace.";
     };
 
     async function loadDashboard() {
-      const status = $("#status-message");
-      const workspace = $("#workspace");
+      const status = $("#status-message") as HTMLElement;
+      const workspace = $("#workspace") as HTMLElement;
 
       try {
-        // First, verify the user's login session.
+        // Verify the user's login session.
         const response = await fetch("/api/auth/me", {
           credentials: "same-origin",
           cache: "no-store"
@@ -167,11 +216,16 @@ const description = "The DraftLaw Research editorial workspace.";
         }
 
         // Update the dashboard heading.
-        $("#workspace-heading").textContent =
-          currentRole === "admin" ? "Admin Workspace" : "Editor Workspace";
+        const workspaceHeading = $("#workspace-heading");
+
+        if (workspaceHeading) {
+          workspaceHeading.textContent =
+            currentRole === "admin"
+              ? "Admin Workspace"
+              : "Editor Workspace";
+        }
 
         if (currentRole === "admin") {
-
           // Admins can see every content section.
           Object.values(sectionCards).flat().forEach((cardId) => {
             const card = document.getElementById(cardId);
@@ -183,11 +237,10 @@ const description = "The DraftLaw Research editorial workspace.";
 
           // Show administrator-only cards.
           document.querySelectorAll(".admin-only").forEach((item) => {
-            item.hidden = false;
+            (item as HTMLElement).hidden = false;
           });
 
         } else {
-
           // Retrieve the Editor's assigned section permissions.
           const permissionResponse = await fetch(
             "/api/auth/section-permissions",
@@ -223,7 +276,7 @@ const description = "The DraftLaw Research editorial workspace.";
           });
 
           // Show only cards assigned to this Editor.
-          permissions.forEach((permission) => {
+          permissions.forEach((permission: string) => {
             const cardIds = sectionCards[permission] || [];
 
             cardIds.forEach((cardId) => {
@@ -237,17 +290,16 @@ const description = "The DraftLaw Research editorial workspace.";
 
           // Editors cannot see administrator-only cards.
           document.querySelectorAll(".admin-only").forEach((item) => {
-            item.hidden = true;
+            (item as HTMLElement).hidden = true;
           });
         }
 
-        // Show the account controls after verification.
+        // Show account controls after verification.
         const editorialAccount = $("#editorial-account");
 
         if (editorialAccount) {
-          editorialAccount.hidden = false;
+          (editorialAccount as HTMLElement).hidden = false;
         }
-
 
         // Reveal the dashboard only after permission checks succeed.
         workspace.hidden = false;
@@ -256,7 +308,6 @@ const description = "The DraftLaw Research editorial workspace.";
       } catch (error) {
         console.error("Dashboard loading failed:", error);
 
-        // Keep the dashboard hidden if permission verification fails.
         workspace.hidden = true;
         status.hidden = false;
         status.textContent =
@@ -274,7 +325,6 @@ const description = "The DraftLaw Research editorial workspace.";
       justify-content: space-between;
       gap: 1.5rem;
     }
-
 
     .dashboard-heading {
       padding-top: 2rem;
