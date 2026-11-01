@@ -173,7 +173,6 @@ export const prerender = true;
   }
 </script>
 
-
 <style>
   * {
     box-sizing: border-box;
@@ -258,7 +257,12 @@ export const prerender = true;
     line-height: 1.6;
   }
 
-  /* Activity list — notification-inspired styling */
+  /* =========================================
+     ACTIVITY LIST
+     Notification-inspired styling.
+     JavaScript-created elements use :global()
+     so Astro applies these styles correctly.
+     ========================================= */
 
   .activity-list {
     display: flex;
@@ -267,26 +271,28 @@ export const prerender = true;
     padding: .35rem .7rem;
   }
 
-  .activity-item {
+  :global(.activity-item) {
+    display: block !important;
+    width: 100%;
     padding: 1rem;
     margin: 0;
     border: 0;
-    border-bottom: 1px solid rgba(182,157,115,.65);
+    border-bottom: 1px solid rgba(182,157,115,0.85) !important;
     border-radius: 0;
     background: transparent;
     transition: background .2s;
   }
 
-  .activity-item:last-child {
-    border-bottom: 0;
+  :global(.activity-item:last-child) {
+    border-bottom: 0 !important;
   }
 
-  .activity-item:hover {
+  :global(.activity-item:hover) {
     background: rgba(255,255,255,.055);
   }
 
-  .activity-meta,
-  .activity-bottom {
+  :global(.activity-meta),
+  :global(.activity-bottom) {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -294,19 +300,19 @@ export const prerender = true;
     gap: .6rem 1rem;
   }
 
-  .activity-author {
+  :global(.activity-author) {
     color: var(--accent, #c7b58b);
     font-size: .85rem;
     font-weight: 700;
   }
 
-  .activity-date,
-  .commit-id {
+  :global(.activity-date),
+  :global(.commit-id) {
     color: var(--muted, #aaa);
     font-size: .78rem;
   }
 
-  .activity-message {
+  :global(.activity-message) {
     margin: .75rem 0;
     color: var(--ink, #f5f5f5);
     font-size: .9rem;
@@ -315,16 +321,25 @@ export const prerender = true;
     overflow-wrap: anywhere;
   }
 
-  .activity-bottom a {
+  :global(.activity-bottom a) {
     color: var(--accent, #c7b58b);
     font-size: .82rem;
     text-decoration: none;
   }
 
-  .activity-bottom a:hover,
+  :global(.activity-bottom a:hover),
   .back-link:hover {
     text-decoration: underline;
   }
+
+  :global(.empty-state) {
+    color: var(--muted, #aaa);
+    line-height: 1.6;
+  }
+
+  /* =========================================
+     MOBILE
+     ========================================= */
 
   @media (max-width: 600px) {
     .activity-wrap {
@@ -335,8 +350,8 @@ export const prerender = true;
       align-items: flex-start;
     }
 
-    .activity-meta,
-    .activity-bottom {
+    :global(.activity-meta),
+    :global(.activity-bottom) {
       align-items: flex-start;
     }
 
@@ -344,9 +359,8 @@ export const prerender = true;
       padding-inline: 0;
     }
 
-    .activity-item {
+    :global(.activity-item) {
       padding: 1rem .65rem;
     }
   }
 </style>
-
