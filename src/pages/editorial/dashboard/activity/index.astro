@@ -173,6 +173,7 @@ export const prerender = true;
   }
 </script>
 
+
 <style>
   * {
     box-sizing: border-box;
@@ -257,16 +258,31 @@ export const prerender = true;
     line-height: 1.6;
   }
 
+  /* Activity list — notification-inspired styling */
+
   .activity-list {
-    display: grid;
-    gap: .85rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    padding: .35rem .7rem;
   }
 
   .activity-item {
-    padding: 1.2rem;
-    border: 1px solid rgba(255,255,255,.1);
-    border-radius: 12px;
-    background: rgba(255,255,255,.035);
+    padding: 1rem;
+    margin: 0;
+    border: 0;
+    border-bottom: 1px solid rgba(182,157,115,.65);
+    border-radius: 0;
+    background: transparent;
+    transition: background .2s;
+  }
+
+  .activity-item:last-child {
+    border-bottom: 0;
+  }
+
+  .activity-item:hover {
+    background: rgba(255,255,255,.055);
   }
 
   .activity-meta,
@@ -291,9 +307,11 @@ export const prerender = true;
   }
 
   .activity-message {
-    margin: 1rem 0;
-    font-size: 1rem;
-    line-height: 1.5;
+    margin: .75rem 0;
+    color: var(--ink, #f5f5f5);
+    font-size: .9rem;
+    font-weight: 500;
+    line-height: 1.55;
     overflow-wrap: anywhere;
   }
 
@@ -317,9 +335,18 @@ export const prerender = true;
       align-items: flex-start;
     }
 
-    .activity-meta {
+    .activity-meta,
+    .activity-bottom {
       align-items: flex-start;
-      flex-direction: column;
+    }
+
+    .activity-list {
+      padding-inline: 0;
+    }
+
+    .activity-item {
+      padding: 1rem .65rem;
     }
   }
 </style>
+
