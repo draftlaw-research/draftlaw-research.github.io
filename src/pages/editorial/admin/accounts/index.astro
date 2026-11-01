@@ -1,3 +1,4 @@
+
 ---
 import Editorial from "../../../../layouts/Editorial.astro";
 
@@ -14,6 +15,7 @@ const description = "Manage DraftLaw Research editorial accounts and permissions
           Create accounts and manage access to the editorial portal.
         </p>
       </div>
+
       <a class="back-button" href="/editorial/dashboard/">
         ← Dashboard
       </a>
@@ -47,7 +49,9 @@ const description = "Manage DraftLaw Research editorial accounts and permissions
                 autocomplete="off"
                 required
               />
-              <small>4–30 characters. Letters, numbers, dots, underscores and hyphens.</small>
+              <small>
+                4–30 characters. Letters, numbers, dots, underscores and hyphens.
+              </small>
             </label>
 
             <label>
@@ -61,7 +65,9 @@ const description = "Manage DraftLaw Research editorial accounts and permissions
                 autocomplete="new-password"
                 required
               />
-              <small>At least 12 characters. Share it securely with the account holder.</small>
+              <small>
+                At least 12 characters. Share it securely with the account holder.
+              </small>
             </label>
 
             <label>
@@ -90,6 +96,7 @@ const description = "Manage DraftLaw Research editorial accounts and permissions
               Review accounts and manage their content permissions.
             </p>
           </div>
+
           <button type="button" id="refresh-button" class="secondary-button">
             Refresh
           </button>
@@ -123,10 +130,8 @@ const description = "Manage DraftLaw Research editorial accounts and permissions
   };
 
   const MAX_PROFILE_IMAGE_SIZE = 200 * 1024;
+  const $ = selector => document.querySelector(selector);
 
-  const $ = (selector) => document.querySelector(selector);
-
-  let currentUser = null;
   let currentRole = null;
   let sections = [];
   let managedSections = [];
@@ -143,7 +148,9 @@ const description = "Manage DraftLaw Research editorial accounts and permissions
     const result = await response.json();
 
     if (!response.ok || !result.ok) {
-      throw new Error(result.message || "The request could not be completed.");
+      throw new Error(
+        result.message || "The request could not be completed."
+      );
     }
 
     return result;
@@ -167,8 +174,7 @@ const description = "Manage DraftLaw Research editorial accounts and permissions
     try {
       const auth = await requestJson("/api/auth/me");
 
-      currentUser = auth.user;
-      currentRole = currentUser.role;
+      currentRole = auth.user.role;
 
       if (!["admin", "moderator"].includes(currentRole)) {
         window.location.replace("/editorial/dashboard/");
@@ -179,11 +185,17 @@ const description = "Manage DraftLaw Research editorial accounts and permissions
 
       sections = result.sections || [];
       managedSections = result.managedSections || [];
-      users = result.users || [];
+
+      // Hide anonymised account records from the active directory.
+      users = (result.users || []).filter(
+        user => !user.username.startsWith("deleted-")
+      );
+
       permissions = result.permissions || [];
 
       if (currentRole === "admin") {
         $("#create-section").hidden = false;
+
         $("#access-description").textContent =
           "Manage editor and moderator accounts, content access and delegated authority.";
       } else {
@@ -204,16 +216,17 @@ const description = "Manage DraftLaw Research editorial accounts and permissions
   function createElement(tag, className, text) {
     const element = document.createElement(tag);
 
-    if (className) element.className = className;
-    if (text !== undefined) element.textContent = text;
+    if (className) {
+      element.className = className;
+    }
+
+    if (text !== undefined) {
+      element.textContent = text;
+    }
 
     return element;
   }
 
-  /*
-   * Compress oversized profile pictures in the browser.
-   * Images already within the limit are returned unchanged.
-   */
   async function compressProfileImage(file) {
     if (!file || !file.type.startsWith("image/")) {
       throw new Error("Please select a valid image.");
@@ -241,13 +254,13 @@ const description = "Manage DraftLaw Research editorial accounts and permissions
         throw new Error("Could not prepare the picture for compression.");
       }
 
-      // Keep transparency for PNG and WebP images.
-      // JPEG images remain JPEG.
       const outputType = file.type === "image/jpeg"
         ? "image/jpeg"
         : "image/webp";
 
-      const qualities = [0.94, 0.90, 0.86, 0.82, 0.78, 0.74, 0.70];
+      const qualities = [
+        0.94, 0.90, 0.86, 0.82, 0.78, 0.74, 0.70
+      ];
 
       let width = bitmap.width;
       let height = bitmap.height;
@@ -274,12 +287,12 @@ const description = "Manage DraftLaw Research editorial accounts and permissions
         });
       }
 
-      // First try reducing quality without changing dimensions.
       for (const quality of qualities) {
         const blob = await createCompressedBlob(quality);
 
         if (blob.size <= MAX_PROFILE_IMAGE_SIZE) {
-          const extension = outputType === "image/jpeg" ? "jpg" : "webp";
+          const extension =
+            outputType === "image/jpeg" ? "jpg" : "webp";
 
           return new File(
             [blob],
@@ -292,8 +305,6 @@ const description = "Manage DraftLaw Research editorial accounts and permissions
         }
       }
 
-      // If quality reduction alone is insufficient,
-      // gradually reduce dimensions while preserving aspect ratio.
       for (let attempt = 0; attempt < 10; attempt++) {
         width = Math.max(1, Math.round(width * 0.9));
         height = Math.max(1, Math.round(height * 0.9));
@@ -302,7 +313,8 @@ const description = "Manage DraftLaw Research editorial accounts and permissions
           const blob = await createCompressedBlob(quality);
 
           if (blob.size <= MAX_PROFILE_IMAGE_SIZE) {
-            const extension = outputType === "image/jpeg" ? "jpg" : "webp";
+            const extension =
+              outputType === "image/jpeg" ? "jpg" : "webp";
 
             return new File(
               [blob],
@@ -358,14 +370,14 @@ const description = "Manage DraftLaw Research editorial accounts and permissions
   function renderAccount(user) {
     const card = createElement("article", "account-card");
 
-    // Profile heading
     const heading = createElement("div", "account-heading");
     const profile = createElement("div", "editor-profile");
 
     const avatar = document.createElement("img");
     avatar.className = "editor-avatar";
     avatar.alt = user.display_name || user.username;
-    avatar.src = user.profile_image_url || "/images/default-avatar.png";
+    avatar.src =
+      user.profile_image_url || "/images/default-avatar.png";
 
     avatar.onerror = () => {
       avatar.style.display = "none";
@@ -405,7 +417,7 @@ const description = "Manage DraftLaw Research editorial accounts and permissions
     heading.append(profile, status);
     card.append(heading);
 
-    // Administrator-only profile editor
+    // Administrator-only profile editor.
     if (currentRole === "admin") {
       const editor = createElement("div", "profile-editor");
 
@@ -477,7 +489,8 @@ const description = "Manage DraftLaw Research editorial accounts and permissions
           if (selectedFile) {
             showStatus("Preparing profile picture...");
 
-            const compressedFile = await compressProfileImage(selectedFile);
+            const compressedFile =
+              await compressProfileImage(selectedFile);
 
             const formData = new FormData();
             formData.append("image", compressedFile);
@@ -497,6 +510,7 @@ const description = "Manage DraftLaw Research editorial accounts and permissions
             );
 
             profileImageUrl = upload.image;
+
           } else if (removeImage.checked) {
             profileImageUrl = null;
           }
@@ -522,6 +536,7 @@ const description = "Manage DraftLaw Research editorial accounts and permissions
 
         } catch (error) {
           showStatus(error.message, true);
+
         } finally {
           saveButton.disabled = false;
           saveButton.textContent = "Save profile";
@@ -539,18 +554,18 @@ const description = "Manage DraftLaw Research editorial accounts and permissions
       card.append(editor);
     }
 
-    // Existing content permissions
+    // Content permissions.
     const visibleSections = currentRole === "admin"
       ? sections
       : managedSections;
 
-    const permissionHeading = createElement(
-      "p",
-      "permission-heading",
-      "Content access"
+    card.append(
+      createElement(
+        "p",
+        "permission-heading",
+        "Content access"
+      )
     );
-
-    card.append(permissionHeading);
 
     if (visibleSections.length === 0) {
       card.append(
@@ -569,7 +584,6 @@ const description = "Manage DraftLaw Research editorial accounts and permissions
         createPermissionControl(
           user,
           section,
-          section,
           SECTION_LABELS[section] || section,
           false
         )
@@ -578,7 +592,7 @@ const description = "Manage DraftLaw Research editorial accounts and permissions
 
     card.append(grid);
 
-    // Existing moderator management permissions
+    // Moderator management permissions.
     if (currentRole === "admin" && user.role === "moderator") {
       card.append(
         createElement(
@@ -598,7 +612,6 @@ const description = "Manage DraftLaw Research editorial accounts and permissions
           createPermissionControl(
             user,
             `manage:${section}`,
-            `manage:${section}`,
             `Manage ${SECTION_LABELS[section] || section} access`,
             true
           )
@@ -608,7 +621,7 @@ const description = "Manage DraftLaw Research editorial accounts and permissions
       card.append(managementGrid);
     }
 
-    // Existing administrator account controls
+    // Administrator-only account actions.
     if (currentRole === "admin") {
       const actions = createElement("div", "account-actions");
 
@@ -626,7 +639,19 @@ const description = "Manage DraftLaw Research editorial accounts and permissions
         updateAccountStatus(user);
       });
 
-      actions.append(toggle);
+      const deleteButton = createElement(
+        "button",
+        "danger-button",
+        "Delete account"
+      );
+
+      deleteButton.type = "button";
+
+      deleteButton.addEventListener("click", () => {
+        deleteAccount(user, deleteButton);
+      });
+
+      actions.append(toggle, deleteButton);
       card.append(actions);
     }
 
@@ -635,7 +660,6 @@ const description = "Manage DraftLaw Research editorial accounts and permissions
 
   function createPermissionControl(
     user,
-    sectionKey,
     permissionKey,
     label,
     managementPermission
@@ -673,6 +697,7 @@ const description = "Manage DraftLaw Research editorial accounts and permissions
         );
 
         await refreshPermissions();
+
       } catch (error) {
         checkbox.checked = !checkbox.checked;
         showStatus(error.message, true);
@@ -694,7 +719,11 @@ const description = "Manage DraftLaw Research editorial accounts and permissions
 
     sections = result.sections || [];
     managedSections = result.managedSections || [];
-    users = result.users || [];
+
+    users = (result.users || []).filter(
+      user => !user.username.startsWith("deleted-")
+    );
+
     permissions = result.permissions || [];
 
     renderAccounts();
@@ -734,7 +763,61 @@ const description = "Manage DraftLaw Research editorial accounts and permissions
     }
   }
 
-  $("#create-form").addEventListener("submit", async (event) => {
+  async function deleteAccount(user, button) {
+    const firstConfirmation = window.confirm(
+      `PERMANENT ACCOUNT REMOVAL\n\n` +
+      `You are about to remove "${user.username}" (${user.role}).\n\n` +
+      `Their account access, profile information, sessions and section permissions will be removed.\n\n` +
+      `Their submitted articles, published content and activity history will be preserved.\n\n` +
+      `This action cannot be undone. Continue?`
+    );
+
+    if (!firstConfirmation) return;
+
+    const typedUsername = window.prompt(
+      `To confirm permanent removal, type this username exactly:\n\n${user.username}`
+    );
+
+    if (typedUsername !== user.username) {
+      showStatus(
+        "Account removal cancelled. The username confirmation did not match.",
+        true
+      );
+      return;
+    }
+
+    button.disabled = true;
+    button.textContent = "Removing...";
+
+    try {
+      const result = await requestJson(
+        "/api/admin/accounts",
+        {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            userId: user.id,
+            confirmUsername: typedUsername
+          })
+        }
+      );
+
+      showStatus(result.message || "Account removed successfully.");
+
+      await refreshPermissions();
+
+    } catch (error) {
+      showStatus(error.message, true);
+
+    } finally {
+      button.disabled = false;
+      button.textContent = "Delete account";
+    }
+  }
+
+  $("#create-form").addEventListener("submit", async event => {
     event.preventDefault();
 
     const button = $("#create-button");
@@ -754,7 +837,11 @@ const description = "Manage DraftLaw Research editorial accounts and permissions
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({ username, password, role })
+        body: JSON.stringify({
+          username,
+          password,
+          role
+        })
       });
 
       message.textContent = "Account created successfully.";
@@ -767,6 +854,7 @@ const description = "Manage DraftLaw Research editorial accounts and permissions
     } catch (error) {
       message.textContent = error.message;
       message.className = "form-message error";
+
     } finally {
       button.disabled = false;
       button.textContent = "Create account";
@@ -780,8 +868,10 @@ const description = "Manage DraftLaw Research editorial accounts and permissions
     try {
       await refreshPermissions();
       showStatus("Account list refreshed.");
+
     } catch (error) {
       showStatus(error.message, true);
+
     } finally {
       button.disabled = false;
     }
@@ -816,7 +906,8 @@ const description = "Manage DraftLaw Research editorial accounts and permissions
 
   .back-button,
   .secondary-button,
-  .primary-button {
+  .primary-button,
+  .danger-button {
     display: inline-block;
     border: 1px solid var(--accent);
     padding: 0.7rem 1rem;
@@ -836,6 +927,16 @@ const description = "Manage DraftLaw Research editorial accounts and permissions
   .back-button:hover,
   .secondary-button:hover {
     background: var(--accent-soft);
+  }
+
+  .danger-button {
+    border-color: #b42318;
+    background: #b42318;
+    color: #fff;
+  }
+
+  .danger-button:hover:not(:disabled) {
+    background: #8f1c13;
   }
 
   button:disabled {
@@ -921,14 +1022,24 @@ const description = "Manage DraftLaw Research editorial accounts and permissions
     color: #18794e;
   }
 
-  .account-list {
+  .account-list,
+  #account-list {
     display: grid;
-    gap: 1rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.25rem;
+    align-items: stretch;
   }
 
   .account-card {
-    padding: 1.2rem;
-    border: 1px solid var(--rule);
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    min-width: 0;
+    padding: 1.25rem;
+    border: 1px solid #555;
+    border-radius: 4px;
+    background: #171717;
   }
 
   .editor-profile {
@@ -941,76 +1052,46 @@ const description = "Manage DraftLaw Research editorial accounts and permissions
   .editor-avatar {
     width: 76px;
     height: 76px;
-    flex-shrink: 0;
+    min-width: 76px;
     border-radius: 50%;
     object-fit: cover;
     background: var(--accent-soft);
     border: 1px solid var(--rule);
   }
 
-  .editor-username {
-    color: var(--muted);
-    font-size: 0.82rem;
-  }
-
-  .profile-editor {
-    display: grid;
-    gap: 0.85rem;
-    padding: 1rem 0;
-    border-bottom: 1px solid var(--rule);
-  }
-
-  .profile-field {
-    display: grid;
-    gap: 0.4rem;
-    font-size: 0.85rem;
-    font-weight: 600;
-  }
-
-  .profile-field input {
-    box-sizing: border-box;
-    width: 100%;
-    padding: 0.7rem;
-    border: 1px solid var(--rule);
-    background: transparent;
-    color: inherit;
-    font: inherit;
-  }
-
-  .profile-remove {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.82rem;
-    font-weight: 400;
-  }
-
   .account-heading {
     display: flex;
-    justify-content: space-between;
     align-items: flex-start;
+    justify-content: space-between;
     gap: 1rem;
     padding-bottom: 1rem;
-    border-bottom: 1px solid var(--rule);
+    border-bottom: 1px solid #444;
   }
 
   .account-identity {
     display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.65rem;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.4rem;
+    min-width: 0;
   }
 
   .account-identity h3 {
     margin: 0;
+    overflow-wrap: anywhere;
     font-size: 1.1rem;
+  }
+
+  .editor-username {
+    color: #aaa;
+    font-size: 0.82rem;
   }
 
   .role-label,
   .account-status {
     padding: 0.25rem 0.5rem;
-    font-size: 0.72rem;
     border: 1px solid var(--rule);
+    font-size: 0.72rem;
   }
 
   .account-status.active {
@@ -1021,8 +1102,51 @@ const description = "Manage DraftLaw Research editorial accounts and permissions
     color: #b42318;
   }
 
+  .profile-editor {
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #444;
+  }
+
+  .profile-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+
+  .profile-field input {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    padding: 0.7rem;
+    border: 1px solid var(--rule);
+    background: transparent;
+    color: inherit;
+    font: inherit;
+  }
+
+  .profile-field input[type="file"] {
+    font-size: 0.8rem;
+  }
+
+  .profile-remove {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.82rem;
+    font-weight: 400;
+  }
+
+  .profile-editor button {
+    align-self: flex-start;
+  }
+
   .permission-heading {
-    margin: 1.2rem 0 0.7rem;
+    margin: 0.5rem 0;
     font-size: 0.86rem;
     font-weight: 700;
   }
@@ -1034,7 +1158,7 @@ const description = "Manage DraftLaw Research editorial accounts and permissions
 
   .permission-grid {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: 1fr;
     gap: 0.55rem;
   }
 
@@ -1043,9 +1167,10 @@ const description = "Manage DraftLaw Research editorial accounts and permissions
     align-items: flex-start;
     gap: 0.65rem;
     padding: 0.65rem;
-    border: 1px solid var(--rule);
+    border: 1px solid #444;
+    border-radius: 3px;
     font-size: 0.82rem;
-    line-height: 1.45;
+    line-height: 1.4;
     cursor: pointer;
   }
 
@@ -1065,10 +1190,12 @@ const description = "Manage DraftLaw Research editorial accounts and permissions
 
   .account-actions {
     display: flex;
+    flex-wrap: wrap;
     justify-content: flex-end;
+    gap: 0.65rem;
     margin-top: auto;
     padding-top: 1rem;
-    border-top: 1px solid var(--rule);
+    border-top: 1px solid #444;
   }
 
   .empty-state {
@@ -1084,128 +1211,8 @@ const description = "Manage DraftLaw Research editorial accounts and permissions
     line-height: 1.6;
   }
 
-  /* Individual account cards */
-  #account-list {
-    display: grid !important;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 1.25rem !important;
-    align-items: stretch;
-  }
-
-  .account-card {
-    box-sizing: border-box;
-    border: 1px solid #555 !important;
-    background: #171717 !important;
-    padding: 1.25rem !important;
-    border-radius: 4px;
-    display: flex;
-    flex-direction: column;
-    gap: 1rem !important;
-    min-width: 0;
-  }
-
-  .account-heading {
-    display: flex;
-    align-items: flex-start;
-    gap: 1rem;
-    padding-bottom: 1rem;
-    border-bottom: 1px solid #444;
-  }
-
-  .editor-profile {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    min-width: 0;
-  }
-
-  .editor-avatar {
-    width: 76px;
-    height: 76px;
-    min-width: 76px;
-    border-radius: 50%;
-    object-fit: cover;
-  }
-
-  .account-identity {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.4rem;
-    min-width: 0;
-  }
-
-  .account-identity h3 {
-    margin: 0;
-    overflow-wrap: anywhere;
-  }
-
-  .editor-username {
-    font-size: 0.82rem;
-    color: #aaa;
-  }
-
-  .profile-editor {
-    display: flex;
-    flex-direction: column;
-    gap: 0.9rem;
-    padding-bottom: 1rem;
-    border-bottom: 1px solid #444;
-  }
-
-  .profile-field {
-    display: flex;
-    flex-direction: column;
-    gap: 0.45rem;
-  }
-
-  .profile-field input {
-    box-sizing: border-box;
-    width: 100%;
-    max-width: 100%;
-  }
-
-  .profile-field input[type="file"] {
-    font-size: 0.8rem;
-  }
-
-  .profile-remove {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-
-  .profile-editor button {
-    align-self: flex-start;
-  }
-
-  .permission-heading {
-    margin: 0.5rem 0;
-  }
-
-  .permission-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 0.55rem;
-  }
-
-  .permission-control {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.65rem;
-    padding: 0.65rem;
-    border: 1px solid #444;
-    border-radius: 3px;
-    line-height: 1.4;
-  }
-
-  .account-actions {
-    margin-top: auto;
-    padding-top: 1rem;
-    border-top: 1px solid #444;
-  }
-
   @media (max-width: 900px) {
+    .account-list,
     #account-list {
       grid-template-columns: 1fr;
     }
@@ -1225,6 +1232,14 @@ const description = "Manage DraftLaw Research editorial accounts and permissions
 
     .panel {
       padding: 1rem;
+    }
+
+    .account-actions {
+      justify-content: stretch;
+    }
+
+    .account-actions button {
+      flex: 1 1 100%;
     }
   }
 </style>
@@ -1345,6 +1360,9 @@ const description = "Manage DraftLaw Research editorial accounts and permissions
   }
 
   .account-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.65rem;
     margin-top: auto;
     padding-top: 1rem;
     border-top: 1px solid #444;
