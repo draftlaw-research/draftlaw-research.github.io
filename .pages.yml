@@ -222,6 +222,34 @@ content:
       - { name: website, label: Website link (optional), type: string }
       - { name: body, label: Short bio, type: rich-text, options: { media: false } }
 
+
+  # ------------------------------------------------------------------ Advisors
+  - name: advisors
+    label: Advisors
+    type: collection
+    path: src/content/advisors
+    filename: '{primary}.md'
+    view:
+      fields: [name, position, occupation, affiliation]
+      primary: name
+      sort: [order, name]
+    fields:
+      - { name: name, label: Full name, type: string, required: true }
+      - { name: position, label: Position as Advisor, type: string, required: true }
+      - { name: occupation, label: Professional capacity or occupation, type: string }
+      - { name: affiliation, label: University or organisation, type: string }
+      - name: photo
+        label: Photo (square image works best)
+        type: image
+        options: { path: src/assets/advisors }
+      - { name: order, label: Order on the About page (smaller numbers come first), type: number }
+      - { name: linkedin, label: LinkedIn link (optional), type: string }
+      - { name: facebook, label: Facebook link (optional), type: string }
+      - { name: instagram, label: Instagram link (optional), type: string }
+      - { name: website, label: Website link (optional), type: string }
+      - { name: body, label: Professional biography, type: rich-text, options: { media: false } }
+
+
   # -------------------------------------------------------------- Newsletter
   - name: newsletter
     label: Newsletter items
