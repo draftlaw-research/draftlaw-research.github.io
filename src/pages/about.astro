@@ -1,9 +1,16 @@
+
 ---
 import Base from '../layouts/Base.astro';
 import Avatar from '../components/Avatar.astro';
-import { getTeam, getStudentCollaborators, teamUrl } from '../lib/content';
+import {
+  getTeam,
+  getStudentCollaborators,
+  getAdvisors,
+  teamUrl,
+} from '../lib/content';
 import { SITE } from '../config';
 
+const advisors = await getAdvisors();
 const team = await getTeam();
 const students = await getStudentCollaborators();
 ---
@@ -21,8 +28,8 @@ const students = await getStudentCollaborators();
 
     <div class="page-text">
       <p>
-       DraftLaw Research connects aspiring legal scholars, experienced researchers, and contributors from around the world to make legal scholarship more accessible, 
-       collaborative, and inclusive. Through research mentorship and open academic publishing, we help emerging voices develop their ideas, strengthen their skills, and contribute to legal debates.
+        DraftLaw Research connects aspiring legal scholars, experienced researchers, and contributors from around the world to make legal scholarship more accessible,
+        collaborative, and inclusive. Through research mentorship and open academic publishing, we help emerging voices develop their ideas, strengthen their skills, and contribute to legal debates.
       </p>
 
       <h2>Our mission</h2>
@@ -38,32 +45,51 @@ const students = await getStudentCollaborators();
 
       <h2>Who we work with</h2>
       <p>
-        From Asia and Africa to Europe and beyond, we welcome students, mentors, researchers, and contributors from every jurisdiction and academic background. 
+        From Asia and Africa to Europe and beyond, we welcome students, mentors, researchers, and contributors from every jurisdiction and academic background.
         Although based in Sweden, DraftLaw Research works across borders to foster collaboration, exchange ideas, and broaden participation in legal scholarship.
       </p>
 
       <h2>Our belief</h2>
       <p>
-        Academic potential is everywhere, but access to mentorship and publishing opportunities is not. 
+        Academic potential is everywhere, but access to mentorship and publishing opportunities is not.
         We are building a community where curiosity is encouraged, knowledge is shared, and promising ideas can grow into meaningful scholarship.
-        
-        Whether you are a student taking your first steps into research, an experienced scholar ready to mentor, 
+
+        Whether you are a student taking your first steps into research, an experienced scholar ready to mentor,
         or a contributor with an idea worth sharing, there is a place for you at DraftLaw Research.
       </p>
     </div>
 
-    {team.length > 0 && (
-      <section class="section" id="team" style="padding-top:0" aria-labelledby="team-h">
-        <div class="section-head"><h2 id="team-h">Our team</h2></div>
+    <!-- OUR ADVISORS -->
+    {advisors.length > 0 && (
+      <section
+        class="section"
+        id="advisors"
+        style="padding-top:0"
+        aria-labelledby="advisors-h"
+      >
+        <div class="section-head">
+          <h2 id="advisors-h">Our Advisors</h2>
+        </div>
+
         <div class="team-grid">
-          {team.map((m) => (
-            <a class="team-card" href={teamUrl(m)}>
+          {advisors.map((m) => (
+            <a
+              class="team-card"
+              href={`/advisors/${m.id}/`}
+            >
               <Avatar name={m.data.name} photo={m.data.photo} />
+
               <div>
                 <h3>{m.data.name}</h3>
                 <p class="position">{m.data.position}</p>
-                {m.data.occupation && <p class="sub">{m.data.occupation}</p>}
-                {m.data.affiliation && <p class="sub">{m.data.affiliation}</p>}
+
+                {m.data.occupation && (
+                  <p class="sub">{m.data.occupation}</p>
+                )}
+
+                {m.data.affiliation && (
+                  <p class="sub">{m.data.affiliation}</p>
+                )}
               </div>
             </a>
           ))}
@@ -71,39 +97,86 @@ const students = await getStudentCollaborators();
       </section>
     )}
 
+    <!-- OUR TEAM -->
+    {team.length > 0 && (
+      <section
+        class="section"
+        id="team"
+        style="padding-top:0"
+        aria-labelledby="team-h"
+      >
+        <div class="section-head">
+          <h2 id="team-h">Our Team</h2>
+        </div>
 
-{students.length > 0 && (
-  <section
-    class="section"
-    id="student-collaborators"
-    style="padding-top:0"
-    aria-labelledby="student-collaborators-h"
-  >
-    <div class="section-head">
-      <h2 id="student-collaborators-h">Our Student Collaborators</h2>
-    </div>
-    <div class="team-grid">
-  {students.map((m) => (
-    <a class="team-card" href={`/student-collaborators/${m.id}/`}>
-      <Avatar name={m.data.name} photo={m.data.photo} />
-      <div>
-        <h3>{m.data.name}</h3>
-        <p class="position">{m.data.position}</p>
-        {m.data.occupation && <p class="sub">{m.data.occupation}</p>}
-        {m.data.affiliation && <p class="sub">{m.data.affiliation}</p>}
-      </div>
-    </a>
-  ))}
-</div>
-  </section>
-)}
+        <div class="team-grid">
+          {team.map((m) => (
+            <a class="team-card" href={teamUrl(m)}>
+              <Avatar name={m.data.name} photo={m.data.photo} />
 
+              <div>
+                <h3>{m.data.name}</h3>
+                <p class="position">{m.data.position}</p>
 
+                {m.data.occupation && (
+                  <p class="sub">{m.data.occupation}</p>
+                )}
+
+                {m.data.affiliation && (
+                  <p class="sub">{m.data.affiliation}</p>
+                )}
+              </div>
+            </a>
+          ))}
+        </div>
+      </section>
+    )}
+
+    <!-- OUR STUDENT COLLABORATORS -->
+    {students.length > 0 && (
+      <section
+        class="section"
+        id="student-collaborators"
+        style="padding-top:0"
+        aria-labelledby="student-collaborators-h"
+      >
+        <div class="section-head">
+          <h2 id="student-collaborators-h">Our Student Collaborators</h2>
+        </div>
+
+        <div class="team-grid">
+          {students.map((m) => (
+            <a
+              class="team-card"
+              href={`/student-collaborators/${m.id}/`}
+            >
+              <Avatar name={m.data.name} photo={m.data.photo} />
+
+              <div>
+                <h3>{m.data.name}</h3>
+                <p class="position">{m.data.position}</p>
+
+                {m.data.occupation && (
+                  <p class="sub">{m.data.occupation}</p>
+                )}
+
+                {m.data.affiliation && (
+                  <p class="sub">{m.data.affiliation}</p>
+                )}
+              </div>
+            </a>
+          ))}
+        </div>
+      </section>
+    )}
+
+    <!-- GET INVOLVED -->
     <div class="page-text" style="padding-top:0">
       <h2 id="contact">Get involved</h2>
       <p>
-        Want to join as a mentor, co-author, or blog contributor? See our <a href="/programs/">programs</a> and{' '}
-        <a href="/submit/">submission guidelines</a>, or reach out at{' '}
+        Want to join as a mentor, co-author, or blog contributor? See our
+        <a href="/programs/">programs</a> and
+        <a href="/submit/">submission guidelines</a>, or reach out at
         <a href={`mailto:${SITE.email}`}>{SITE.email}</a> or through our social media accounts.
       </p>
     </div>
