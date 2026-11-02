@@ -8,6 +8,7 @@ export type Topic = CollectionEntry<'topics'>;
 export type Author = CollectionEntry<'authors'>;
 export type TeamMember = CollectionEntry<'team'>;
 export type StudentCollaborator = CollectionEntry<'studentCollaborators'>;
+export type Advisor = CollectionEntry<'advisors'>;
 export type Program = CollectionEntry<'programs'>;
 export type Announcement = CollectionEntry<'announcements'>;
 export type NewsItem = CollectionEntry<'newsletter'>;
@@ -171,6 +172,17 @@ export async function getStudentCollaborators(): Promise<StudentCollaborator[]> 
       a.data.name.localeCompare(b.data.name),
   );
 }
+
+export async function getAdvisors(): Promise<Advisor[]> {
+  const advisors = await getCollection('advisors');
+
+  return advisors.sort(
+    (a, b) =>
+      (a.data.order ?? 99) - (b.data.order ?? 99) ||
+      a.data.name.localeCompare(b.data.name),
+  );
+}
+
 export async function getPrograms(): Promise<Program[]> {
   const programs = await getCollection('programs');
   return programs.sort((a, b) => (a.data.order ?? 99) - (b.data.order ?? 99) || a.data.title.localeCompare(b.data.title));
