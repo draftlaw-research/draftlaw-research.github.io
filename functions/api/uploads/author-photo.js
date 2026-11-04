@@ -1,6 +1,6 @@
 
 const REPOSITORY = "draftlaw-research/draftlaw-research.github.io";
-const BRANCH = "editorial-portal-development";
+const BRANCH = "main";
 const MAX_FILE_SIZE = 200 * 1024;
 const GITHUB_TIMEOUT = 30000;
 
