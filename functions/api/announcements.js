@@ -1,6 +1,6 @@
 
 const REPOSITORY = 'draftlaw-research/draftlaw-research.github.io';
-const BRANCH = 'editorial-portal-development';
+const BRANCH = "main";
 const CONTENT_PATH = 'src/content/announcements';
 const PROGRAMS_PATH = 'src/content/programs';
 
