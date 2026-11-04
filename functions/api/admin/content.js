@@ -1,6 +1,6 @@
 
 const REPOSITORY = "draftlaw-research/draftlaw-research.github.io";
-const BRANCH = "editorial-portal-development";
+const BRANCH = "main";
 const API = `https://api.github.com/repos/${REPOSITORY}`;
 
 const COLLECTIONS = {
