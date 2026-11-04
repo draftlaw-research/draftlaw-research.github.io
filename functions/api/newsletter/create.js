@@ -1,6 +1,6 @@
 
 const REPOSITORY = "draftlaw-research/draftlaw-research.github.io";
-const BRANCH = "editorial-portal-development";
+const BRANCH = "main";
 
 const CATEGORIES = [
   "Call for papers",
