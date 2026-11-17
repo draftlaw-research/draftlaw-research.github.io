@@ -69,6 +69,25 @@ function makeSlug(title) {
   return slug || `article-${crypto.randomUUID().slice(0, 8)}`;
 }
 
+function removeInlineColorStyles(markdown) {
+  return String(markdown || "").replace(
+    /\sstyle=(["'])(.*?)\1/gi,
+    (_match, quote, styles) => {
+      const remainingStyles = styles
+        .split(";")
+        .map(style => style.trim())
+        .filter(style =>
+          style &&
+          !/^(color|background-color)\s*:/i.test(style)
+        );
+
+      return remainingStyles.length
+        ? ` style=${quote}${remainingStyles.join("; ")}${quote}`
+        : "";
+    }
+  );
+}
+
 function makeMarkdown(content) {
   const lines = [
     "---",
@@ -102,7 +121,7 @@ function makeMarkdown(content) {
     `peerReviewed: ${content.peerReviewed !== false}`,
     "---",
     "",
-    content.body || ""
+    removeInlineColorStyles(content.body || "")
   );
 
   return lines.join("\n");
