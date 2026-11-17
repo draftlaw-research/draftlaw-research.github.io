@@ -1637,21 +1637,8 @@ details.past summary {
 .prose h6 * {
   color: var(--ink) !important;
 }
-/* Fix article content colours on the dark theme */
-.article-content,
-.article-content p,
-.article-content h1,
-.article-content h2,
-.article-content h3,
-.article-content h4,
-.article-content li,
-.article-content blockquote,
-.article-content span,
-.article-content strong,
-.article-content em {
-  color: #ece7dd !important;
-}
 
-.article-content a {
-  color: #c5a46d !important;
+/* Ensure article text follows the website colour scheme */
+.prose [style*="color"] {
+  color: inherit !important;
 }
