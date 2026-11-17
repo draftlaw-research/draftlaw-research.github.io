@@ -4,7 +4,7 @@ country: Nigeria
 occupation: Undergraduate Student in Law
 affiliation: University of Benin
 photo: /src/assets/country-ambassadors/angel.jpg
-order: -35
+order: 14
 linkedin: https://www.linkedin.com/in/angel-edeipo-0b1074444
 facebook: " https://www.facebook.com/share/1FF4hSHkuU/"
 instagram: https://www.instagram.com/aedeipo
