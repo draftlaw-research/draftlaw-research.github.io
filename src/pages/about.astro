@@ -6,6 +6,7 @@ import {
   getTeam,
   getStudentCollaborators,
   getAdvisors,
+  getCountryAmbassadors,
   teamUrl,
 } from '../lib/content';
 import { SITE } from '../config';
@@ -13,6 +14,7 @@ import { SITE } from '../config';
 const advisors = await getAdvisors();
 const team = await getTeam();
 const students = await getStudentCollaborators();
+const ambassadors = await getCountryAmbassadors();
 ---
 
 <Base title="About" description={SITE.description}>
@@ -117,6 +119,45 @@ const students = await getStudentCollaborators();
               <div>
                 <h3>{m.data.name}</h3>
                 <p class="position">{m.data.position}</p>
+
+                {m.data.occupation && (
+                  <p class="sub">{m.data.occupation}</p>
+                )}
+
+                {m.data.affiliation && (
+                  <p class="sub">{m.data.affiliation}</p>
+                )}
+              </div>
+            </a>
+          ))}
+        </div>
+      </section>
+    )}
+
+    <!-- COUNTRY AMBASSADORS -->
+    {ambassadors.length > 0 && (
+      <section
+        class="section"
+        id="country-ambassadors"
+        style="padding-top:0"
+        aria-labelledby="country-ambassadors-h"
+      >
+        <div class="section-head">
+          <h2 id="country-ambassadors-h">Country Ambassadors</h2>
+        </div>
+
+        <div class="team-grid">
+          {ambassadors.map((m) => (
+            <a
+              class="team-card"
+              href={`/country-ambassadors/${m.id}/`}
+            >
+              <Avatar name={m.data.name} photo={m.data.photo} />
+
+              <div>
+                <h3>{m.data.name}</h3>
+                <p class="position">Country Ambassador</p>
+                <p class="sub">{m.data.country}</p>
 
                 {m.data.occupation && (
                   <p class="sub">{m.data.occupation}</p>
