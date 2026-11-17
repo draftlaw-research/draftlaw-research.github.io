@@ -139,6 +139,28 @@ const advisors = defineCollection({
 });
 
 
+// Country Ambassadors, displayed on the About page
+// and given individual profile pages.
+const countryAmbassadors = defineCollection({
+  loader: glob({
+    pattern: '*.md',
+    base: './src/content/country-ambassadors',
+  }),
+  schema: z.object({
+    name: z.string(),
+    country: z.string(),
+    occupation: optText,
+    affiliation: optText,
+    photo: optText,
+    order: optNumber,
+    linkedin: optUrl,
+    facebook: optUrl,
+    instagram: optUrl,
+    website: optUrl,
+  }),
+});
+
+
 // A programme DraftLaw Research runs. The text below the top lines is the full description.
 const programs = defineCollection({
   loader: glob({ pattern: '*.md', base: './src/content/programs' }),
@@ -198,6 +220,7 @@ export const collections = {
   team,
   studentCollaborators,
   advisors,
+  countryAmbassadors,
   programs,
   announcements,
   newsletter,
