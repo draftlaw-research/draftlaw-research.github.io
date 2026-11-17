@@ -6,6 +6,8 @@ affiliation: "University of Nairobi School of Law "
 photo: /src/assets/country-ambassadors/maroa.png
 order: 6
 linkedin: https://www.linkedin.com/in/veronica-boke-b74b9a404?
+facebook: " https://www.facebook.com/profile.php?id=61569435455004"
+instagram: https://www.instagram.com/vero3818nica
 ---
 **Maroa Veronica Boke** is an undergraduate law student at the University of Nairobi, Kenya, with a strong interest in legal research, academic writing and the advancement of justice through the law. She is passionate about constitutional law, human rights, international law, public policy, and emerging legal issues, particularly the intersection of technology, artificial intelligence and human rights.
 
